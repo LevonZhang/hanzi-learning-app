@@ -1,0 +1,54 @@
+{
+    "expo": {
+      "name": "字学堂",
+      "slug": "hanzi-learning",
+      "version": "1.0.0",
+      "orientation": "portrait",
+      "icon": "./assets/icon.png",
+      "userInterfaceStyle": "light",
+      "newArchEnabled": true,
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      },
+      "ios": {
+        "bundleIdentifier": "com.itlongbow.hanzilearning",
+        "buildNumber": "1.0.0",
+        "supportsTablet": true,
+        "infoPlist": {
+          "ITSAppUsesNonExemptEncryption": false
+        }
+      },
+      "android": {
+        "package": "com.itlongbow.hanzilearning",
+        "versionCode": 1,
+        "adaptiveIcon": {
+          "foregroundImage": "./assets/icon.png",
+          "backgroundColor": "#ffffff"
+        },
+        "permissions": [
+          "RECORD_AUDIO",
+          "CAMERA",
+          "READ_EXTERNAL_STORAGE",
+          "WRITE_EXTERNAL_STORAGE"
+        ]
+      },
+      "plugins": [
+        ["expo-sqlite", {
+          "experimental": {
+            "sqlite3": true
+          }
+        }]
+      ],
+      "assetBundlePatterns": [
+        "**/*"
+      ],
+      "extra": {
+        "eas": {
+          "projectId": "c8ee183d-cfc2-4ff1-8f46-c7e62b57cb80"
+        }
+      }
+    }
+  }
+  

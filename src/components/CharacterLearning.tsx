@@ -1,7 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { AntDesign, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface Props {
   character: string;
@@ -10,6 +10,16 @@ interface Props {
 
 export const CharacterLearning = ({ character, onComplete }: Props) => {
   const webViewRef = useRef(null);
+
+  useEffect(() => {
+    // 当字符改变时重新初始化
+    if (webViewRef.current) {
+      webViewRef.current.postMessage(JSON.stringify({
+        type: 'init',
+        character
+      }));
+    }
+  }, [character]);
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -64,6 +74,7 @@ export const CharacterLearning = ({ character, onComplete }: Props) => {
                 charColor: '#666666'
               });
 
+              startAnimation();
               return writer;
             } catch (error) {
               console.error('Error:', error);
@@ -120,7 +131,6 @@ export const CharacterLearning = ({ character, onComplete }: Props) => {
               const { type, character } = JSON.parse(event.data);
               if (type === 'init') {
                 initWriter(character);
-                startAnimation();
               } else if (type === 'animate') {
                 startAnimation();
               } else if (type === 'quiz') {
@@ -177,10 +187,12 @@ export const CharacterLearning = ({ character, onComplete }: Props) => {
           <TouchableOpacity 
             style={[styles.button, styles.demonstrateButton]}
             onPress={() => {
-              webViewRef.current?.postMessage(JSON.stringify({
-                type: 'animate',
-                character
-              }));
+              if (webViewRef.current) {
+                webViewRef.current.postMessage(JSON.stringify({
+                  type: 'animate',
+                  character
+                }));
+              }
             }}
           >
             <MaterialCommunityIcons name="pencil-box-multiple" size={24} color="white" />
@@ -190,10 +202,12 @@ export const CharacterLearning = ({ character, onComplete }: Props) => {
           <TouchableOpacity 
             style={[styles.button, styles.practiceButton]}
             onPress={() => {
-              webViewRef.current?.postMessage(JSON.stringify({
-                type: 'quiz',
-                character
-              }));
+              if (webViewRef.current) {
+                webViewRef.current.postMessage(JSON.stringify({
+                  type: 'quiz',
+                  character
+                }));
+              }
             }}
           >
             <MaterialCommunityIcons name="pencil-outline" size={24} color="white" />

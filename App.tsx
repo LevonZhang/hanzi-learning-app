@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { MainLearningScreen } from './src/screens/MainLearningScreen';
+import { LearningScreen } from './src/screens/LearningScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -10,9 +10,18 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen 
-          name="MainLearning" 
-          component={MainLearningScreen}
-          options={{ title: '汉字学习' }}
+          name="Learning" 
+          component={LearningScreen}
+          options={{ 
+            title: '字学堂',
+            headerStyle: {
+              backgroundColor: '#007AFF',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -3,6 +3,16 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CharacterLearning } from '../components/CharacterLearning';
 import { LearningManager } from '../services/LearningManager';
 
+interface Character {
+  character: string;
+  pinyin: string[];
+  meanings?: {
+    zh?: string[];
+    en?: string[];
+    ja?: string[];
+  };
+}
+
 interface LearningState {
   newWords: any[];
   reviewWords: any[];
@@ -113,26 +123,83 @@ export const LearningScreen = () => {
         </Text>
       </View>
 
+      <View style={styles.characterInfo}>
+        <View style={styles.characterHeader}>
+          <Text style={styles.characterText}>{state.currentWord.character}</Text>
+          <View style={styles.pinyinContainer}>
+            {state.currentWord?.pinyin?.map((pin, index) => (
+              <View key={index} style={styles.pinyinItem}>
+                <Text style={styles.pinyinText}>{pin}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.meaningsContainer}>
+          {state.currentWord?.meanings?.zh && (
+            <View style={styles.meaningSection}>
+              <Text style={styles.meaningTitle}>中文释义:</Text>
+              {state.currentWord.meanings.zh.map((meaning, index) => (
+                <Text key={index} style={styles.meaningText}>• {meaning}</Text>
+              ))}
+            </View>
+          )}
+
+          {state.currentWord?.meanings?.en && (
+            <View style={styles.meaningSection}>
+              <Text style={styles.meaningTitle}>英文释义:</Text>
+              {state.currentWord.meanings.en.map((meaning, index) => (
+                <Text key={index} style={styles.meaningText}>• {meaning}</Text>
+              ))}
+            </View>
+          )}
+          
+          {state.currentWord?.meanings?.ja && (
+            <View style={styles.meaningSection}>
+              <Text style={styles.meaningTitle}>日文释义:</Text>
+              {state.currentWord.meanings.ja.map((meaning, index) => (
+                <Text key={index} style={styles.meaningText}>• {meaning}</Text>
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+
       <CharacterLearning
         character={state.currentWord.character}
-        onComplete={() => {}}  // 不自动标记为正确
+        onComplete={handleComplete}
       />
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: '#4CAF50' }]}
-          onPress={() => handleComplete(true)}
-        >
-          <Text style={styles.buttonText}>认识</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: '#FF4444' }]}
-          onPress={() => handleComplete(false)}
-        >
-          <Text style={styles.buttonText}>不认识</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity 
+        style={styles.nextButton}
+        onPress={() => {
+          const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
+          const currentIndex = currentList.findIndex(w => w.character === state.currentWord.character);
+          
+          if (currentIndex < currentList.length - 1) {
+            // 还有下一个字
+            setState(prev => ({
+              ...prev,
+              currentWord: currentList[currentIndex + 1]
+            }));
+          } else if (!state.isReviewMode && state.reviewWords.length > 0) {
+            // 新字学完了，开始复习
+            setState(prev => ({
+              ...prev,
+              isReviewMode: true,
+              currentWord: state.reviewWords[0]
+            }));
+          } else {
+            // 全部完成
+            setState(prev => ({
+              ...prev,
+              currentWord: null
+            }));
+          }
+        }}
+      >
+        <Text style={styles.nextButtonText}>下一个</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -191,5 +258,71 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 10,
+  },
+  nextButton: {
+    backgroundColor: '#5B7B9E',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+    marginHorizontal: 20,
+    width: 100,
+    alignSelf: 'center',
+  },
+  nextButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  characterInfo: {
+    marginVertical: 10,
+    padding: 15,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 10,
+  },
+  characterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    gap: 15,
+  },
+  characterText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  pinyinContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    flex: 1,
+    gap: 8,
+  },
+  pinyinItem: {
+    backgroundColor: '#5B7B9E',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  pinyinText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  meaningsContainer: {
+    gap: 15,
+  },
+  meaningSection: {
+    gap: 5,
+  },
+  meaningTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  meaningText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
   },
 }); 

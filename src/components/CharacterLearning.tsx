@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,24 +9,15 @@ interface Props {
 }
 
 export const CharacterLearning = ({ character, onComplete }: Props) => {
-  const webViewRef = useRef(null);
-
-  useEffect(() => {
-    // 当字符改变时重新初始化
-    if (webViewRef.current) {
-      webViewRef.current.postMessage(JSON.stringify({
-        type: 'init',
-        character
-      }));
-    }
-  }, [character]);
+  const webViewRef = useRef<WebView>(null);
+  const [isReady, setIsReady] = useState(false);
 
   const htmlContent = `
     <!DOCTYPE html>
     <html>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
+        <script src="https://fastly.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
         <style>
           body { 
             margin: 0; 
@@ -49,131 +40,107 @@ export const CharacterLearning = ({ character, onComplete }: Props) => {
           let writer = null;
           
           function initWriter(character) {
-            try {
-              if (typeof HanziWriter === 'undefined') {
-                throw new Error('HanziWriter library not loaded');
-              }
-              
-              if (writer) {
-                writer.quiz?.cancel();
-                writer.animateCharacter?.cancel();
-                writer = null;
-              }
-
-              writer = HanziWriter.create('character-target-div', character, {
-                width: 300,
-                height: 300,
-                padding: 5,
-                showOutline: true,
-                strokeAnimationSpeed: 1,
-                delayBetweenStrokes: 500,
-                showCharacter: false,
-                strokeColor: '#FF4444',
-                radicalColor: '#44FF44',
-                outlineColor: '#666666',
-                charColor: '#666666'
-              });
-
-              startAnimation();
-              return writer;
-            } catch (error) {
-              console.error('Error:', error);
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'error',
-                message: error.message
-              }));
-              return null;
+            if (writer) {
+              writer.quiz?.cancel();
+              writer.animateCharacter?.cancel();
+              writer = null;
             }
+
+            writer = HanziWriter.create('character-target-div', character, {
+              width: 300,
+              height: 300,
+              padding: 5,
+              showOutline: true,
+              strokeAnimationSpeed: 1,
+              delayBetweenStrokes: 500,
+              showCharacter: false,
+              strokeColor: '#FF4444',
+              outlineColor: '#666666',
+              charColor: '#666666'
+            });
+
+            return writer;
           }
 
           function startAnimation() {
-            if (writer) {
-              writer.quiz?.cancel();
-              writer.animateCharacter?.cancel();
-              writer.animateCharacter({
-                onComplete: () => {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'animationComplete'
-                  }));
-                }
-              });
+            if (!writer) {
+              writer = initWriter('${character}');
             }
+            writer.animateCharacter();
           }
 
           function startQuiz() {
-            if (writer) {
-              writer.quiz?.cancel();
-              writer.animateCharacter?.cancel();
-              writer.quiz({
-                showOutline: true,
-                highlightOnComplete: true,
-                showCharacter: true,
-                strokeHighlightSpeed: 2,
-                drawingWidth: 12,
-                showHintAfterMisses: 3,
-                onComplete: () => {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'quizComplete'
-                  }));
-                },
-                onMistake: (strokeData) => {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'quizMistake',
-                    strokeNumber: strokeData.strokeNum
-                  }));
-                }
-              });
+            if (!writer) {
+              writer = initWriter('${character}');
             }
+            writer.quiz({
+              showOutline: true,
+              highlightOnComplete: true,
+              showCharacter: true,
+              strokeHighlightSpeed: 2,
+              drawingWidth: 12,
+              showHintAfterMisses: 3,
+              onComplete: () => {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'quizComplete'
+                }));
+              }
+            });
           }
 
           window.addEventListener('message', (event) => {
-            try {
-              const { type, character } = JSON.parse(event.data);
-              if (type === 'init') {
-                initWriter(character);
-              } else if (type === 'animate') {
-                startAnimation();
-              } else if (type === 'quiz') {
-                startQuiz();
-              }
-            } catch (error) {
-              console.error('Error:', error);
+            const data = JSON.parse(event.data);
+            if (data.type === 'animate') {
+              startAnimation();
+            } else if (data.type === 'quiz') {
+              startQuiz();
             }
           });
 
-          window.addEventListener('load', () => {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'ready'
-            }));
-          });
+          // 初始化完成后通知 React Native
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         </script>
       </body>
     </html>
   `;
 
+  useEffect(() => {
+    if (isReady && webViewRef.current) {
+      // 初始化后自动开始演示笔画
+      webViewRef.current.postMessage(JSON.stringify({
+        type: 'init',
+        character
+      }));
+      
+      // 短暂延迟后开始动画，确保初始化完成
+      setTimeout(() => {
+        webViewRef.current?.postMessage(JSON.stringify({
+          type: 'animate'
+        }));
+      }, 500);
+    }
+  }, [character, isReady]);
+
   return (
     <View style={styles.container}>
-      <View style={styles.characterContainer}>
-        <Text style={styles.character}>{character}</Text>
-      </View>
-      
       <View style={styles.displayContainer}>
         <WebView
           ref={webViewRef}
           source={{ html: htmlContent }}
           style={styles.canvas}
+          originWhitelist={['*']}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          allowFileAccess={true}
+          allowUniversalAccessFromFileURLs={true}
+          mixedContentMode="always"
           onMessage={(event) => {
             try {
               const data = JSON.parse(event.nativeEvent.data);
               if (data.type === 'ready') {
-                webViewRef.current?.postMessage(JSON.stringify({
-                  type: 'init',
-                  character
-                }));
+                setIsReady(true);
               } else if (data.type === 'quizComplete') {
-                console.log('练习完成！');
-              } else if (data.type === 'quizMistake') {
-                console.log('笔画错误，请重试');
+                onComplete?.(true);
               }
             } catch (error) {
               console.error('Error:', error);
@@ -188,10 +155,7 @@ export const CharacterLearning = ({ character, onComplete }: Props) => {
             style={[styles.button, styles.demonstrateButton]}
             onPress={() => {
               if (webViewRef.current) {
-                webViewRef.current.postMessage(JSON.stringify({
-                  type: 'animate',
-                  character
-                }));
+                webViewRef.current.postMessage(JSON.stringify({ type: 'animate' }));
               }
             }}
           >
@@ -203,10 +167,7 @@ export const CharacterLearning = ({ character, onComplete }: Props) => {
             style={[styles.button, styles.practiceButton]}
             onPress={() => {
               if (webViewRef.current) {
-                webViewRef.current.postMessage(JSON.stringify({
-                  type: 'quiz',
-                  character
-                }));
+                webViewRef.current.postMessage(JSON.stringify({ type: 'quiz' }));
               }
             }}
           >
@@ -234,14 +195,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
     padding: 20,
-  },
-  characterContainer: {
-    marginBottom: 20,
-  },
-  character: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#333',
   },
   displayContainer: {
     width: width - 40,

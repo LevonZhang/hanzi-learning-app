@@ -17,7 +17,8 @@
         "buildNumber": "1.0.0",
         "supportsTablet": true,
         "infoPlist": {
-          "ITSAppUsesNonExemptEncryption": false
+          "ITSAppUsesNonExemptEncryption": false,
+          "NSAllowsArbitraryLoads": true
         }
       },
       "android": {
@@ -31,7 +32,8 @@
           "RECORD_AUDIO",
           "CAMERA",
           "READ_EXTERNAL_STORAGE",
-          "WRITE_EXTERNAL_STORAGE"
+          "WRITE_EXTERNAL_STORAGE",
+          "INTERNET"
         ]
       },
       "plugins": [
@@ -48,6 +50,9 @@
         "eas": {
           "projectId": "c8ee183d-cfc2-4ff1-8f46-c7e62b57cb80"
         }
+      },
+      "web": {
+        "bundler": "metro"
       }
     }
   }

@@ -1,10 +1,22 @@
 import cnchar from 'cnchar';
-import 'cnchar-poly';  // 用于获取多音字的所有拼音
+import 'cnchar-poly';    // 多音字
+import 'cnchar-order';   // 笔顺
+import 'cnchar-draw';    // 绘制
 
 interface HanziData {
   character: string;
   pinyin: string[];
   strokes: number;
+}
+
+interface Character {
+  character: string;
+  pinyin: string[];
+  meanings: {
+    zh: string[];
+    en: string[];
+    ja: string[];
+  };
 }
 
 class HanziService {
@@ -20,6 +32,29 @@ class HanziService {
     '东', '西', '南', '北', '左', '右', '前', '后', '里', '外'
   ];
 
+  private webViewContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <script src="https://cdn.jsdelivr.net/npm/cnchar@3.2.3/cnchar.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/cnchar-all@3.2.3/cnchar.all.min.js"></script>
+      </head>
+      <body>
+        <script>
+          function getHanziInfo(char) {
+            return {
+              definition: cnchar.explain(char),
+              pinyin: cnchar.spell(char, 'array', 'poly'),
+              words: cnchar.words(char),
+              english: cnchar.translate(char),
+              strokes: cnchar.stroke(char)
+            };
+          }
+        </script>
+      </body>
+    </html>
+  `;
+
   private constructor() {
     this.initializeHanziList();
   }
@@ -32,21 +67,11 @@ class HanziService {
   }
 
   private initializeHanziList() {
-    this.hanziList = HanziService.HSK1_CHARS.map(char => {
-      const pinyinList = cnchar.spell(char, 'array', 'poly', 'low');
-      return {
-        character: char,
-        pinyin: pinyinList,
-        strokes: cnchar.stroke(char)
-      };
-    });
-
-    // 按拼音排序（使用第一个拼音）
-    this.hanziList.sort((a, b) => {
-      const pinyinA = a.pinyin[0] || '';
-      const pinyinB = b.pinyin[0] || '';
-      return pinyinA.localeCompare(pinyinB);
-    });
+    this.hanziList = HanziService.HSK1_CHARS.map(char => ({
+      character: char,
+      pinyin: cnchar.spell(char, 'array', 'poly', 'low'),
+      strokes: cnchar.stroke(char)
+    }));
   }
 
   public getHanziList(): HanziData[] {
@@ -61,6 +86,26 @@ class HanziService {
 
   public getHanziByStrokes(strokes: number): HanziData[] {
     return this.hanziList.filter(hanzi => hanzi.strokes === strokes);
+  }
+
+  public async getHanziListWithDetails(): Promise<Character[]> {
+    return this.hanziList.map(char => {
+      const strokes = cnchar.stroke(char.character);
+      const pinyin = cnchar.spell(char.character, 'array', 'poly', 'low');
+
+      return {
+        character: char.character,
+        pinyin,
+        meanings: {
+          zh: [
+            `笔画：${strokes}`,
+            `拼音：${pinyin.join(', ')}`
+          ],
+          en: [''],
+          ja: [char.character]
+        }
+      };
+    });
   }
 }
 

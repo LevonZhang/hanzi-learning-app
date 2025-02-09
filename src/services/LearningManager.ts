@@ -14,12 +14,24 @@ interface LearningSettings {
   reviewIntervals: number[];  // 复习间隔天数 [1, 3, 7, 14, 30]
 }
 
+interface Character {
+  character: string;
+  pinyin: string[];
+  meanings: {
+    zh: string[];
+    en: string[];
+    ja: string[];
+  };
+}
+
 export class LearningManager {
   private static instance: LearningManager;
   private settings: LearningSettings = {
     dailyNewWords: 5,
     reviewIntervals: [1, 3, 7, 14, 30]
   };
+  private reviewWords: Set<string> = new Set();
+  private learningProgress: Map<string, { correct: number; total: number }> = new Map();
 
   private constructor() {}
 
@@ -35,14 +47,14 @@ export class LearningManager {
     const date = new Date().toISOString().split('T')[0];
     const progress = await this.getAllProgress();
     const hanziService = HanziService.getInstance();
-    const allCharacters = hanziService.getHanziList();
+    const allCharacters = await hanziService.getHanziListWithDetails();
+    
+    // 获取需要复习的字的完整信息
+    const reviewList = Object.values(progress)
+      .filter(item => item.nextReviewDate === date)
+      .map(item => allCharacters.find(c => c.character === item.character))
+      .filter(Boolean) as Character[];  // 过滤掉可能的 undefined 并断言类型
 
-    // 获取需要复习的字
-    const reviewList = Object.values(progress).filter(item => 
-      item.nextReviewDate === date
-    );
-
-    // 获取新的字（从未学习过的）
     const learnedChars = new Set(Object.keys(progress));
     const newChars = allCharacters
       .filter(char => !learnedChars.has(char.character))
@@ -113,6 +125,21 @@ export class LearningManager {
       mastered: chars.filter(c => c.masteryLevel >= 4).length,
       needReview: chars.filter(c => c.mistakes > 2).length
     };
+  }
+
+  // 添加获取复习汉字的方法
+  public async getReviewWords(): Promise<string[]> {
+    // 返回需要复习的汉字列表
+    // 这里可以根据学习记录来确定哪些字需要复习
+    // 暂时返回所有正确率低于70%的字
+    const reviewWords: string[] = [];
+    this.learningProgress.forEach((progress, character) => {
+      const correctRate = (progress.correct / progress.total) * 100;
+      if (correctRate < 70) {
+        reviewWords.push(character);
+      }
+    });
+    return reviewWords;
   }
 
   private async getAllProgress(): Promise<Record<string, LearningProgress>> {

@@ -18,7 +18,8 @@
         "supportsTablet": true,
         "infoPlist": {
           "ITSAppUsesNonExemptEncryption": false,
-          "NSAllowsArbitraryLoads": true
+          "NSAllowsArbitraryLoads": true,
+          "NSMicrophoneUsageDescription": "需要使用麦克风权限来播放汉字发音"
         }
       },
       "android": {
@@ -33,7 +34,8 @@
           "CAMERA",
           "READ_EXTERNAL_STORAGE",
           "WRITE_EXTERNAL_STORAGE",
-          "INTERNET"
+          "INTERNET",
+          "MODIFY_AUDIO_SETTINGS"
         ]
       },
       "plugins": [

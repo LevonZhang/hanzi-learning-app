@@ -1,17 +1,30 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { i18n, Language } from '../i18n/i18n';
 
 export const SettingsScreen = () => {
   const [dailyWords, setDailyWords] = useState(5); // 默认每日学习5个字
+  const [currentLanguage, setCurrentLanguage] = useState<Language>(i18n.getLanguage());
+
+  const handleLanguageChange = async (language: Language) => {
+    await i18n.setLanguage(language);
+    setCurrentLanguage(language);
+    // 显示需要重启应用的提示
+    Alert.alert(
+      i18n.t('confirm'),
+      i18n.t('languageChangeRestart'),
+      [{ text: i18n.t('confirm'), onPress: () => {} }]
+    );
+  };
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>学习设置</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('learningSettings')}</Text>
           <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>每日学习字数</Text>
+            <Text style={styles.settingLabel}>{i18n.t('dailyNewWords')}</Text>
             <View style={styles.numberSelector}>
               <TouchableOpacity 
                 style={styles.numberButton}
@@ -28,23 +41,65 @@ export const SettingsScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
+
+          <View style={styles.settingItem}>
+            <Text style={styles.settingLabel}>{i18n.t('language')}</Text>
+            <View style={styles.languageSelector}>
+              <TouchableOpacity 
+                style={[
+                  styles.languageButton,
+                  currentLanguage === 'zh' && styles.languageButtonActive
+                ]}
+                onPress={() => handleLanguageChange('zh')}
+              >
+                <Text style={[
+                  styles.languageButtonText,
+                  currentLanguage === 'zh' && styles.languageButtonTextActive
+                ]}>{i18n.t('languageZh')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.languageButton,
+                  currentLanguage === 'en' && styles.languageButtonActive
+                ]}
+                onPress={() => handleLanguageChange('en')}
+              >
+                <Text style={[
+                  styles.languageButtonText,
+                  currentLanguage === 'en' && styles.languageButtonTextActive
+                ]}>{i18n.t('languageEn')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.languageButton,
+                  currentLanguage === 'ja' && styles.languageButtonActive
+                ]}
+                onPress={() => handleLanguageChange('ja')}
+              >
+                <Text style={[
+                  styles.languageButtonText,
+                  currentLanguage === 'ja' && styles.languageButtonTextActive
+                ]}>{i18n.t('languageJa')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>会员服务</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('membershipService')}</Text>
           <TouchableOpacity style={styles.premiumButton}>
             <MaterialCommunityIcons name="crown" size={24} color="#FFD700" />
-            <Text style={styles.premiumButtonText}>升级至会员</Text>
+            <Text style={styles.premiumButtonText}>{i18n.t('upgradePremium')}</Text>
           </TouchableOpacity>
           <Text style={styles.premiumDescription}>
-            解锁所有高级功能，包括无限制的每日学习字数、详细的学习统计、个性化复习计划等
+            {i18n.t('premiumDescription')}
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>关于</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('about')}</Text>
           <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingLabel}>版本</Text>
+            <Text style={styles.settingLabel}>{i18n.t('version')}</Text>
             <Text style={styles.settingValue}>1.0.0</Text>
           </TouchableOpacity>
         </View>
@@ -111,6 +166,28 @@ const styles = StyleSheet.create({
     marginHorizontal: 15,
     minWidth: 20,
     textAlign: 'center',
+  },
+  languageSelector: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  languageButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#5B7B9E',
+  },
+  languageButtonActive: {
+    backgroundColor: '#5B7B9E',
+  },
+  languageButtonText: {
+    color: '#5B7B9E',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  languageButtonTextActive: {
+    color: '#fff',
   },
   premiumButton: {
     flexDirection: 'row',

@@ -66,8 +66,27 @@ export class LearningManager {
     };
   }
 
+  // 获取所有学习进度
+  public async getAllProgress(): Promise<Record<string, LearningProgress>> {
+    try {
+      const data = await AsyncStorage.getItem('learningProgress');
+      return data ? JSON.parse(data) : {};
+    } catch (error) {
+      console.error('Error loading progress:', error);
+      return {};
+    }
+  }
+
+  // 获取需要复习的字
+  public async getReviewWords(): Promise<string[]> {
+    const progress = await this.getAllProgress();
+    return Object.values(progress)
+      .filter(item => item.mistakes > 0)
+      .map(item => item.character);
+  }
+
   // 记录学习进度
-  async recordProgress(character: string, isCorrect: boolean) {
+  public async recordProgress(character: string, isCorrect: boolean) {
     const progress = await this.getAllProgress();
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -86,6 +105,10 @@ export class LearningManager {
       const item = progress[character];
       if (isCorrect) {
         item.masteryLevel = Math.min(5, item.masteryLevel + 1);
+        // 如果完全掌握了，清除错误记录
+        if (item.masteryLevel === 5) {
+          item.mistakes = 0;
+        }
       } else {
         item.mistakes += 1;
         item.masteryLevel = Math.max(0, item.masteryLevel - 1);
@@ -116,40 +139,15 @@ export class LearningManager {
   }
 
   // 获取学习统计
-  async getStatistics() {
+  public async getStatistics() {
     const progress = await this.getAllProgress();
     const chars = Object.values(progress);
     
     return {
       totalLearned: chars.length,
       mastered: chars.filter(c => c.masteryLevel >= 4).length,
-      needReview: chars.filter(c => c.mistakes > 2).length
+      needReview: chars.filter(c => c.mistakes > 0).length
     };
-  }
-
-  // 添加获取复习汉字的方法
-  public async getReviewWords(): Promise<string[]> {
-    // 返回需要复习的汉字列表
-    // 这里可以根据学习记录来确定哪些字需要复习
-    // 暂时返回所有正确率低于70%的字
-    const reviewWords: string[] = [];
-    this.learningProgress.forEach((progress, character) => {
-      const correctRate = (progress.correct / progress.total) * 100;
-      if (correctRate < 70) {
-        reviewWords.push(character);
-      }
-    });
-    return reviewWords;
-  }
-
-  private async getAllProgress(): Promise<Record<string, LearningProgress>> {
-    try {
-      const data = await AsyncStorage.getItem('learningProgress');
-      return data ? JSON.parse(data) : {};
-    } catch (error) {
-      console.error('Error loading progress:', error);
-      return {};
-    }
   }
 
   private async saveProgress(progress: Record<string, LearningProgress>) {

@@ -1,27 +1,41 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import cnchar from 'cnchar';
 import { hanziDict } from '../data/hanziDict';
+import { StrokeOrderCard } from './StrokeOrderCard';
+import { i18n } from '../i18n/i18n';
 
 interface HanziInfo {
   definition: string;
   pinyin: string[];
   words: string[];
   english: string;
+  radical: string;
   strokes: number;
+  traditional: string;
+  japanese: string;
 }
 
 interface Props {
   character: string;
-  onComplete?: (isCorrect: boolean) => void;
-  onHanziInfo?: (info: HanziInfo) => void;
+  onComplete: (isCorrect: boolean) => void;
+  onHanziInfo: (info: HanziInfo) => void;
+  isReviewMode?: boolean;
 }
 
-export const CharacterLearning = ({ character, onComplete, onHanziInfo }: Props) => {
+export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHanziInfo, isReviewMode = false }) => {
   const webViewRef = useRef<WebView>(null);
   const [isReady, setIsReady] = useState(false);
+  const [showStrokeOrder, setShowStrokeOrder] = useState(false);
+  const [strokeCount, setStrokeCount] = useState(0);
+
+  useEffect(() => {
+    // 获取汉字的笔画数
+    const strokes = cnchar.stroke(character);
+    setStrokeCount(typeof strokes === 'number' ? strokes : Array.isArray(strokes) ? strokes[0] : 0);
+  }, [character]);
 
   // 获取汉字信息
   const getHanziInfo = (char: string): HanziInfo => {
@@ -30,7 +44,10 @@ export const CharacterLearning = ({ character, onComplete, onHanziInfo }: Props)
       pinyin: [],
       words: [],
       english: '',
-      strokes: 0
+      radical: '',
+      strokes: 0,
+      traditional: '',
+      japanese: ''
     };
 
     const hanziInfo = hanziDict[char];
@@ -40,7 +57,10 @@ export const CharacterLearning = ({ character, onComplete, onHanziInfo }: Props)
       ...defaultInfo,
       pinyin: hanziInfo.pinyin,
       english: hanziInfo.english.join('; '),
-      definition: hanziInfo.english[0].split(';')[0]
+      radical: hanziInfo.radical,
+      definition: hanziInfo.english[0].split(';')[0],
+      traditional: hanziInfo.traditional,
+      japanese: hanziInfo.japanese
     };
   };
 
@@ -237,7 +257,7 @@ export const CharacterLearning = ({ character, onComplete, onHanziInfo }: Props)
             }}
           >
             <MaterialCommunityIcons name="pencil-box-multiple" size={20} color="white" />
-            <Text style={styles.buttonText}>演示笔画</Text>
+            <Text style={styles.buttonText}>{i18n.t('demonstrateStrokes')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -249,18 +269,72 @@ export const CharacterLearning = ({ character, onComplete, onHanziInfo }: Props)
             }}
           >
             <MaterialCommunityIcons name="pencil-outline" size={20} color="white" />
-            <Text style={styles.buttonText}>练习书写</Text>
+            <Text style={styles.buttonText}>{i18n.t('practice')}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.button, styles.wrongButton]}
-            onPress={() => onComplete?.(false)}
-          >
-            <MaterialCommunityIcons name="book-plus" size={20} color="white" />
-            <Text style={styles.buttonText}>加入错字本</Text>
-          </TouchableOpacity>
+          {!isReviewMode && (
+            <TouchableOpacity 
+              style={[styles.button, styles.wrongButton]}
+              onPress={async () => {
+                try {
+                  await onComplete?.(false);
+                  // 显示添加成功提示
+                  Alert.alert(
+                    i18n.t('success'),
+                    i18n.t('addedToReview'),
+                    [{ text: i18n.t('confirm') }]
+                  );
+                } catch (error) {
+                  console.error('Error adding to review:', error);
+                  Alert.alert(
+                    i18n.t('error'),
+                    i18n.t('addToReviewFailed'),
+                    [{ text: i18n.t('confirm') }]
+                  );
+                }
+              }}
+            >
+              <MaterialCommunityIcons name="book-plus" size={20} color="white" />
+              <Text style={styles.buttonText}>{i18n.t('addToWrongBook')}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={[styles.button, styles.cardButton]}
+          onPress={() => setShowStrokeOrder(true)}
+        >
+          <MaterialCommunityIcons name="card-text-outline" size={20} color="white" />
+          <Text style={styles.buttonText}>{i18n.t('generateCard')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Modal
+        visible={showStrokeOrder}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowStrokeOrder(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{i18n.t('strokeOrder')}</Text>
+              <TouchableOpacity 
+                onPress={() => setShowStrokeOrder(false)}
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeButtonText}>{i18n.t('close')}</Text>
+              </TouchableOpacity>
+            </View>
+            <StrokeOrderCard 
+              character={character} 
+              strokeCount={strokeCount}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -271,12 +345,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     backgroundColor: '#fff',
+    paddingBottom: 60,
   },
   displayContainer: {
     width: width - 80,
     height: width - 80,
     backgroundColor: 'transparent',
     overflow: 'hidden',
+    marginTop: -20,
+    marginBottom: 0,
   },
   canvas: {
     flex: 1,
@@ -284,12 +361,13 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     width: '100%',
-    marginTop: 20,
+    marginTop: 0,
   },
   practiceButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 10,
+    marginBottom: 5,
   },
   button: {
     flexDirection: 'row',
@@ -313,5 +391,70 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+  },
+  cardButton: {
+    backgroundColor: '#5B7B9E',
+    alignSelf: 'center',
+    minWidth: 120,
+    marginBottom: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    width: '90%',
+    maxHeight: '80%',
+    padding: 15,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#666',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 15,
+  },
+  modalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  saveButton: {
+    backgroundColor: '#5B7B9E',
+  },
+  shareButton: {
+    backgroundColor: '#4CAF50',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  shareButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 }); 

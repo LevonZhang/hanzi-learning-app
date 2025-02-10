@@ -9,6 +9,8 @@ import 'cnchar-voice';  // 导入语音模块
 import * as Speech from 'expo-speech';
 import { useState as useTabState } from 'react'; // 为tab状态添加一个新的useState
 import { hanziDict } from '../data/hanziDict';  // 导入汉字字典数据
+import { i18n } from '../i18n/i18n';
+import HanziService from '../services/HanziService';
 
 interface Character {
   character: string;
@@ -17,6 +19,7 @@ interface Character {
     zh: string[];
     en: string[];
   };
+  words?: string[];
 }
 
 interface LearningState {
@@ -42,11 +45,20 @@ interface HanziInfo {
   japanese: string;
 }
 
-export const LearningScreen = () => {
+interface LearningScreenProps {
+  route?: {
+    params?: {
+      mode?: 'review' | 'learning';
+      reviewWords?: string[];
+    };
+  };
+}
+
+export const LearningScreen = ({ route }: LearningScreenProps) => {
   const [state, setState] = useState<LearningState>({
     newWords: [],
     reviewWords: [],
-    currentWord: {  // 添加默认值
+    currentWord: {
       character: '',
       pinyin: [],
       meanings: {
@@ -54,7 +66,7 @@ export const LearningScreen = () => {
         en: []
       }
     },
-    isReviewMode: false,
+    isReviewMode: route?.params?.mode === 'review',
     statistics: {
       totalLearned: 0,
       mastered: 0,
@@ -66,8 +78,14 @@ export const LearningScreen = () => {
   const [showFullMeaning, setShowFullMeaning] = useState(false);
 
   useEffect(() => {
-    loadTodayLearning();
-  }, []);
+    if (route?.params?.mode === 'review' && route?.params?.reviewWords) {
+      // 如果是从复习页面进入，使用传入的复习字列表
+      loadReviewWords(route.params.reviewWords);
+    } else {
+      // 否则加载今天的学习列表
+      loadTodayLearning();
+    }
+  }, [route?.params]);
 
   const loadTodayLearning = async () => {
     const learningManager = LearningManager.getInstance();
@@ -79,6 +97,27 @@ export const LearningScreen = () => {
       newWords,
       reviewWords,
       currentWord: newWords[0] || reviewWords[0],
+      statistics
+    }));
+  };
+
+  const loadReviewWords = async (reviewWords: string[]) => {
+    const learningManager = LearningManager.getInstance();
+    const hanziService = HanziService.getInstance();
+    const allCharacters = await hanziService.getHanziListWithDetails();
+    
+    // 获取复习字的完整信息
+    const reviewList = reviewWords
+      .map(char => allCharacters.find(c => c.character === char))
+      .filter(Boolean) as Character[];
+
+    const statistics = await learningManager.getStatistics();
+
+    setState(prev => ({
+      ...prev,
+      reviewWords: reviewList,
+      currentWord: reviewList[0],
+      isReviewMode: true,
       statistics
     }));
   };
@@ -135,7 +174,8 @@ export const LearningScreen = () => {
           meanings: {
             zh: hanziData?.chinese || ['暂无中文释义'],
             en: hanziData?.english || [info.english || '暂无翻译']
-          }
+          },
+          words: hanziData?.words || []
         }
       }));
     }
@@ -144,17 +184,17 @@ export const LearningScreen = () => {
   if (!state.currentWord) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>今日学习完成！</Text>
+        <Text style={styles.title}>{i18n.t('completed')}</Text>
         <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>已学习: {state.statistics.totalLearned} 个字</Text>
-          <Text style={styles.statsText}>已掌握: {state.statistics.mastered} 个字</Text>
-          <Text style={styles.statsText}>需要复习: {state.statistics.needReview} 个字</Text>
+          <Text style={styles.statsText}>{i18n.t('totalLearned')}: {state.statistics.totalLearned} {i18n.t('characters')}</Text>
+          <Text style={styles.statsText}>{i18n.t('mastered')}: {state.statistics.mastered} {i18n.t('characters')}</Text>
+          <Text style={styles.statsText}>{i18n.t('needReview')}: {state.statistics.needReview} {i18n.t('characters')}</Text>
         </View>
         <TouchableOpacity 
           style={styles.button}
           onPress={loadTodayLearning}
         >
-          <Text style={styles.buttonText}>重新开始</Text>
+          <Text style={styles.buttonText}>{i18n.t('restart')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -165,12 +205,12 @@ export const LearningScreen = () => {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.mode}>
-            {state.isReviewMode ? '复习模式' : '学习模式'}
+            {state.isReviewMode ? i18n.t('reviewMode') : i18n.t('learningMode')}
           </Text>
           <Text style={styles.progress}>
             {state.isReviewMode 
-              ? `复习进度: ${state.reviewWords.findIndex(w => w.character === state.currentWord.character) + 1}/${state.reviewWords.length}`
-              : `学习进度: ${state.newWords.findIndex(w => w.character === state.currentWord.character) + 1}/${state.newWords.length}`
+              ? `${i18n.t('reviewProgress')}: ${state.reviewWords.findIndex(w => w.character === state.currentWord.character) + 1}/${state.reviewWords.length}`
+              : `${i18n.t('learningProgress')}: ${state.newWords.findIndex(w => w.character === state.currentWord.character) + 1}/${state.newWords.length}`
             }
           </Text>
         </View>
@@ -184,12 +224,23 @@ export const LearningScreen = () => {
             >
               <MaterialCommunityIcons name="volume-high" size={24} color="#5B7B9E" />
             </TouchableOpacity>
-            <View style={styles.pinyinContainer}>
-              {state.currentWord?.pinyin?.map((pin, index) => (
-                <View key={index} style={styles.pinyinItem}>
-                  <Text style={styles.pinyinText}>{pin}</Text>
+            <View style={styles.pinyinAndWordsContainer}>
+              <View style={styles.pinyinContainer}>
+                {state.currentWord?.pinyin?.map((pin, index) => (
+                  <View key={index} style={styles.pinyinItem}>
+                    <Text style={styles.pinyinText}>{pin}</Text>
+                  </View>
+                ))}
+              </View>
+              {state.currentWord?.words && state.currentWord.words.length > 0 && (
+                <View style={styles.wordsContainer}>
+                  {state.currentWord.words.slice(0, 3).map((word, index) => (
+                    <View key={index} style={styles.wordItem}>
+                      <Text style={styles.wordText}>{word}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
+              )}
             </View>
           </View>
 
@@ -199,13 +250,13 @@ export const LearningScreen = () => {
                 style={[styles.tabButton, activeTab === 'zh' && styles.activeTab]}
                 onPress={() => setActiveTab('zh')}
               >
-                <Text style={[styles.tabText, activeTab === 'zh' && styles.activeTabText]}>中文</Text>
+                <Text style={[styles.tabText, activeTab === 'zh' && styles.activeTabText]}>{i18n.t('languageZh')}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.tabButton, activeTab === 'en' && styles.activeTab]}
                 onPress={() => setActiveTab('en')}
               >
-                <Text style={[styles.tabText, activeTab === 'en' && styles.activeTabText]}>英文</Text>
+                <Text style={[styles.tabText, activeTab === 'en' && styles.activeTabText]}>{i18n.t('languageEn')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -222,7 +273,7 @@ export const LearningScreen = () => {
                       style={styles.showMoreButton}
                       onPress={() => setShowFullMeaning(true)}
                     >
-                      <Text style={styles.showMoreText}>显示更多...</Text>
+                      <Text style={styles.showMoreText}>{i18n.t('showMore')}</Text>
                     </TouchableOpacity>
                   )}
                 </>
@@ -239,64 +290,76 @@ export const LearningScreen = () => {
                       style={styles.showMoreButton}
                       onPress={() => setShowFullMeaning(true)}
                     >
-                      <Text style={styles.showMoreText}>Show more...</Text>
+                      <Text style={styles.showMoreText}>{i18n.t('showMore')}</Text>
                     </TouchableOpacity>
                   )}
                 </>
               )}
             </View>
 
-            <Modal
-              visible={showFullMeaning}
-              transparent={true}
-              animationType="fade"
-              onRequestClose={() => setShowFullMeaning(false)}
-            >
-              <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>
-                      {activeTab === 'zh' ? '完整释义' : 'Full Meanings'}
-                    </Text>
-                    <TouchableOpacity 
-                      onPress={() => setShowFullMeaning(false)}
-                      style={styles.closeButton}
-                    >
-                      <Text style={styles.closeButtonText}>×</Text>
-                    </TouchableOpacity>
+            <View style={styles.wordsContainer}>
+              <Text style={styles.wordsTitle}>{i18n.t('commonWords')}</Text>
+              <View style={styles.wordsList}>
+                {state.currentWord?.words?.slice(0, 4).map((word, index) => (
+                  <View key={index} style={styles.wordItem}>
+                    <Text style={styles.wordText}>{word}</Text>
                   </View>
-                  <ScrollView 
-                    style={styles.modalScrollView}
-                    showsVerticalScrollIndicator={true}
-                    bounces={false}
-                  >
-                    <View style={styles.modalScrollContent}>
-                      {activeTab === 'zh' && 
-                        state.currentWord?.meanings?.zh.map((meaning, index) => (
-                          <Text key={index} style={styles.modalMeaningText}>
-                            • {meaning}
-                          </Text>
-                        ))
-                      }
-                      {activeTab === 'en' && 
-                        state.currentWord?.meanings?.en.map((meaning, index) => (
-                          <Text key={index} style={styles.modalMeaningText}>
-                            • {meaning}
-                          </Text>
-                        ))
-                      }
-                    </View>
-                  </ScrollView>
-                </View>
+                ))}
               </View>
-            </Modal>
+            </View>
           </View>
         </View>
+
+        <Modal
+          visible={showFullMeaning}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowFullMeaning(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {activeTab === 'zh' ? i18n.t('fullMeanings') : i18n.t('fullMeanings')}
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => setShowFullMeaning(false)}
+                  style={styles.closeButton}
+                >
+                  <Text style={styles.closeButtonText}>×</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView 
+                style={styles.modalScrollView}
+                showsVerticalScrollIndicator={true}
+                bounces={false}
+              >
+                <View style={styles.modalScrollContent}>
+                  {activeTab === 'zh' && 
+                    state.currentWord?.meanings?.zh.map((meaning, index) => (
+                      <Text key={index} style={styles.modalMeaningText}>
+                        • {meaning}
+                      </Text>
+                    ))
+                  }
+                  {activeTab === 'en' && 
+                    state.currentWord?.meanings?.en.map((meaning, index) => (
+                      <Text key={index} style={styles.modalMeaningText}>
+                        • {meaning}
+                      </Text>
+                    ))
+                  }
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         <CharacterLearning
           character={state.currentWord.character}
           onComplete={handleComplete}
           onHanziInfo={handleHanziInfo}
+          isReviewMode={state.isReviewMode}
         />
 
         <TouchableOpacity 
@@ -327,7 +390,7 @@ export const LearningScreen = () => {
             }
           }}
         >
-          <Text style={styles.nextButtonText}>下一个</Text>
+          <Text style={styles.nextButtonText}>{i18n.t('next')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -401,7 +464,8 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginHorizontal: 20,
     width: 100,
-    alignSelf: 'center',
+    alignSelf: 'flex-end',
+    marginRight: 20,
     zIndex: 1,
   },
   nextButtonText: {
@@ -427,10 +491,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  pinyinAndWordsContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
   pinyinContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    flex: 1,
     gap: 8,
   },
   pinyinItem: {
@@ -559,5 +629,32 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 24,
     marginBottom: 8,
+  },
+  wordsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  wordsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  wordsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  wordItem: {
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  wordText: {
+    fontSize: 14,
+    color: '#333',
   },
 }); 

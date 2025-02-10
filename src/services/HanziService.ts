@@ -2,11 +2,18 @@ import cnchar from 'cnchar';
 import 'cnchar-poly';    // 多音字
 import 'cnchar-order';   // 笔顺
 import 'cnchar-draw';    // 绘制
+import { hanziDict } from '../data/hanziDict';
 
 interface HanziData {
   character: string;
   pinyin: string[];
   strokes: number;
+  meanings: {
+    zh: string[];
+    en: string[];
+    ja: string[];
+  };
+  words?: string[];
 }
 
 interface Character {
@@ -106,6 +113,19 @@ class HanziService {
         }
       };
     });
+  }
+
+  async getHanziDetails(character: string): Promise<HanziData> {
+    const data = hanziDict[character];
+    return {
+      character,
+      pinyin: data?.pinyin || [],
+      meanings: {
+        zh: data?.chinese || [],
+        en: data?.english || []
+      },
+      words: data?.words || []
+    };
   }
 }
 

@@ -2,6 +2,7 @@ import cnchar from 'cnchar';
 import 'cnchar-poly';    // 多音字
 import 'cnchar-order';   // 笔顺
 import 'cnchar-draw';    // 绘制
+import 'cnchar-words';   // 词组功能
 import { hanziDict } from '../data/hanziDict';
 
 interface HanziData {
@@ -13,7 +14,7 @@ interface HanziData {
     en: string[];
     ja: string[];
   };
-  words?: string[];
+  words: string[];
 }
 
 interface Character {
@@ -74,11 +75,31 @@ class HanziService {
   }
 
   private initializeHanziList() {
-    this.hanziList = HanziService.HSK1_CHARS.map(char => ({
-      character: char,
-      pinyin: cnchar.spell(char, 'array', 'poly', 'low'),
-      strokes: cnchar.stroke(char)
-    }));
+    this.hanziList = HanziService.HSK1_CHARS.map(char => {
+      const pinyinResult = cnchar.spell(char, 'array', 'poly', 'low');
+      const pinyinArray: string[] = Array.isArray(pinyinResult) 
+        ? pinyinResult 
+        : [pinyinResult.toString()];
+      
+      const strokeResult = cnchar.stroke(char);
+      const strokeCount: number = typeof strokeResult === 'number' 
+        ? strokeResult 
+        : Array.isArray(strokeResult) 
+          ? strokeResult[0] 
+          : 0;
+
+      return {
+        character: char,
+        pinyin: pinyinArray,
+        strokes: strokeCount,
+        meanings: {
+          zh: [],
+          en: [],
+          ja: []
+        },
+        words: []
+      } as HanziData;
+    });
   }
 
   public getHanziList(): HanziData[] {
@@ -96,35 +117,43 @@ class HanziService {
   }
 
   public async getHanziListWithDetails(): Promise<Character[]> {
-    return this.hanziList.map(char => {
-      const strokes = cnchar.stroke(char.character);
-      const pinyin = cnchar.spell(char.character, 'array', 'poly', 'low');
-
+    return Promise.all(this.hanziList.map(async char => {
+      const details = await this.getHanziDetails(char.character);
       return {
         character: char.character,
-        pinyin,
-        meanings: {
-          zh: [
-            `笔画：${strokes}`,
-            `拼音：${pinyin.join(', ')}`
-          ],
-          en: [''],
-          ja: [char.character]
-        }
+        pinyin: details.pinyin,
+        meanings: details.meanings
       };
-    });
+    }));
   }
 
   async getHanziDetails(character: string): Promise<HanziData> {
     const data = hanziDict[character];
+    // 使用 cnchar.words 获取词组，如果方法不存在则返回空数组
+    const wordsResult = typeof (cnchar as any).words === 'function' 
+      ? (cnchar as any).words(character)
+      : [];
+    const words: string[] = Array.isArray(wordsResult) 
+      ? wordsResult.slice(0, 4) 
+      : [];
+    
+    const strokeResult = cnchar.stroke(character);
+    const strokeCount: number = typeof strokeResult === 'number' 
+      ? strokeResult 
+      : Array.isArray(strokeResult) 
+        ? strokeResult[0] 
+        : 0;
+
     return {
       character,
       pinyin: data?.pinyin || [],
+      strokes: strokeCount,
       meanings: {
         zh: data?.chinese || [],
-        en: data?.english || []
+        en: data?.english || [],
+        ja: []
       },
-      words: data?.words || []
+      words: words
     };
   }
 }

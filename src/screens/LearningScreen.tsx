@@ -6,6 +6,7 @@ import { Audio } from 'expo-av';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import cnchar from 'cnchar';
 import 'cnchar-voice';  // 导入语音模块
+import 'cnchar-words';  // 导入词组模块
 import * as Speech from 'expo-speech';
 import { useState as useTabState } from 'react'; // 为tab状态添加一个新的useState
 import { hanziDict } from '../data/hanziDict';  // 导入汉字字典数据
@@ -164,18 +165,21 @@ export const LearningScreen = ({ route }: LearningScreenProps) => {
     }
   };
 
-  const handleHanziInfo = (info: HanziInfo) => {
+  const handleHanziInfo = async (info: HanziInfo) => {
     if (state.currentWord) {
-      const hanziData = hanziDict[state.currentWord.character];
+      const hanziService = HanziService.getInstance();
+      const hanziDetails = await hanziService.getHanziDetails(state.currentWord.character);
+      const words = cnchar.words(state.currentWord.character).slice(0, 4);
+      
       setState(prev => ({
         ...prev,
         currentWord: {
           ...prev.currentWord!,
           meanings: {
-            zh: hanziData?.chinese || ['暂无中文释义'],
-            en: hanziData?.english || [info.english || '暂无翻译']
+            zh: hanziDetails.meanings.zh || ['暂无中文释义'],
+            en: hanziDetails.meanings.en || [info.english || '暂无翻译']
           },
-          words: hanziData?.words || []
+          words: words
         }
       }));
     }
@@ -232,15 +236,6 @@ export const LearningScreen = ({ route }: LearningScreenProps) => {
                   </View>
                 ))}
               </View>
-              {state.currentWord?.words && state.currentWord.words.length > 0 && (
-                <View style={styles.wordsContainer}>
-                  {state.currentWord.words.slice(0, 3).map((word, index) => (
-                    <View key={index} style={styles.wordItem}>
-                      <Text style={styles.wordText}>{word}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
             </View>
           </View>
 
@@ -257,6 +252,12 @@ export const LearningScreen = ({ route }: LearningScreenProps) => {
                 onPress={() => setActiveTab('en')}
               >
                 <Text style={[styles.tabText, activeTab === 'en' && styles.activeTabText]}>{i18n.t('languageEn')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.tabButton, activeTab === 'words' && styles.activeTab]}
+                onPress={() => setActiveTab('words')}
+              >
+                <Text style={[styles.tabText, activeTab === 'words' && styles.activeTabText]}>{i18n.t('commonWords')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -295,17 +296,18 @@ export const LearningScreen = ({ route }: LearningScreenProps) => {
                   )}
                 </>
               )}
-            </View>
-
-            <View style={styles.wordsContainer}>
-              <Text style={styles.wordsTitle}>{i18n.t('commonWords')}</Text>
-              <View style={styles.wordsList}>
-                {state.currentWord?.words?.slice(0, 4).map((word, index) => (
-                  <View key={index} style={styles.wordItem}>
-                    <Text style={styles.wordText}>{word}</Text>
-                  </View>
-                ))}
-              </View>
+              {activeTab === 'words' && (
+                <View style={styles.wordsTabContent}>
+                  {state.currentWord?.words?.slice(0, 4).map((word, index) => (
+                    <View key={index} style={styles.wordItemInTab}>
+                      <Text style={styles.wordText}>{word}</Text>
+                    </View>
+                  ))}
+                  {(!state.currentWord?.words || state.currentWord.words.length === 0) && (
+                    <Text style={styles.noWordsText}>{i18n.t('noCommonWords')}</Text>
+                  )}
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -494,7 +496,6 @@ const styles = StyleSheet.create({
   pinyinAndWordsContainer: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
   },
@@ -630,31 +631,30 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 8,
   },
-  wordsContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  wordsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  wordsList: {
+  wordsTabContent: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-  },
-  wordItem: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 10,
+    gap: 10,
     paddingVertical: 5,
+  },
+  wordItemInTab: {
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   wordText: {
     fontSize: 14,
     color: '#333',
+  },
+  noWordsText: {
+    color: '#666',
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    width: '100%',
+    paddingVertical: 10,
   },
 }); 

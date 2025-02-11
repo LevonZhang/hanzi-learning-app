@@ -53,9 +53,10 @@ interface LearningScreenProps {
       reviewWords?: string[];
     };
   };
+  navigation: any;
 }
 
-export const LearningScreen = ({ route }: LearningScreenProps) => {
+export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   const [state, setState] = useState<LearningState>({
     newWords: [],
     reviewWords: [],
@@ -183,6 +184,10 @@ export const LearningScreen = ({ route }: LearningScreenProps) => {
         }
       }));
     }
+  };
+
+  const navigateToGame = (mode: 'word' | 'pronunciation') => {
+    navigation.navigate('BubbleMatching', { mode });
   };
 
   if (!state.currentWord) {
@@ -393,6 +398,24 @@ export const LearningScreen = ({ route }: LearningScreenProps) => {
           }}
         >
           <Text style={styles.nextButtonText}>{i18n.t('next')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.gameButtons}>
+        <TouchableOpacity
+          style={[styles.gameButton, styles.wordButton]}
+          onPress={() => navigateToGame('word')}
+        >
+          <MaterialCommunityIcons name="puzzle" size={24} color="#fff" />
+          <Text style={styles.gameButtonText}>{i18n.t('wordMatching')}</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.gameButton, styles.pronunciationButton]}
+          onPress={() => navigateToGame('pronunciation')}
+        >
+          <MaterialCommunityIcons name="volume-high" size={24} color="#fff" />
+          <Text style={styles.gameButtonText}>{i18n.t('pronunciationMatching')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -656,5 +679,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     width: '100%',
     paddingVertical: 10,
+  },
+  gameButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  gameButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 10,
+    width: '45%',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  gameButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  wordButton: {
+    backgroundColor: '#5B7B9E',
+  },
+  pronunciationButton: {
+    backgroundColor: '#4CAF50',
   },
 }); 

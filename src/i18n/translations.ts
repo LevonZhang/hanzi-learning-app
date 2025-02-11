@@ -10,7 +10,6 @@ export const translations = {
     learningMode: '学习模式',
     reviewMode: '复习模式',
     learningProgress: '学习进度',
-    reviewProgress: '复习进度',
     showMore: '显示更多...',
     fullMeanings: '完整释义',
     commonWords: '常用词组',
@@ -63,12 +62,24 @@ export const translations = {
     noReviewNeeded: '目前没有需要复习的汉字',
     mistakes: '错误次数',
     correctRate: '正确率',
-    reviewProgress: '复习进度',
+    reviewProgressText: '复习进度',
 
     // 提示信息
     success: '成功',
     addedToReview: '已添加到复习列表',
     addToReviewFailed: '添加失败，请重试',
+
+    // 游戏相关
+    games: '游戏',
+    wordMatching: '词组配对游戏',
+    pronunciationMatching: '发音配对游戏',
+    wordMatchingDesc: '通过配对汉字组成有意义的词组来提高词汇量',
+    pronunciationMatchingDesc: '通过配对相同发音的汉字来提高拼音掌握程度',
+    level: '关卡 {level}',
+    score: '得分: {score}',
+    gameComplete: '游戏完成',
+    gameCompleteMessage: '恭喜！您已完成所有关卡！',
+    soundLoadError: '加载声音失败，请重试',
   },
   en: {
     // Common
@@ -81,7 +92,6 @@ export const translations = {
     learningMode: 'Learning Mode',
     reviewMode: 'Review Mode',
     learningProgress: 'Learning Progress',
-    reviewProgress: 'Review Progress',
     showMore: 'Show more...',
     fullMeanings: 'Full Meanings',
     commonWords: 'Common Words',
@@ -133,12 +143,24 @@ export const translations = {
     noReviewNeeded: 'No characters need review',
     mistakes: 'Mistakes',
     correctRate: 'Accuracy',
-    reviewProgress: 'Review Progress',
+    reviewProgressText: 'Review Progress',
 
     // Alert Messages
     success: 'Success',
     addedToReview: 'Added to review list',
     addToReviewFailed: 'Failed to add, please try again',
+
+    // Game Related
+    games: 'Games',
+    wordMatching: 'Word Matching Game',
+    pronunciationMatching: 'Pronunciation Game',
+    wordMatchingDesc: 'Improve vocabulary by matching characters into meaningful words',
+    pronunciationMatchingDesc: 'Improve pinyin mastery by matching characters with the same pronunciation',
+    level: 'Level {level}',
+    score: 'Score: {score}',
+    gameComplete: 'Game Complete',
+    gameCompleteMessage: 'Congratulations! You have completed all levels!',
+    soundLoadError: 'Failed to load sound, please try again',
   },
   ja: {
     // 共通
@@ -151,7 +173,6 @@ export const translations = {
     learningMode: '学習モード',
     reviewMode: '復習モード',
     learningProgress: '学習進捗',
-    reviewProgress: '復習進捗',
     showMore: 'もっと見る...',
     fullMeanings: '完全な意味',
     commonWords: '一般的な単語',
@@ -204,11 +225,23 @@ export const translations = {
     noReviewNeeded: '復習が必要な漢字はありません',
     mistakes: '間違い回数',
     correctRate: '正解率',
-    reviewProgress: '復習進捗',
+    reviewProgressText: '復習進捗',
 
     // アラートメッセージ
     success: '成功',
     addedToReview: '復習リストに追加しました',
     addToReviewFailed: '追加に失敗しました。もう一度お試しください',
+
+    // ゲーム関連
+    games: 'ゲーム',
+    wordMatching: '単語マッチングゲーム',
+    pronunciationMatching: '発音マッチングゲーム',
+    wordMatchingDesc: '文字を組み合わせて意味のある単語を作り、語彙力を向上させます',
+    pronunciationMatchingDesc: '同じ発音の漢字をマッチングして、ピンインの習得度を高めます',
+    level: 'レベル {level}',
+    score: 'スコア: {score}',
+    gameComplete: 'ゲーム完了',
+    gameCompleteMessage: 'おめでとうございます！全レベルをクリアしました！',
+    soundLoadError: '音声の読み込みに失敗しました。もう一度お試しください',
   }
 }; 

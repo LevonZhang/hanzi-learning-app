@@ -11,4 +11,4 @@ declare module 'cnchar' {
 
 declare module 'cnchar-poly' {}
 declare module 'cnchar-words' {}
-declare module 'cnchar-pinyin' {} 
+declare module 'cnchar-all' {} 

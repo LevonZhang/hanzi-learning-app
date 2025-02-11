@@ -31,6 +31,9 @@ class GameService {
     return chars.map(char => {
       // 获取包含该字的常用词组（限制长度为2的词组）
       const words = cnchar.words(char).filter(word => word.length === 2);
+      if (words.length === 0) {
+        console.log('No words found for char:', char);
+      }
       const word = words[Math.floor(Math.random() * words.length)] || '';
       
       return {
@@ -46,21 +49,28 @@ class GameService {
     
     return chars.map(char => {
       const pronunciation = cnchar.pinyin(char)[0]; // 获取拼音
+      if (!pronunciation) {
+        console.log('No pronunciation found for char:', char);
+      }
       const samePronounciation = this.findSamePronunciationChars(char, pronunciation);
       
       return {
         char,
-        pronunciation,
+        pronunciation: pronunciation || '',
         samePronounciation
       };
-    });
+    }).filter(char => char.pronunciation && char.samePronounciation.length > 0); // 过滤掉没有找到发音或同音字的情况
   }
 
   private findSamePronunciationChars(char: string, targetPinyin: string): string[] {
+    if (!targetPinyin) return [];
     // 从常用字中找出发音相同的字
     return this.commonChars
       .split('')
-      .filter(c => c !== char && cnchar.pinyin(c)[0] === targetPinyin)
+      .filter(c => {
+        const pinyin = cnchar.pinyin(c)[0];
+        return c !== char && pinyin === targetPinyin;
+      })
       .slice(0, 3); // 限制数量，避免太多
   }
 

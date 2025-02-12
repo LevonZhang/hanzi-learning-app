@@ -39,10 +39,10 @@ interface HanziInfo {
   pinyin: string[];
   words: string[];
   english: string;
-  radical: string;
+  radical?: string;
   strokes: number;
-  traditional: string;
-  japanese: string;
+  traditional?: string;
+  japanese?: string;
 }
 
 interface LearningScreenProps {
@@ -364,36 +364,38 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
           isReviewMode={state.isReviewMode}
         />
 
-        <TouchableOpacity 
-          style={styles.nextButton}
-          onPress={() => {
-            const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
-            const currentIndex = currentList.findIndex(w => w.character === state.currentWord.character);
-            
-            if (currentIndex < currentList.length - 1) {
-              // 还有下一个字
-              setState(prev => ({
-                ...prev,
-                currentWord: currentList[currentIndex + 1]
-              }));
-            } else if (!state.isReviewMode && state.reviewWords.length > 0) {
-              // 新字学完了，开始复习
-              setState(prev => ({
-                ...prev,
-                isReviewMode: true,
-                currentWord: state.reviewWords[0]
-              }));
-            } else {
-              // 全部完成
-              setState(prev => ({
-                ...prev,
-                currentWord: null
-              }));
-            }
-          }}
-        >
-          <Text style={styles.nextButtonText}>{i18n.t('next')}</Text>
-        </TouchableOpacity>
+        {state.currentWord && (
+          <TouchableOpacity 
+            style={styles.nextButton}
+            onPress={() => {
+              const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
+              const currentIndex = currentList.findIndex(w => w.character === state.currentWord?.character);
+              
+              if (currentIndex < currentList.length - 1) {
+                setState(prev => ({
+                  ...prev,
+                  currentWord: currentList[currentIndex + 1]
+                }));
+              } else if (!state.isReviewMode && state.reviewWords.length > 0) {
+                setState(prev => ({
+                  ...prev,
+                  isReviewMode: true,
+                  currentWord: state.reviewWords[0]
+                }));
+              } else {
+                setState(prev => ({
+                  ...prev,
+                  currentWord: null
+                }));
+              }
+            }}
+          >
+            <View style={styles.nextButtonContent}>
+              <Text style={styles.nextButtonText}>{i18n.t('next')}</Text>
+              <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -458,16 +460,28 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   nextButton: {
-    backgroundColor: '#5B7B9E',
+    backgroundColor: '#007AFF',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 5,
-    marginHorizontal: 20,
-    width: 100,
-    alignSelf: 'flex-end',
-    marginRight: 20,
+    position: 'absolute',
+    bottom: 70,
+    right: 20,
+    width: 110,
     zIndex: 1,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  nextButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   nextButtonText: {
     color: '#fff',

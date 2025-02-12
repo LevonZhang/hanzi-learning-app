@@ -12,11 +12,20 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import { gameService, WordPair, PronunciationChar } from '../services/GameService';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type GameMode = 'word' | 'pronunciation';
 type GameLevel = 1 | 2 | 3 | 4 | 5;
+
+type GameStackParamList = {
+  GamesList: undefined;
+  WordGame: { mode: 'word' };
+  PronunciationGame: { mode: 'pronunciation' };
+};
+
+type BubbleMatchingScreenProps = NativeStackScreenProps<GameStackParamList, 'WordGame' | 'PronunciationGame'>;
 
 interface Bubble {
   id: string;
@@ -25,15 +34,6 @@ interface Bubble {
   scale: Animated.Value;
   rotation: Animated.Value;
   matches: string[];
-}
-
-interface BubbleMatchingScreenProps {
-  navigation: any;
-  route: {
-    params: {
-      mode: GameMode;
-    };
-  };
 }
 
 export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreenProps) => {
@@ -248,6 +248,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f0f8ff',
+    paddingTop: 50,
+    paddingBottom: 80,
   },
   header: {
     flexDirection: 'row',
@@ -273,6 +275,7 @@ const styles = StyleSheet.create({
   gameArea: {
     flex: 1,
     position: 'relative',
+    marginBottom: 20,
   },
   bubblesContainer: {
     flex: 1,
@@ -303,7 +306,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   targetArea: {
-    height: 100,
+    height: 80,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',

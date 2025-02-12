@@ -10,7 +10,7 @@ interface SettingsScreenProps {
 
 export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   const [dailyWords, setDailyWords] = useState(5);
-  const [currentLanguage, setCurrentLanguage] = useState('zh');
+  const [currentLanguage, setCurrentLanguage] = useState(i18n.language || 'zh');
   const [isPremium, setIsPremium] = useState(false);
 
   useEffect(() => {
@@ -24,7 +24,10 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       const storedPremium = await AsyncStorage.getItem('isPremium');
 
       if (storedDailyWords) setDailyWords(parseInt(storedDailyWords));
-      if (storedLanguage) setCurrentLanguage(storedLanguage);
+      if (storedLanguage) {
+        setCurrentLanguage(storedLanguage);
+        i18n.changeLanguage(storedLanguage);
+      }
       if (storedPremium) setIsPremium(storedPremium === 'true');
     } catch (error) {
       console.error('加载设置失败:', error);
@@ -44,7 +47,12 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     try {
       await AsyncStorage.setItem('language', lang);
       setCurrentLanguage(lang);
-      i18n.locale = lang;
+      await i18n.changeLanguage(lang);
+      // 重置整个应用的导航状态
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Learning' }], // 重置到主页面
+      });
     } catch (error) {
       console.error('切换语言失败:', error);
     }
@@ -126,6 +134,14 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
             >
               <Text style={[styles.languageButtonText, currentLanguage === 'en' && styles.activeLanguageText]}>
                 English
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.languageButton, currentLanguage === 'ja' && styles.activeLanguage]}
+              onPress={() => changeLanguage('ja')}
+            >
+              <Text style={[styles.languageButtonText, currentLanguage === 'ja' && styles.activeLanguageText]}>
+                日本語
               </Text>
             </TouchableOpacity>
           </View>

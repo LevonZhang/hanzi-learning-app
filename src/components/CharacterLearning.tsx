@@ -3,19 +3,34 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal, Alert } fr
 import { WebView } from 'react-native-webview';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import cnchar from 'cnchar';
-import { hanziDict } from '../data/hanziDict';
+import { hanziDict as importedHanziDict } from '../data/hanziDict';
 import { StrokeOrderCard } from './StrokeOrderCard';
 import { i18n } from '../i18n/i18n';
+
+const hanziDict = importedHanziDict as HanziDict;
+
+interface HanziDictEntry {
+  pinyin: string[];
+  english: string[];
+  chinese: string[];
+  radical?: string;
+  traditional?: string;
+  japanese?: string;
+}
+
+interface HanziDict {
+  [key: string]: HanziDictEntry;
+}
 
 interface HanziInfo {
   definition: string;
   pinyin: string[];
   words: string[];
   english: string;
-  radical: string;
+  radical?: string;
   strokes: number;
-  traditional: string;
-  japanese: string;
+  traditional?: string;
+  japanese?: string;
 }
 
 interface Props {
@@ -247,7 +262,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       </View>
 
       <View style={styles.buttonContainer}>
-        <View style={styles.practiceButtons}>
+        <View style={styles.buttonRow}>
           <TouchableOpacity 
             style={[styles.button, styles.demonstrateButton]}
             onPress={() => {
@@ -256,7 +271,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               }
             }}
           >
-            <MaterialCommunityIcons name="pencil-box-multiple" size={20} color="white" />
+            <MaterialCommunityIcons name="pencil-outline" size={20} color="#fff" />
             <Text style={styles.buttonText}>{i18n.t('demonstrateStrokes')}</Text>
           </TouchableOpacity>
           
@@ -268,47 +283,45 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               }
             }}
           >
-            <MaterialCommunityIcons name="pencil-outline" size={20} color="white" />
+            <MaterialCommunityIcons name="pencil" size={20} color="#fff" />
             <Text style={styles.buttonText}>{i18n.t('practice')}</Text>
           </TouchableOpacity>
-
-          {!isReviewMode && (
-            <TouchableOpacity 
-              style={[styles.button, styles.wrongButton]}
-              onPress={async () => {
-                try {
-                  await onComplete?.(false);
-                  // 显示添加成功提示
-                  Alert.alert(
-                    i18n.t('success'),
-                    i18n.t('addedToReview'),
-                    [{ text: i18n.t('confirm') }]
-                  );
-                } catch (error) {
-                  console.error('Error adding to review:', error);
-                  Alert.alert(
-                    i18n.t('error'),
-                    i18n.t('addToReviewFailed'),
-                    [{ text: i18n.t('confirm') }]
-                  );
-                }
-              }}
-            >
-              <MaterialCommunityIcons name="book-plus" size={20} color="white" />
-              <Text style={styles.buttonText}>{i18n.t('addToWrongBook')}</Text>
-            </TouchableOpacity>
-          )}
         </View>
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={[styles.button, styles.cardButton]}
-          onPress={() => setShowStrokeOrder(true)}
-        >
-          <MaterialCommunityIcons name="card-text-outline" size={20} color="white" />
-          <Text style={styles.buttonText}>{i18n.t('generateCard')}</Text>
-        </TouchableOpacity>
+        
+        <View style={styles.buttonRow}>
+          <TouchableOpacity 
+            style={[styles.button, styles.wrongBookButton]}
+            onPress={async () => {
+              try {
+                await onComplete?.(false);
+                // 显示添加成功提示
+                Alert.alert(
+                  i18n.t('success'),
+                  i18n.t('addedToReview'),
+                  [{ text: i18n.t('confirm') }]
+                );
+              } catch (error) {
+                console.error('Error adding to review:', error);
+                Alert.alert(
+                  i18n.t('error'),
+                  i18n.t('addToReviewFailed'),
+                  [{ text: i18n.t('confirm') }]
+                );
+              }
+            }}
+          >
+            <MaterialCommunityIcons name="bookmark-plus" size={20} color="#fff" />
+            <Text style={styles.buttonText}>{i18n.t('addToWrongBook')}</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.button, styles.generateButton]}
+            onPress={() => setShowStrokeOrder(true)}
+          >
+            <MaterialCommunityIcons name="card-outline" size={20} color="#fff" />
+            <Text style={styles.buttonText}>{i18n.t('generateCard')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <Modal
@@ -345,15 +358,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     backgroundColor: '#fff',
-    paddingBottom: 60,
+    paddingBottom: 20,
   },
   displayContainer: {
-    width: width - 80,
-    height: width - 80,
+    width: width - 90,
+    height: width - 90,
     backgroundColor: 'transparent',
     overflow: 'hidden',
-    marginTop: -20,
-    marginBottom: 0,
+    marginTop: -25,
+    marginBottom: -5,
   },
   canvas: {
     flex: 1,
@@ -361,43 +374,36 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     width: '100%',
-    marginTop: 0,
+    paddingHorizontal: 20,
+    gap: 8,
   },
-  practiceButtons: {
+  buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 5,
+    justifyContent: 'space-between',
+    gap: 8,
   },
   button: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    borderRadius: 6,
-    minWidth: 90,
     justifyContent: 'center',
+    padding: 10,
+    borderRadius: 8,
     gap: 4,
-  },
-  demonstrateButton: {
+    minWidth: 120,
     backgroundColor: '#5B7B9E',
-  },
-  practiceButton: {
-    backgroundColor: '#7B8D9E',
-  },
-  wrongButton: {
-    backgroundColor: '#9E7B7B',
   },
   buttonText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
+    flexShrink: 1,
   },
-  cardButton: {
-    backgroundColor: '#5B7B9E',
-    alignSelf: 'center',
-    minWidth: 120,
-    marginBottom: 5,
-  },
+  demonstrateButton: {},
+  practiceButton: {},
+  wrongBookButton: {},
+  generateButton: {},
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -456,5 +462,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
-  },
+  }
 }); 

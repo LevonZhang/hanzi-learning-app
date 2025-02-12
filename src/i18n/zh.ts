@@ -1,82 +1,64 @@
 export const zh = {
-  // 应用名称
-  appName: '字学堂',
-
-  // 菜单
-  startLearning: '开始学习',
-  games: '游戏',
+  // Navigation
+  learning: '学习',
   review: '复习',
+  games: '游戏',
   settings: '设置',
 
-  // 学习页面
+  // Learning Screen
   learningMode: '学习模式',
   reviewMode: '复习模式',
   learningProgress: '学习进度',
   reviewProgress: '复习进度',
-  next: '下一个',
-  completed: '完成',
-  characters: '个汉字',
+  completed: '已完成',
+  totalLearned: '已学习',
+  mastered: '已掌握',
+  needReview: '需要复习',
+  characters: '汉字',
   restart: '重新开始',
+  next: '下一个',
+  showMore: '显示更多',
+  fullMeanings: '完整释义',
+  languageZh: '中文',
+  languageEn: '英文',
+  languageJa: '日文',
+  commonWords: '常用词语',
+  noCommonWords: '暂无常用词语',
 
-  // 游戏
-  wordGame: '汉字配对',
-  wordGameDesc: '通过配对练习记忆汉字',
-  pronunciationGame: '发音练习',
-  pronunciationGameDesc: '练习汉字的正确发音',
-
-  // 复习
-  mistakes: '错误次数',
-  lastReview: '上次复习',
-  startReview: '开始复习',
-  noReviewNeeded: '太棒了！目前没有需要复习的汉字',
-
-  // 设置
-  learningSettings: '学习设置',
-  dailyWords: '每日学习字数',
-  language: '语言',
-  premium: '高级会员',
-  getPremium: '升级高级会员',
-  premiumActive: '已是高级会员',
-  alreadyPremium: '您已经是高级会员了',
-  premiumFeatures: '解锁所有高级功能',
-  comingSoon: '即将推出',
-  featureInDevelopment: '该功能正在开发中',
-  cancel: '取消',
-  subscribe: '订阅',
-
-  // 语言
-  languageChinese: '中文',
-  languageEnglish: '英文',
-
-  // 练习
-  demonstrateStrokes: '演示笔画',
+  // Character Learning
+  demonstrateStrokes: '演示',
   practice: '练习',
-  addToWrongBook: '加入错题本',
-  generateCard: '生成卡片',
-  strokeOrder: '笔顺',
-  stroke: '第{number}笔',
-  saveToGallery: '保存到相册',
-  shareCard: '分享卡片',
+  addToWrongBook: '错题',
+  generateCard: '卡片',
 
-  // 提示
-  success: '成功',
-  error: '错误',
-  confirm: '确定',
-  addedToReview: '已添加到复习列表',
-  addToReviewFailed: '添加到复习列表失败',
+  // Games
+  wordGame: '组词游戏',
+  pronunciationGame: '拼音游戏',
+  wordGameDesc: '寻找搭配的汉字组成词语',
+  pronunciationGameDesc: '找出相同发音的汉字',
+  level: '第 {{level}} 关',
+  score: '得分: {{score}}',
+  gameComplete: '游戏完成',
+  gameCompleteMessage: '恭喜你完成了所有关卡！',
+
+  // Stroke Order
+  stroke: '第{{number}}笔',
+  strokeOrder: '笔顺',
+  saveToGallery: '保存',
+  shareCard: '分享',
   permissionNeeded: '需要权限',
   galleryPermission: '需要访问相册的权限',
   saveSuccess: '保存成功',
-  cardSaved: '卡片已保存到相册',
-  deviceNotSupported: '设备不支持此功能',
+  cardSaved: '卡片已保存',
+  error: '错误',
   saveFailed: '保存失败',
   shareFailed: '分享失败',
+  deviceNotSupported: '设备不支持此功能',
 
-  // 释义标签
-  meaningZh: '中文',
-  meaningEn: '英文',
-  commonWords: '常用词组',
-  showMore: '显示更多',
-  fullMeanings: '完整释义',
-  noCommonWords: '暂无常用词组',
+  // Common
+  success: '成功',
+  confirm: '确定',
+  close: '关闭',
+  addedToReview: '已添加到复习',
+  addToReviewFailed: '添加失败'
 }; 

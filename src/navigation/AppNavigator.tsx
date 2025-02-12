@@ -1,116 +1,115 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigationContainer } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
 import { LearningScreen } from '../screens/LearningScreen';
 import { ReviewScreen } from '../screens/ReviewScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
 import { GamesScreen } from '../screens/GamesScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { BubbleMatchingScreen } from '../screens/BubbleMatchingScreen';
 import { i18n } from '../i18n/i18n';
+import { RouteProp } from '@react-navigation/native';
+import { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 
-export type RootStackParamList = {
-  MainTabs: undefined;
-  BubbleMatching: {
-    mode: 'word' | 'pronunciation';
-  };
-};
-
-export type MainTabParamList = {
+type RootTabParamList = {
   Learning: undefined;
   Review: undefined;
   Games: undefined;
   Settings: undefined;
 };
 
-const Tab = createBottomTabNavigator<MainTabParamList>();
-const Stack = createStackNavigator<RootStackParamList>();
+type GameStackParamList = {
+  GamesList: undefined;
+  WordGame: { mode: 'word' };
+  PronunciationGame: { mode: 'pronunciation' };
+};
 
-const MainTabs = () => {
+const Tab = createBottomTabNavigator<RootTabParamList>();
+const GameStack = createNativeStackNavigator<GameStackParamList>();
+
+const GameStackNavigator = () => {
   return (
-    <Tab.Navigator
-      screenOptions={{
-        tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopColor: '#e0e0e0',
-          height: Platform.OS === 'ios' ? 85 : 60,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 5,
-          paddingTop: 5,
-        },
-        tabBarActiveTintColor: '#5B7B9E',
-        tabBarInactiveTintColor: '#666',
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen
-        name="Learning"
-        component={LearningScreen}
-        options={{
-          tabBarLabel: i18n.t('learningMode'),
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="book-open-variant" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Review"
-        component={ReviewScreen}
-        options={{
-          tabBarLabel: i18n.t('reviewMode'),
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="refresh" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Games"
-        component={GamesScreen}
-        options={{
-          tabBarLabel: i18n.t('games'),
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="gamepad-variant" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarLabel: i18n.t('settings'),
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="cog" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
+    <GameStack.Navigator screenOptions={{ headerShown: false }}>
+      <GameStack.Screen name="GamesList" component={GamesScreen} />
+      <GameStack.Screen name="WordGame" component={BubbleMatchingScreen} initialParams={{ mode: 'word' }} />
+      <GameStack.Screen name="PronunciationGame" component={BubbleMatchingScreen} initialParams={{ mode: 'pronunciation' }} />
+    </GameStack.Navigator>
   );
 };
 
 export const AppNavigator = () => {
+  const getTabScreenOptions = ({ route }: { route: RouteProp<RootTabParamList, keyof RootTabParamList> }): BottomTabNavigationOptions => ({
+    tabBarIcon: ({ color, size }: { color: string; size: number }) => {
+      let iconName: keyof typeof MaterialCommunityIcons.glyphMap;
+      switch (route.name) {
+        case 'Learning':
+          iconName = 'book-open-variant';
+          break;
+        case 'Review':
+          iconName = 'refresh';
+          break;
+        case 'Games':
+          iconName = 'gamepad-variant';
+          break;
+        case 'Settings':
+          iconName = 'cog';
+          break;
+        default:
+          iconName = 'help';
+      }
+      return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
+    },
+    tabBarActiveTintColor: '#4CAF50',
+    tabBarInactiveTintColor: '#666',
+    tabBarStyle: {
+      paddingBottom: Platform.OS === 'ios' ? 15 : 5,
+      height: Platform.OS === 'ios' ? 70 : 60,
+      paddingTop: 5,
+      position: 'absolute' as const,
+      bottom: 15,
+      left: 10,
+      right: 10,
+      borderRadius: 15,
+      backgroundColor: '#fff',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+    tabBarLabelStyle: {
+      fontSize: 12,
+      marginBottom: Platform.OS === 'ios' ? 0 : 5,
+    },
+    headerShown: false,
+    tabBarLabel: i18n.t(route.name.toLowerCase())
+  });
+
   return (
-    <Stack.Navigator>
-      <Stack.Screen
-        name="MainTabs"
-        component={MainTabs}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="BubbleMatching"
-        component={BubbleMatchingScreen}
-        options={({ route }) => ({
-          title: route.params.mode === 'word' 
-            ? i18n.t('wordMatching')
-            : i18n.t('pronunciationMatching'),
-          headerStyle: {
-            backgroundColor: '#4a90e2',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-        })}
-      />
-    </Stack.Navigator>
+    <NavigationContainer>
+      <Tab.Navigator screenOptions={getTabScreenOptions}>
+        <Tab.Screen
+          name="Learning"
+          component={LearningScreen}
+        />
+        <Tab.Screen
+          name="Review"
+          component={ReviewScreen}
+        />
+        <Tab.Screen
+          name="Games"
+          component={GameStackNavigator}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsScreen}
+        />
+      </Tab.Navigator>
+    </NavigationContainer>
   );
 }; 

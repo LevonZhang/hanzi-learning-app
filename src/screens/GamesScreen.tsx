@@ -2,10 +2,15 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-interface GamesScreenProps {
-  navigation: any;
-}
+type GameStackParamList = {
+  GamesList: undefined;
+  WordGame: { mode: 'word' };
+  PronunciationGame: { mode: 'pronunciation' };
+};
+
+type GamesScreenProps = NativeStackScreenProps<GameStackParamList, 'GamesList'>;
 
 export const GamesScreen = ({ navigation }: GamesScreenProps) => {
   return (
@@ -23,7 +28,7 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
       <View style={styles.content}>
         <TouchableOpacity 
           style={[styles.gameCard, styles.wordGame]}
-          onPress={() => navigation.navigate('WordGame')}
+          onPress={() => navigation.navigate('WordGame', { mode: 'word' })}
         >
           <MaterialCommunityIcons name="cards" size={32} color="#fff" />
           <View style={styles.gameInfo}>
@@ -34,7 +39,7 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
 
         <TouchableOpacity 
           style={[styles.gameCard, styles.pronunciationGame]}
-          onPress={() => navigation.navigate('PronunciationGame')}
+          onPress={() => navigation.navigate('PronunciationGame', { mode: 'pronunciation' })}
         >
           <MaterialCommunityIcons name="microphone" size={32} color="#fff" />
           <View style={styles.gameInfo}>
@@ -51,6 +56,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: 50,
+    paddingBottom: 80,
   },
   header: {
     flexDirection: 'row',
@@ -70,29 +77,29 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
-    gap: 20,
+    padding: 15,
+    gap: 15,
   },
   gameCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    padding: 12,
     borderRadius: 12,
-    gap: 15,
+    gap: 12,
   },
   gameInfo: {
     flex: 1,
   },
   gameName: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   gameDescription: {
     color: '#fff',
     opacity: 0.9,
-    fontSize: 14,
+    fontSize: 13,
   },
   wordGame: {
     backgroundColor: '#34C759',

@@ -1,11 +1,7 @@
 declare module 'cnchar' {
-  interface ICnChar {
-    words(char: string): string[];
-    pinyin(char: string): string[];
-    voice(char: string): void;
-  }
-
-  const cnchar: ICnChar;
+  const cnchar: {
+    stroke(char: string): number | number[];
+  };
   export default cnchar;
 }
 

@@ -91,7 +91,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
   const loadTodayLearning = async () => {
     const learningManager = LearningManager.getInstance();
-    const { newWords, reviewWords } = await learningManager.getTodayLearningList();
+      const { newWords, reviewWords } = await learningManager.getTodayLearningList();
     const statistics = await learningManager.getStatistics();
 
     setState(prev => ({

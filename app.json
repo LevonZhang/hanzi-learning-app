@@ -28,14 +28,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-localization",
-      "expo-media-library",
-      "expo-sharing",
-      "expo-speech"
-    ],
     "experiments": {
       "newArchEnabled": true
-    }
+    },
+    "plugins": [
+      "expo-localization"
+    ]
   }
-} 
+}

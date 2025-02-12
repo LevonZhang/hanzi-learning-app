@@ -12,6 +12,7 @@
     "process-cedict": "ts-node scripts/processCedict.ts"
   },
   "dependencies": {
+    "@expo/ngrok": "^4.1.3",
     "@expo/vector-icons": "^14.0.4",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/cli-server-api": "^15.1.3",
@@ -68,6 +69,7 @@
     "@expo/metro-config": "^0.10.7",
     "@types/node": "^22.13.1",
     "@types/react": "~18.3.12",
+    "@types/react-native": "^0.72.8",
     "@types/react-native-sqlite-storage": "^6.0.5",
     "raw-loader": "^4.0.2",
     "ts-node": "^10.9.2",

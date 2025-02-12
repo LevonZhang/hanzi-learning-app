@@ -1,110 +1,150 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Switch, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { i18n, Language } from '../i18n/i18n';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { i18n } from '../i18n/i18n';
 
-export const SettingsScreen = () => {
-  const [dailyWords, setDailyWords] = useState(5); // 默认每日学习5个字
-  const [currentLanguage, setCurrentLanguage] = useState<Language>(i18n.getLanguage());
+interface SettingsScreenProps {
+  navigation: any;
+}
 
-  const handleLanguageChange = async (language: Language) => {
-    await i18n.setLanguage(language);
-    setCurrentLanguage(language);
-    // 显示需要重启应用的提示
-    Alert.alert(
-      i18n.t('confirm'),
-      i18n.t('languageChangeRestart'),
-      [{ text: i18n.t('confirm'), onPress: () => {} }]
-    );
+export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
+  const [dailyWords, setDailyWords] = useState(5);
+  const [currentLanguage, setCurrentLanguage] = useState('zh');
+  const [isPremium, setIsPremium] = useState(false);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const storedDailyWords = await AsyncStorage.getItem('dailyWords');
+      const storedLanguage = await AsyncStorage.getItem('language');
+      const storedPremium = await AsyncStorage.getItem('isPremium');
+
+      if (storedDailyWords) setDailyWords(parseInt(storedDailyWords));
+      if (storedLanguage) setCurrentLanguage(storedLanguage);
+      if (storedPremium) setIsPremium(storedPremium === 'true');
+    } catch (error) {
+      console.error('加载设置失败:', error);
+    }
+  };
+
+  const saveDailyWords = async (value: number) => {
+    try {
+      await AsyncStorage.setItem('dailyWords', value.toString());
+      setDailyWords(value);
+    } catch (error) {
+      console.error('保存每日字数失败:', error);
+    }
+  };
+
+  const changeLanguage = async (lang: string) => {
+    try {
+      await AsyncStorage.setItem('language', lang);
+      setCurrentLanguage(lang);
+      i18n.locale = lang;
+    } catch (error) {
+      console.error('切换语言失败:', error);
+    }
+  };
+
+  const handlePremium = () => {
+    if (isPremium) {
+      Alert.alert(i18n.t('premiumActive'), i18n.t('alreadyPremium'));
+    } else {
+      Alert.alert(
+        i18n.t('getPremium'),
+        i18n.t('premiumFeatures'),
+        [
+          {
+            text: i18n.t('cancel'),
+            style: 'cancel'
+          },
+          {
+            text: i18n.t('subscribe'),
+            onPress: () => {
+              // TODO: 实现订阅逻辑
+              Alert.alert(i18n.t('comingSoon'), i18n.t('featureInDevelopment'));
+            }
+          }
+        ]
+      );
+    }
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={24} color="#666" />
+        </TouchableOpacity>
+        <Text style={styles.title}>{i18n.t('settings')}</Text>
+      </View>
+
+      <View style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{i18n.t('learningSettings')}</Text>
           <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>{i18n.t('dailyNewWords')}</Text>
+            <Text style={styles.settingLabel}>{i18n.t('dailyWords')}</Text>
             <View style={styles.numberSelector}>
               <TouchableOpacity 
+                onPress={() => dailyWords > 1 && saveDailyWords(dailyWords - 1)}
                 style={styles.numberButton}
-                onPress={() => setDailyWords(Math.max(1, dailyWords - 1))}
               >
                 <Text style={styles.numberButtonText}>-</Text>
               </TouchableOpacity>
-              <Text style={styles.numberText}>{dailyWords}</Text>
+              <Text style={styles.numberValue}>{dailyWords}</Text>
               <TouchableOpacity 
+                onPress={() => dailyWords < 20 && saveDailyWords(dailyWords + 1)}
                 style={styles.numberButton}
-                onPress={() => setDailyWords(Math.min(20, dailyWords + 1))}
               >
                 <Text style={styles.numberButtonText}>+</Text>
               </TouchableOpacity>
             </View>
           </View>
+        </View>
 
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>{i18n.t('language')}</Text>
-            <View style={styles.languageSelector}>
-              <TouchableOpacity 
-                style={[
-                  styles.languageButton,
-                  currentLanguage === 'zh' && styles.languageButtonActive
-                ]}
-                onPress={() => handleLanguageChange('zh')}
-              >
-                <Text style={[
-                  styles.languageButtonText,
-                  currentLanguage === 'zh' && styles.languageButtonTextActive
-                ]}>{i18n.t('languageZh')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.languageButton,
-                  currentLanguage === 'en' && styles.languageButtonActive
-                ]}
-                onPress={() => handleLanguageChange('en')}
-              >
-                <Text style={[
-                  styles.languageButtonText,
-                  currentLanguage === 'en' && styles.languageButtonTextActive
-                ]}>{i18n.t('languageEn')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.languageButton,
-                  currentLanguage === 'ja' && styles.languageButtonActive
-                ]}
-                onPress={() => handleLanguageChange('ja')}
-              >
-                <Text style={[
-                  styles.languageButtonText,
-                  currentLanguage === 'ja' && styles.languageButtonTextActive
-                ]}>{i18n.t('languageJa')}</Text>
-              </TouchableOpacity>
-            </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{i18n.t('language')}</Text>
+          <View style={styles.languageButtons}>
+            <TouchableOpacity 
+              style={[styles.languageButton, currentLanguage === 'zh' && styles.activeLanguage]}
+              onPress={() => changeLanguage('zh')}
+            >
+              <Text style={[styles.languageButtonText, currentLanguage === 'zh' && styles.activeLanguageText]}>
+                中文
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.languageButton, currentLanguage === 'en' && styles.activeLanguage]}
+              onPress={() => changeLanguage('en')}
+            >
+              <Text style={[styles.languageButtonText, currentLanguage === 'en' && styles.activeLanguageText]}>
+                English
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{i18n.t('membershipService')}</Text>
-          <TouchableOpacity style={styles.premiumButton}>
+          <Text style={styles.sectionTitle}>{i18n.t('premium')}</Text>
+          <TouchableOpacity 
+            style={styles.premiumButton}
+            onPress={handlePremium}
+          >
             <MaterialCommunityIcons name="crown" size={24} color="#FFD700" />
-            <Text style={styles.premiumButtonText}>{i18n.t('upgradePremium')}</Text>
-          </TouchableOpacity>
-          <Text style={styles.premiumDescription}>
-            {i18n.t('premiumDescription')}
-          </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{i18n.t('about')}</Text>
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingLabel}>{i18n.t('version')}</Text>
-            <Text style={styles.settingValue}>1.0.0</Text>
+            <Text style={styles.premiumButtonText}>
+              {isPremium ? i18n.t('premiumActive') : i18n.t('getPremium')}
+            </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -113,13 +153,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  scrollView: {
-    flex: 1,
-  },
-  section: {
-    padding: 20,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+  },
+  backButton: {
+    padding: 8,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: 10,
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+  section: {
+    marginBottom: 30,
   },
   sectionTitle: {
     fontSize: 18,
@@ -131,83 +186,70 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   settingLabel: {
-    fontSize: 16,
-    color: '#333',
-  },
-  settingValue: {
     fontSize: 16,
     color: '#666',
   },
   numberSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    borderRadius: 8,
-    padding: 4,
+    gap: 15,
   },
   numberButton: {
     width: 30,
     height: 30,
-    backgroundColor: '#5B7B9E',
     borderRadius: 15,
-    alignItems: 'center',
+    backgroundColor: '#007AFF',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   numberButtonText: {
     color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
-  numberText: {
-    fontSize: 16,
-    marginHorizontal: 15,
-    minWidth: 20,
+  numberValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    minWidth: 30,
     textAlign: 'center',
   },
-  languageSelector: {
+  languageButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 15,
   },
   languageButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#5B7B9E',
+    borderColor: '#007AFF',
   },
-  languageButtonActive: {
-    backgroundColor: '#5B7B9E',
+  activeLanguage: {
+    backgroundColor: '#007AFF',
   },
   languageButtonText: {
-    color: '#5B7B9E',
-    fontSize: 14,
+    color: '#007AFF',
+    fontSize: 16,
     fontWeight: '600',
   },
-  languageButtonTextActive: {
+  activeLanguageText: {
     color: '#fff',
   },
   premiumButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#5B7B9E',
+    backgroundColor: '#333',
     padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
+    borderRadius: 10,
+    gap: 10,
   },
   premiumButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 8,
-  },
-  premiumDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-    textAlign: 'center',
   },
 }); 

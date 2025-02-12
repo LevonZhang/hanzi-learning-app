@@ -1,6 +1,7 @@
 declare module 'cnchar' {
   const cnchar: {
     stroke(char: string): number | number[];
+    words(char: string): string[];
   };
   export default cnchar;
 }

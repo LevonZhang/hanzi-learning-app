@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 
@@ -8,82 +8,96 @@ interface GamesScreenProps {
 }
 
 export const GamesScreen = ({ navigation }: GamesScreenProps) => {
-  const navigateToGame = (mode: 'word' | 'pronunciation') => {
-    navigation.navigate('BubbleMatching', { mode });
-  };
-
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{i18n.t('games')}</Text>
-      
-      <View style={styles.gamesGrid}>
-        <TouchableOpacity
-          style={[styles.gameCard, styles.wordCard]}
-          onPress={() => navigateToGame('word')}
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
         >
-          <MaterialCommunityIcons name="puzzle" size={40} color="#fff" />
-          <Text style={styles.gameTitle}>{i18n.t('wordMatching')}</Text>
-          <Text style={styles.gameDescription}>{i18n.t('wordMatchingDesc')}</Text>
+          <MaterialCommunityIcons name="arrow-left" size={24} color="#666" />
         </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.gameCard, styles.pronunciationCard]}
-          onPress={() => navigateToGame('pronunciation')}
+        <Text style={styles.title}>{i18n.t('games')}</Text>
+      </View>
+
+      <View style={styles.content}>
+        <TouchableOpacity 
+          style={[styles.gameCard, styles.wordGame]}
+          onPress={() => navigation.navigate('WordGame')}
         >
-          <MaterialCommunityIcons name="volume-high" size={40} color="#fff" />
-          <Text style={styles.gameTitle}>{i18n.t('pronunciationMatching')}</Text>
-          <Text style={styles.gameDescription}>{i18n.t('pronunciationMatchingDesc')}</Text>
+          <MaterialCommunityIcons name="cards" size={32} color="#fff" />
+          <View style={styles.gameInfo}>
+            <Text style={styles.gameName}>{i18n.t('wordGame')}</Text>
+            <Text style={styles.gameDescription}>{i18n.t('wordGameDesc')}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.gameCard, styles.pronunciationGame]}
+          onPress={() => navigation.navigate('PronunciationGame')}
+        >
+          <MaterialCommunityIcons name="microphone" size={32} color="#fff" />
+          <View style={styles.gameInfo}>
+            <Text style={styles.gameName}>{i18n.t('pronunciationGame')}</Text>
+            <Text style={styles.gameDescription}>{i18n.t('pronunciationGameDesc')}</Text>
+          </View>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 20,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  backButton: {
+    padding: 8,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
+    marginLeft: 10,
   },
-  gamesGrid: {
+  content: {
+    flex: 1,
+    padding: 20,
     gap: 20,
   },
   gameCard: {
-    padding: 20,
-    borderRadius: 15,
+    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    minHeight: 160,
+    padding: 20,
+    borderRadius: 12,
+    gap: 15,
   },
-  wordCard: {
-    backgroundColor: '#5B7B9E',
+  gameInfo: {
+    flex: 1,
   },
-  pronunciationCard: {
-    backgroundColor: '#4CAF50',
-  },
-  gameTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  gameName: {
     color: '#fff',
-    marginTop: 10,
-    marginBottom: 8,
-    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   gameDescription: {
+    color: '#fff',
+    opacity: 0.9,
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    lineHeight: 20,
+  },
+  wordGame: {
+    backgroundColor: '#34C759',
+  },
+  pronunciationGame: {
+    backgroundColor: '#5856D6',
   },
 }); 

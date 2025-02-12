@@ -1,61 +1,27 @@
-import { translations } from './translations';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { I18n } from 'i18n-js';
+import * as Localization from 'expo-localization';
+import { zh } from './zh';
+import { en } from './en';
 
-export type Language = 'zh' | 'en' | 'ja';
+const translations = {
+  zh,
+  en,
+};
 
-class I18n {
-  private static instance: I18n;
-  private currentLanguage: Language = 'en';
+export const i18n = new I18n(translations);
 
-  private constructor() {
-    this.loadLanguage();
-  }
+// 设置默认语言
+i18n.defaultLocale = 'zh';
+i18n.locale = Localization.locale.split('-')[0];
+i18n.enableFallback = true;
 
-  public static getInstance(): I18n {
-    if (!I18n.instance) {
-      I18n.instance = new I18n();
-    }
-    return I18n.instance;
-  }
-
-  private async loadLanguage() {
-    try {
-      const savedLanguage = await AsyncStorage.getItem('language');
-      if (savedLanguage && (savedLanguage === 'zh' || savedLanguage === 'en' || savedLanguage === 'ja')) {
-        this.currentLanguage = savedLanguage;
-      }
-    } catch (error) {
-      console.error('Error loading language:', error);
-    }
-  }
-
-  public async setLanguage(language: Language) {
-    try {
-      await AsyncStorage.setItem('language', language);
-      this.currentLanguage = language;
-    } catch (error) {
-      console.error('Error saving language:', error);
-    }
-  }
-
-  public getLanguage(): Language {
-    return this.currentLanguage;
-  }
-
-  public t(key: string, params?: { [key: string]: string | number }): string {
-    const translation = translations[this.currentLanguage];
-    if (!translation) return key;
-
-    let text = translation[key] || key;
-    
-    if (params) {
-      Object.keys(params).forEach(param => {
-        text = text.replace(`{${param}}`, String(params[param]));
-      });
-    }
-    
-    return text;
+// 扩展 I18n 类型
+declare module 'i18n-js' {
+  interface I18n {
+    locale: string;
+    defaultLocale: string;
+    enableFallback: boolean;
   }
 }
 
-export const i18n = I18n.getInstance(); 
+export type Language = 'zh' | 'en'; 

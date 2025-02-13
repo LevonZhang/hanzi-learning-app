@@ -41,6 +41,12 @@ export const en = {
   gameComplete: 'Game Complete',
   gameCompleteMessage: 'Congratulations! You have completed all levels!',
 
+  // Game Rules
+  correctMatch: 'Correct Match',
+  incorrectMatch: 'Wrong Match',
+  useHint: 'Use Hint',
+  points: '{{points}} pts',
+
   // Stroke Order
   stroke: 'Stroke {{number}}',
   strokeOrder: 'Stroke Order',

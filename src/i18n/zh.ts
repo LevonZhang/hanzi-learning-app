@@ -41,6 +41,12 @@ export const zh = {
   gameComplete: '游戏完成',
   gameCompleteMessage: '恭喜你完成了所有关卡！',
 
+  // Game Rules
+  correctMatch: '正确配对',
+  incorrectMatch: '错误匹配',
+  useHint: '使用提示',
+  points: '{{points}}分',
+
   // Stroke Order
   stroke: '第{{number}}笔',
   strokeOrder: '笔顺',

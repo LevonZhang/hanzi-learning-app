@@ -9,6 +9,7 @@ import { ReviewScreen } from '../screens/ReviewScreen';
 import { GamesScreen } from '../screens/GamesScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { BubbleMatchingScreen } from '../screens/BubbleMatchingScreen';
+import { PronunciationMatchingScreen } from '../screens/PronunciationMatchingScreen';
 import { i18n } from '../i18n/i18n';
 import { RouteProp } from '@react-navigation/native';
 import { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
@@ -34,27 +35,27 @@ const GameStackNavigator = () => {
     <GameStack.Navigator screenOptions={{ headerShown: false }}>
       <GameStack.Screen name="GamesList" component={GamesScreen} />
       <GameStack.Screen name="WordGame" component={BubbleMatchingScreen} initialParams={{ mode: 'word' }} />
-      <GameStack.Screen name="PronunciationGame" component={BubbleMatchingScreen} initialParams={{ mode: 'pronunciation' }} />
+      <GameStack.Screen name="PronunciationGame" component={PronunciationMatchingScreen} initialParams={{ mode: 'pronunciation' }} />
     </GameStack.Navigator>
   );
 };
 
 export const AppNavigator = () => {
   const getTabScreenOptions = ({ route }: { route: RouteProp<RootTabParamList, keyof RootTabParamList> }): BottomTabNavigationOptions => ({
-    tabBarIcon: ({ color, size }: { color: string; size: number }) => {
+    tabBarIcon: ({ focused, color, size }: { focused: boolean; color: string; size: number }) => {
       let iconName: keyof typeof MaterialCommunityIcons.glyphMap;
       switch (route.name) {
         case 'Learning':
-          iconName = 'book-open-variant';
+          iconName = focused ? 'book-open-variant' : 'book-open-outline';
           break;
         case 'Review':
-          iconName = 'refresh';
+          iconName = focused ? 'refresh' : 'refresh-circle';
           break;
         case 'Games':
-          iconName = 'gamepad-variant';
+          iconName = focused ? 'gamepad-variant' : 'gamepad-variant-outline';
           break;
         case 'Settings':
-          iconName = 'cog';
+          iconName = focused ? 'cog' : 'cog-outline';
           break;
         default:
           iconName = 'help';
@@ -62,7 +63,7 @@ export const AppNavigator = () => {
       return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
     },
     tabBarActiveTintColor: '#4CAF50',
-    tabBarInactiveTintColor: '#666',
+    tabBarInactiveTintColor: 'gray',
     tabBarStyle: {
       paddingBottom: Platform.OS === 'ios' ? 15 : 5,
       height: Platform.OS === 'ios' ? 70 : 60,
@@ -97,18 +98,22 @@ export const AppNavigator = () => {
         <Tab.Screen
           name="Learning"
           component={LearningScreen}
+          options={{ title: i18n.t('learning') }}
         />
         <Tab.Screen
           name="Review"
           component={ReviewScreen}
+          options={{ title: i18n.t('review') }}
         />
         <Tab.Screen
           name="Games"
           component={GameStackNavigator}
+          options={{ title: i18n.t('games') }}
         />
         <Tab.Screen
           name="Settings"
           component={SettingsScreen}
+          options={{ title: i18n.t('settings') }}
         />
       </Tab.Navigator>
     </NavigationContainer>

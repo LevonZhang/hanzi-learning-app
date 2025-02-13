@@ -131,7 +131,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
     // 更新当前字列表
     const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
-    const nextIndex = currentList.findIndex(w => w.character === state.currentWord.character) + 1;
+    const nextIndex = currentList.findIndex(w => w.character === state.currentWord!.character) + 1;
 
     if (nextIndex < currentList.length) {
       // 还有字要学习
@@ -213,17 +213,17 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
           </Text>
           <Text style={styles.progress}>
             {state.isReviewMode 
-              ? `${i18n.t('reviewProgress')}: ${state.reviewWords.findIndex(w => w.character === state.currentWord.character) + 1}/${state.reviewWords.length}`
-              : `${i18n.t('learningProgress')}: ${state.newWords.findIndex(w => w.character === state.currentWord.character) + 1}/${state.newWords.length}`
+              ? `${i18n.t('reviewProgress')}: ${state.reviewWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.reviewWords.length}`
+              : `${i18n.t('learningProgress')}: ${state.newWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.newWords.length}`
             }
           </Text>
         </View>
 
         <View style={styles.characterInfo}>
           <View style={styles.characterHeader}>
-            <Text style={styles.characterText}>{state.currentWord.character}</Text>
+            <Text style={styles.characterText}>{state.currentWord!.character}</Text>
             <TouchableOpacity 
-              onPress={() => playSound(state.currentWord.character)}
+              onPress={() => playSound(state.currentWord!.character)}
               style={styles.soundButton}
             >
               <MaterialCommunityIcons name="volume-high" size={24} color="#5B7B9E" />
@@ -369,7 +369,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
             style={styles.nextButton}
             onPress={() => {
               const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
-              const currentIndex = currentList.findIndex(w => w.character === state.currentWord?.character);
+              const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
               
               if (currentIndex < currentList.length - 1) {
                 setState(prev => ({

@@ -41,6 +41,12 @@ export const ja = {
   gameComplete: 'ゲーム完了',
   gameCompleteMessage: 'おめでとう！全レベルをクリアしました！',
 
+  // Game Rules
+  correctMatch: '正解',
+  incorrectMatch: '不正解',
+  useHint: 'ヒント使用',
+  points: '{{points}}点',
+
   // Stroke Order
   stroke: '{{number}}画目',
   strokeOrder: '書き順',

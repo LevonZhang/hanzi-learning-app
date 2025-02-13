@@ -1,7 +1,2 @@
 node_modules
-.expo/metro-cache
-.expo/cache
-.expo/logs
-.expo/artifacts
-.expo/ios
-.expo/android
+.expo/metro

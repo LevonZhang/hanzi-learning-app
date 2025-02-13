@@ -72,15 +72,16 @@ export const AppNavigator = () => {
       left: 10,
       right: 10,
       borderRadius: 15,
-      backgroundColor: '#fff',
+      backgroundColor: 'rgba(255, 255, 255, 0.8)',
       shadowColor: '#000',
       shadowOffset: {
         width: 0,
         height: 2,
       },
-      shadowOpacity: 0.25,
+      shadowOpacity: 0.15,
       shadowRadius: 3.84,
       elevation: 5,
+      borderTopWidth: 0,
     },
     tabBarLabelStyle: {
       fontSize: 12,

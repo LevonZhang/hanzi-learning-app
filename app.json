@@ -4,7 +4,7 @@
     "slug": "hanzi-learning-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -12,7 +12,7 @@
       "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
-      "**/*"
+      "assets/**/*"
     ],
     "ios": {
       "supportsTablet": true,
@@ -31,6 +31,8 @@
     "plugins": [
       "expo-localization"
     ],
-    "newArchEnabled": true
+    "experiments": {
+      "newArchEnabled": true
+    }
   }
 }

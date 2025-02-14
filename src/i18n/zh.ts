@@ -33,9 +33,9 @@ export const zh = {
 
   // Games
   wordGame: '组词游戏',
-  pronunciationGame: '拼音游戏',
+  pronunciationGame: '听声辨字',
   wordGameDesc: '寻找搭配的汉字组成词语',
-  pronunciationGameDesc: '找出相同发音的汉字',
+  pronunciationGameDesc: '听声音找出对应的汉字',
   level: '第 {{level}} 关',
   score: '得分: {{score}}',
   gameComplete: '游戏完成',

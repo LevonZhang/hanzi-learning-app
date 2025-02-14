@@ -35,7 +35,7 @@ export const en = {
   wordGame: 'Word Matching',
   pronunciationGame: 'Sound & Character',
   wordGameDesc: 'Find characters to form words',
-  pronunciationGameDesc: 'Match characters by their pronunciation',
+  pronunciationGameDesc: 'Listen and find the matching character',
   level: 'Level {{level}}',
   score: 'Score: {{score}}',
   gameComplete: 'Game Complete',

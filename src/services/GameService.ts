@@ -1,7 +1,9 @@
 import * as Speech from 'expo-speech';
 import cnchar from 'cnchar';
-import 'cnchar-words';  // 导入词组模块
-import 'cnchar-poly';   // 导入多音字模块
+import 'cnchar-poly';  // 添加多音字支持
+import 'cnchar-order'; // 添加笔顺支持
+import 'cnchar-words'; // 添加词组支持
+import { pinyin } from 'pinyin-pro';
 
 export interface WordPair {
   word: string;
@@ -10,8 +12,6 @@ export interface WordPair {
 
 export interface PronunciationChar {
   char: string;
-  pronunciation: string;
-  samePronounciation?: string[];
 }
 
 class GameService {
@@ -45,33 +45,46 @@ class GameService {
 
   public getPronunciationCharsForLevel(level: number): PronunciationChar[] {
     const count = this.getLevelCount(level);
-    const chars = this.getRandomCharsFromCommon(count);
+    const chars = this.getRandomCharsFromCommon(count * 2);
     
-    return chars.map(char => {
-      const pronunciation = cnchar.pinyin(char)[0]; // 获取拼音
-      if (!pronunciation) {
-        console.log('No pronunciation found for char:', char);
+    console.log('获取随机字符:', chars);
+    
+    const usedPronunciations = new Set<string>();
+    const result: PronunciationChar[] = [];
+    
+    for (const char of chars) {
+      try {
+        // 修改拼音获取方式
+        const pronunciation = pinyin(char, { toneType: 'none' });
+        if (!pronunciation) {
+          console.log('无法获取读音:', char);
+          continue;
+        }
+        
+        if (usedPronunciations.has(pronunciation)) {
+          console.log('读音已使用:', char, pronunciation);
+          continue;
+        }
+        
+        usedPronunciations.add(pronunciation);
+        result.push({ char });
+        console.log('添加字符:', char, '读音:', pronunciation);
+        
+        if (result.length >= count) {
+          console.log('已收集足够的字符');
+          break;
+        }
+      } catch (error) {
+        console.error('处理字符时出错:', char, error);
       }
-      const samePronounciation = this.findSamePronunciationChars(char, pronunciation);
-      
-      return {
-        char,
-        pronunciation: pronunciation || '',
-        samePronounciation
-      };
-    }).filter(char => char.pronunciation && char.samePronounciation.length > 0); // 过滤掉没有找到发音或同音字的情况
-  }
-
-  private findSamePronunciationChars(char: string, targetPinyin: string): string[] {
-    if (!targetPinyin) return [];
-    // 从常用字中找出发音相同的字
-    return this.commonChars
-      .split('')
-      .filter(c => {
-        const pinyin = cnchar.pinyin(c)[0];
-        return c !== char && pinyin === targetPinyin;
-      })
-      .slice(0, 3); // 限制数量，避免太多
+    }
+    
+    if (result.length < count) {
+      console.warn(`无法获取足够的字符，需要 ${count} 个，实际获取 ${result.length} 个`);
+    }
+    
+    console.log('最终返回的字符:', result);
+    return result;
   }
 
   private getLevelCount(level: number): number {
@@ -105,8 +118,7 @@ class GameService {
         words.map(word => word.split('').filter(c => c !== char)[0])
       )).filter(Boolean);
     } else {
-      const pronunciation = cnchar.pinyin(char)[0];
-      return this.findSamePronunciationChars(char, pronunciation);
+      return [];
     }
   }
 }

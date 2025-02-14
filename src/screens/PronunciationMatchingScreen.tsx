@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,21 +23,15 @@ const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.6;
 const BUBBLE_SIZE = 80;
 const HORIZONTAL_GAP = 5;
 const VERTICAL_OVERLAP = -8;
+const TOP_MARGIN = 20;
+const MAX_HEIGHT = GAME_AREA_HEIGHT * 0.4;
 
 // 修改颜色系统，每个色系使用相同基色的不同深浅和透明度
-const BUBBLE_COLORS = [
-  // 粉色系
-  ['rgba(255, 182, 193, 0.9)', 'rgba(255, 192, 203, 0.6)', 'rgba(255, 228, 235, 0.4)'],
-  // 蓝色系
-  ['rgba(135, 206, 235, 0.9)', 'rgba(176, 224, 230, 0.6)', 'rgba(240, 248, 255, 0.4)'],
-  // 紫色系
-  ['rgba(216, 191, 216, 0.9)', 'rgba(221, 160, 221, 0.6)', 'rgba(245, 230, 245, 0.4)'],
-  // 绿色系
-  ['rgba(144, 238, 144, 0.9)', 'rgba(152, 251, 152, 0.6)', 'rgba(240, 255, 240, 0.4)'],
-  // 黄色系
-  ['rgba(255, 218, 185, 0.9)', 'rgba(255, 228, 196, 0.6)', 'rgba(255, 245, 238, 0.4)'],
-  // 青色系
-  ['rgba(175, 238, 238, 0.9)', 'rgba(224, 255, 255, 0.6)', 'rgba(240, 255, 255, 0.4)']
+const BUBBLE_COLORS: readonly [string, string, string][] = [
+  ['#FF9AA2', '#FFB7B2', '#FFDAC1'],
+  ['#E2F0CB', '#B5EAD7', '#C7CEEA'],
+  ['#FF9AA2', '#FFB7B2', '#FFDAC1'],
+  ['#E2F0CB', '#B5EAD7', '#C7CEEA'],
 ];
 
 type GameLevel = 1 | 2 | 3 | 4 | 5;
@@ -55,9 +49,11 @@ interface Bubble {
   char: string;
   scale: Animated.Value;
   opacity: Animated.Value;
-  pronunciation: string;
-  colors: string[];
-  position: { x: number; y: number };
+  colors: readonly [string, string, string];
+  position: {
+    x: number;
+    y: number;
+  };
   floatingAnim: Animated.Value;
 }
 
@@ -81,8 +77,73 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   const [successSound, setSuccessSound] = useState<Audio.Sound | null>(null);
   const [failureSound, setFailureSound] = useState<Audio.Sound | null>(null);
   const [maxScore, setMaxScore] = useState(0);
-  const progressWidth = useState(new Animated.Value(0))[0];
-  const floatingAnimation = useState(new Animated.Value(0))[0];
+  const [isGameStarted, setIsGameStarted] = useState(false);
+  const [showLevelComplete, setShowLevelComplete] = useState(false);
+  
+  // 所有的 Animated.Value 都使用 useRef
+  const progressWidth = useRef(new Animated.Value(0)).current;
+  const floatingAnimation = useRef(new Animated.Value(0)).current;
+  const currentCharScale = useRef(new Animated.Value(1)).current;
+  const currentCharOpacity = useRef(new Animated.Value(1)).current;
+  const progressBarWidth = useRef(new Animated.Value(0)).current;
+  const levelTransition = useRef(new Animated.Value(1)).current;
+  const scoreTransition = useRef(new Animated.Value(1)).current;
+  const gameStartAnim = useRef(new Animated.Value(0)).current;
+  const levelCompleteAnim = useRef(new Animated.Value(0)).current;
+  
+  // 为每个气泡创建旋转动画值
+  const bubbleRotations = useRef<{ [key: string]: Animated.Value }>({}).current;
+
+  // 添加喇叭动画
+  const speakerAnim = useRef(new Animated.Value(0)).current;
+
+  // 初始化气泡旋转动画
+  useEffect(() => {
+    bubbles.forEach(bubble => {
+      if (!bubbleRotations[bubble.id]) {
+        bubbleRotations[bubble.id] = new Animated.Value(0);
+        const randomRotation = Math.random() * 10 - 5;
+        const randomDuration = 2000 + Math.random() * 1000;
+
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(bubbleRotations[bubble.id], {
+              toValue: randomRotation,
+              duration: randomDuration,
+              useNativeDriver: true,
+              easing: Easing.inOut(Easing.sin),
+            }),
+            Animated.timing(bubbleRotations[bubble.id], {
+              toValue: -randomRotation,
+              duration: randomDuration,
+              useNativeDriver: true,
+              easing: Easing.inOut(Easing.sin),
+            }),
+          ])
+        ).start();
+      }
+    });
+  }, [bubbles]);
+
+  // 添加喇叭浮动动画
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(speakerAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        Animated.timing(speakerAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.sin),
+        }),
+      ])
+    ).start();
+  }, []);
 
   const getLevelBubbleCount = (level: GameLevel) => {
     const counts = {
@@ -99,10 +160,10 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   const generateLayeredPositions = (totalBubbles: number) => {
     const positions: Array<{ x: number; y: number }> = [];
     const bubblesPerRow = Math.floor(GAME_AREA_WIDTH / (BUBBLE_SIZE + HORIZONTAL_GAP));
-    let currentY = 10;
+    let currentY = TOP_MARGIN;
     let remainingBubbles = totalBubbles;
     
-    while (remainingBubbles > 0) {
+    while (remainingBubbles > 0 && currentY < MAX_HEIGHT) {
       const bubblesInThisRow = Math.min(remainingBubbles, bubblesPerRow);
       const rowWidth = bubblesInThisRow * (BUBBLE_SIZE + HORIZONTAL_GAP) - HORIZONTAL_GAP;
       const startX = (GAME_AREA_WIDTH - rowWidth) / 2;
@@ -112,7 +173,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
         const randomOffset = Math.random() * 10 - 5;
         positions.push({
           x: x + randomOffset,
-          y: currentY
+          y: currentY + (Math.random() * 10 - 5)
         });
       }
       
@@ -206,90 +267,109 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   }, [bubbles]);
 
   const initializeLevel = async () => {
+    setIsGameStarted(false);
+    gameStartAnim.setValue(0);
+    
     const bubbleCount = getLevelBubbleCount(level);
-    let newBubbles: Bubble[] = [];
     
-    // 获取拼音数据
-    const pronunciationChars = gameService.getPronunciationCharsForLevel(level);
-    console.log('获取到的汉字:', pronunciationChars);
-    
-    // 过滤掉无效的汉字
-    const validChars = pronunciationChars.filter(char => 
-      char.char && 
-      char.pronunciation && 
-      char.samePronounciation && 
-      char.samePronounciation.length > 0
-    );
-    
-    if (validChars.length === 0) {
-      console.warn(`Level ${level} has no valid characters`);
-      if (level === 5) {
-        Alert.alert(i18n.t('gameComplete'), i18n.t('gameCompleteMessage'));
-        navigation.goBack();
-      } else {
-        setLevel(prev => (prev + 1) as GameLevel);
+    try {
+      // 获取拼音数据
+      const pronunciationChars = await gameService.getPronunciationCharsForLevel(level);
+      
+      if (!pronunciationChars || pronunciationChars.length === 0) {
+        Alert.alert('错误', '无法加载关卡数据');
+        return;
       }
-      return;
-    }
-    
-    // 计算所有关卡的总分
-    let totalMaxScore = 0;
-    for (let i = 1; i <= 5; i++) {
-      const levelChars = gameService.getPronunciationCharsForLevel(i as GameLevel);
-      const validLevelChars = levelChars.filter(char => 
-        char.char && 
-        char.pronunciation && 
-        char.samePronounciation && 
-        char.samePronounciation.length > 0
-      );
-      totalMaxScore += validLevelChars.length * 10;
-    }
-    setMaxScore(totalMaxScore);
-    
-    // 预先生成所有位置
-    const positions = generateLayeredPositions(validChars.length);
+      
+      // 过滤掉无效的汉字
+      const validChars = pronunciationChars.filter(char => char.char);
+      
+      if (validChars.length === 0) {
+        Alert.alert('错误', '无法加载关卡数据');
+        return;
+      }
+      
+      // 计算所有关卡的总分
+      let totalMaxScore = 0;
+      for (let i = 1; i <= 5; i++) {
+        const levelChars = await gameService.getPronunciationCharsForLevel(i as GameLevel);
+        const validLevelChars = levelChars.filter(char => char.char);
+        totalMaxScore += validLevelChars.length * 10;
+      }
+      setMaxScore(totalMaxScore);
+      
+      // 预先生成所有位置
+      const positions = generateLayeredPositions(validChars.length);
 
-    // 创建气泡
-    newBubbles = validChars.map((char, index) => {
-      const colorIndex = index % BUBBLE_COLORS.length;
-      const position = positions[index] || { x: 0, y: 0 };
+      // 创建气泡
+      let newBubbles: Bubble[] = validChars.map((char, index) => {
+        const colorIndex = index % BUBBLE_COLORS.length;
+        const position = positions[index] || { x: 0, y: 0 };
 
-      return {
-        id: `${char.char}-${index}`,
-        char: char.char,
-        scale: new Animated.Value(1),
-        opacity: new Animated.Value(1),
-        pronunciation: char.pronunciation,
-        colors: BUBBLE_COLORS[colorIndex],
-        position,
-        floatingAnim: new Animated.Value(0)
-      };
-    });
+        return {
+          id: `${char.char}-${index}`,
+          char: char.char,
+          scale: new Animated.Value(1),
+          opacity: new Animated.Value(1),
+          colors: BUBBLE_COLORS[colorIndex],
+          position: position,
+          floatingAnim: new Animated.Value(0)
+        };
+      });
 
-    // 随机打乱气泡顺序
-    newBubbles = shuffleArray(newBubbles);
-    setBubbles(newBubbles);
-    
-    // 设置剩余的字符和当前要匹配的字
-    const shuffledChars = shuffleArray(validChars);
-    setRemainingChars(shuffledChars);
-    if (shuffledChars.length > 0) {
-      setCurrentChar(shuffledChars[0]);
+      // 随机打乱气泡顺序
+      newBubbles = shuffleArray(newBubbles);
+      setBubbles(newBubbles);
+      
+      // 设置剩余的字符和当前要匹配的字
+      const shuffledChars = shuffleArray(validChars);
+      setRemainingChars(shuffledChars);
+      if (shuffledChars.length > 0) {
+        updateCurrentChar(shuffledChars[0]);
+      }
+
+      // 启动游戏开始动画
+      setTimeout(() => {
+        setIsGameStarted(true);
+        playGameStartAnimation();
+      }, 500);
+    } catch (error) {
+      Alert.alert('错误', '初始化关卡时出错');
     }
   };
 
   // 气球爆炸动画
   const playBubblePopAnimation = (bubble: Bubble) => {
+    const randomRotation = Math.random() * 360;
+    const randomDirection = Math.random() > 0.5 ? 1 : -1;
+
     Animated.parallel([
-      Animated.timing(bubble.scale, {
-        toValue: 1.2,
-        duration: 150,
-        useNativeDriver: true,
-      }),
+      Animated.sequence([
+        Animated.timing(bubble.scale, {
+          toValue: 1.2,
+          duration: 100,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.back(2)),
+        }),
+        Animated.timing(bubble.scale, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+          easing: Easing.in(Easing.back(2)),
+        }),
+      ]),
       Animated.timing(bubble.opacity, {
         toValue: 0,
-        duration: 300,
+        duration: 400,
         useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }),
+      // 添加旋转和位移动画
+      Animated.timing(bubble.floatingAnim, {
+        toValue: randomDirection * 100,
+        duration: 400,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
       }),
     ]).start();
   };
@@ -299,7 +379,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     const validScore = Math.max(0, newScore);
     const progressPercentage = (validScore / maxScore) * 100;
     
-    Animated.spring(progressWidth, {
+    Animated.spring(progressBarWidth, {
       toValue: progressPercentage,
       useNativeDriver: false,
       tension: 40,
@@ -307,16 +387,61 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     }).start();
   };
 
+  // 播放当前字符的动画
+  const playCurrentCharAnimation = () => {
+    Animated.sequence([
+      Animated.timing(currentCharScale, {
+        toValue: 1.1,
+        duration: 100,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.back(2)),
+      }),
+      Animated.timing(currentCharScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.back(2)),
+      }),
+    ]).start();
+  };
+
+  // 更新当前字符时的动画
+  const updateCurrentChar = (newChar: PronunciationChar | null) => {
+    Animated.sequence([
+      Animated.timing(currentCharOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(currentCharScale, {
+        toValue: 0.8,
+        duration: 0,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setCurrentChar(newChar);
+      Animated.parallel([
+        Animated.timing(currentCharOpacity, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.spring(currentCharScale, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }),
+      ]).start();
+    });
+  };
+
   const handleBubblePress = async (bubble: Bubble) => {
-    if (!currentChar) return;
+    if (!currentChar || !isGameStarted) return;
 
-    console.log('尝试匹配:', currentChar.pronunciation, '+', bubble.pronunciation);
-
-    // 检查发音是否匹配
-    const isMatch = currentChar.pronunciation === bubble.pronunciation;
+    const isMatch = currentChar.char === bubble.char;
 
     if (isMatch) {
-      console.log('匹配成功！');
       if (successSound) {
         try {
           await successSound.setPositionAsync(0);
@@ -328,40 +453,58 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       
       playBubblePopAnimation(bubble);
 
-      // 更新分数（正确配对加10分）
       setScore(prev => {
         const newScore = prev + 10;
         updateProgressBar(newScore);
         return newScore;
       });
       
-      // 等待动画完成后移除气球
       setTimeout(() => {
-        setBubbles(prev => prev.filter(b => b.id !== bubble.id));
+        setBubbles(prev => {
+          const remainingBubbles = prev.filter(b => b.id !== bubble.id);
+          // 为剩余的肥皂泡重新生成位置
+          const newPositions = generateLayeredPositions(remainingBubbles.length);
+          
+          // 为每个剩余的肥皂泡分配新位置
+          return remainingBubbles.map((b, index) => {
+            const newPosition = newPositions[index] || { x: 0, y: 0 };
+            
+            // 创建位置动画
+            Animated.spring(b.floatingAnim, {
+              toValue: 0,
+              useNativeDriver: true,
+              tension: 50,
+              friction: 7,
+            }).start();
+            
+            // 使用动画移动到新位置
+            Animated.spring(new Animated.ValueXY({ x: b.position.x, y: b.position.y }), {
+              toValue: newPosition,
+              useNativeDriver: true,
+              tension: 50,
+              friction: 7,
+            }).start();
+            
+            return {
+              ...b,
+              position: newPosition,
+            };
+          });
+        });
         
-        // 移除已使用的字符
         setRemainingChars(prev => {
           const newChars = prev.filter(char => char.char !== currentChar.char);
-          console.log('剩余待匹配的字:', newChars);
           
           if (newChars.length > 0) {
             const nextChar = newChars[0];
-            console.log('设置下一个要匹配的字:', nextChar);
-            setCurrentChar(nextChar);
+            updateCurrentChar(nextChar);
           } else {
-            console.log('所有字都已匹配完成');
-            if (level === 5) {
-              Alert.alert(i18n.t('gameComplete'), i18n.t('gameCompleteMessage'));
-              navigation.goBack();
-            } else {
-              setLevel(prev => (prev + 1) as GameLevel);
-            }
+            playLevelCompleteAnimation();
           }
           return newChars;
         });
       }, 300);
     } else {
-      console.log('匹配失败');
       if (failureSound) {
         try {
           await failureSound.setPositionAsync(0);
@@ -403,24 +546,24 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
 
     setIsShowingHint(true);
 
-    // 找到所有发音匹配的气泡
-    const matchingBubbles = bubbles.filter(b => b.pronunciation === currentChar.pronunciation);
+    // 找到正确的气泡
+    const correctBubble = bubbles.find(b => b.char === currentChar.char);
 
-    // 为每个匹配的气泡创建闪烁动画
-    matchingBubbles.forEach(bubble => {
+    if (correctBubble) {
+      // 为正确的气泡创建闪烁动画
       Animated.sequence([
-        Animated.timing(bubble.scale, {
+        Animated.timing(correctBubble.scale, {
           toValue: 1.3,
           duration: 200,
           useNativeDriver: true,
         }),
-        Animated.timing(bubble.scale, {
+        Animated.timing(correctBubble.scale, {
           toValue: 1,
           duration: 200,
           useNativeDriver: true,
         }),
       ]).start();
-    });
+    }
 
     // 3秒后重置提示状态
     setTimeout(() => {
@@ -428,11 +571,102 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     }, 3000);
   };
 
+  // 更新关卡时的动画
+  const playLevelTransition = () => {
+    Animated.sequence([
+      Animated.timing(levelTransition, {
+        toValue: 1.2,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.back(2)),
+      }),
+      Animated.timing(levelTransition, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.back(2)),
+      }),
+    ]).start();
+  };
+
+  // 更新分数时的动画
+  const playScoreTransition = () => {
+    Animated.sequence([
+      Animated.timing(scoreTransition, {
+        toValue: 1.2,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.back(2)),
+      }),
+      Animated.timing(scoreTransition, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.back(2)),
+      }),
+    ]).start();
+  };
+
+  // 游戏开始动画
+  const playGameStartAnimation = () => {
+    Animated.spring(gameStartAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+  };
+
+  // 关卡完成动画
+  const playLevelCompleteAnimation = () => {
+    setShowLevelComplete(true);
+    Animated.sequence([
+      Animated.spring(levelCompleteAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }),
+      Animated.delay(1500),
+      Animated.timing(levelCompleteAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowLevelComplete(false);
+      if (level === 5) {
+        Alert.alert(i18n.t('gameComplete'), i18n.t('gameCompleteMessage'));
+        navigation.goBack();
+      } else {
+        setLevel(prev => (prev + 1) as GameLevel);
+      }
+    });
+  };
+
   useEffect(() => {
     initializeLevel();
   }, [level]);
 
+  useEffect(() => {
+    playLevelTransition();
+  }, [level]);
+
+  useEffect(() => {
+    playScoreTransition();
+  }, [score]);
+
   const renderBubble = (bubble: Bubble) => {
+    const floatingTransform = bubble.floatingAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, -10]
+    });
+
+    const rotation = bubbleRotations[bubble.id]?.interpolate({
+      inputRange: [-5, 5],
+      outputRange: ['-5deg', '5deg']
+    }) || '0deg';
+
     return (
       <Animated.View
         key={bubble.id}
@@ -441,12 +675,8 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
           {
             transform: [
               { scale: bubble.scale },
-              {
-                translateY: bubble.floatingAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, -10]
-                })
-              }
+              { translateY: floatingTransform },
+              { rotate: rotation }
             ],
             opacity: bubble.opacity,
             position: 'absolute',
@@ -458,25 +688,29 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
         <TouchableOpacity
           onPress={() => handleBubblePress(bubble)}
           style={styles.bubbleContent}
+          activeOpacity={0.8}
         >
           <LinearGradient
-            colors={bubble.colors as unknown as readonly [string, string, string]}
+            colors={bubble.colors}
             style={styles.bubbleGradient}
             start={{ x: 0.2, y: 0.2 }}
             end={{ x: 0.8, y: 0.8 }}
           >
+            {/* 主反光效果 - 右上角 */}
             <LinearGradient
               colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0)']}
               style={[styles.reflection, styles.mainReflection]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             />
+            {/* 次要反光效果 - 左下角 */}
             <LinearGradient
               colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
               style={[styles.reflection, styles.secondaryReflection]}
               start={{ x: 1, y: 1 }}
               end={{ x: 0, y: 0 }}
             />
+            {/* 彩虹光晕效果 */}
             <LinearGradient
               colors={[
                 'rgba(255, 255, 255, 0.4)',
@@ -498,62 +732,146 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.levelText}>{i18n.t('level', { level })}</Text>
-        <TouchableOpacity 
-          style={[styles.hintButton, isShowingHint && styles.hintButtonDisabled]}
-          onPress={showHintAnimation}
-          disabled={isShowingHint}
-        >
-          <MaterialCommunityIcons 
-            name="lightbulb" 
-            size={24} 
-            color={isShowingHint ? '#999' : '#FFD700'} 
-          />
-        </TouchableOpacity>
-        <Text style={styles.scoreText}>{i18n.t('score', { score })}</Text>
+        <View style={styles.levelInfo}>
+          <TouchableOpacity
+            style={styles.exitButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialCommunityIcons 
+              name="arrow-left-circle" 
+              size={28} 
+              color="#4CAF50" 
+            />
+          </TouchableOpacity>
+
+          <Animated.View style={{ transform: [{ scale: levelTransition }] }}>
+            <Text style={styles.levelText}>{i18n.t('level', { level })}</Text>
+          </Animated.View>
+          
+          <TouchableOpacity
+            style={[styles.hintButton, isShowingHint && styles.hintButtonDisabled]}
+            onPress={showHintAnimation}
+            disabled={isShowingHint}
+          >
+            <MaterialCommunityIcons 
+              name="lightbulb" 
+              size={24} 
+              color={isShowingHint ? '#999' : '#FFD700'} 
+            />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBarContainer}>
+            <Animated.View 
+              style={[
+                styles.progressBar,
+                {
+                  width: progressBarWidth.interpolate({
+                    inputRange: [0, 100],
+                    outputRange: ['0%', '100%']
+                  })
+                }
+              ]} 
+            />
+          </View>
+          <Animated.View style={{ transform: [{ scale: scoreTransition }] }}>
+            <Text style={styles.smallScoreText}>{score}</Text>
+          </Animated.View>
+        </View>
       </View>
 
-      <View style={styles.progressContainer}>
-        <Animated.View 
-          style={[
-            styles.progressBar,
-            {
-              width: progressWidth.interpolate({
-                inputRange: [0, 100],
-                outputRange: ['0%', '100%']
-              })
-            }
-          ]} 
-        />
-      </View>
-
-      <View style={styles.gameArea}>
+      <Animated.View 
+        style={[
+          styles.gameArea,
+          {
+            opacity: gameStartAnim,
+            transform: [
+              {
+                translateY: gameStartAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [50, 0]
+                })
+              }
+            ]
+          }
+        ]}
+      >
         <View style={styles.bubblesContainer}>
           {bubbles.map(renderBubble)}
         </View>
+      </Animated.View>
 
-        <View style={styles.targetArea}>
-          <View style={styles.targetControls}>
-            <TouchableOpacity 
-              style={styles.soundButton}
-              onPress={playCurrentCharSound}
-            >
-              <MaterialCommunityIcons 
-                name="volume-high" 
-                size={32} 
-                color="#5856D6" 
-              />
-            </TouchableOpacity>
+      {showLevelComplete && (
+        <Animated.View 
+          style={[
+            styles.levelCompleteContainer,
+            {
+              opacity: levelCompleteAnim,
+              transform: [
+                {
+                  scale: levelCompleteAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.5, 1]
+                  })
+                }
+              ]
+            }
+          ]}
+        >
+          <LinearGradient
+            colors={['#4CAF50', '#45a049']}
+            style={styles.levelCompleteGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <MaterialCommunityIcons name="star" size={40} color="#FFD700" />
+            <Text style={styles.levelCompleteText}>
+              {i18n.t('levelComplete', { level })}
+            </Text>
+            <Text style={styles.levelCompleteScore}>
+              {i18n.t('score', { score })}
+            </Text>
+          </LinearGradient>
+        </Animated.View>
+      )}
+
+      <View style={styles.bottomContainer}>
+        {currentChar && (
+          <TouchableOpacity
+            style={styles.currentCharButton}
+            onPress={() => {
+              playCurrentCharSound();
+              playCurrentCharAnimation();
+            }}
+            activeOpacity={0.7}
+          >
+            <Animated.View style={{
+              transform: [
+                { translateY: speakerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -5]
+                })}
+              ]
+            }}>
+              <LinearGradient
+                colors={['#4CAF50', '#45a049']}
+                style={styles.speakerButton}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <MaterialCommunityIcons name="volume-high" size={28} color="#fff" />
+              </LinearGradient>
+            </Animated.View>
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.instructionsContainer}>
+          <View style={styles.instructionsBox}>
+            <MaterialCommunityIcons name="information" size={16} color="#4CAF50" />
+            <Text style={styles.instructionsText}>
+              {i18n.t('correctMatch')} +{i18n.t('points', { points: 10 })} | {i18n.t('incorrectMatch')} {i18n.t('points', { points: -5 })} | {i18n.t('useHint')} {i18n.t('points', { points: -2 })}
+            </Text>
           </View>
-        </View>
-      </View>
-
-      <View style={styles.instructionsContainer}>
-        <View style={styles.instructionsBox}>
-          <MaterialCommunityIcons name="information" size={16} color="#4CAF50" />
-          <Text style={styles.instructionsText}>
-            {i18n.t('correctMatch')} +{i18n.t('points', { points: 10 })} | {i18n.t('incorrectMatch')} {i18n.t('points', { points: -5 })} | {i18n.t('useHint')} {i18n.t('points', { points: -2 })}
-          </Text>
         </View>
       </View>
     </View>
@@ -566,12 +884,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f8ff',
   },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    backgroundColor: 'transparent',
+  },
+  levelInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    backgroundColor: 'transparent',
+    marginBottom: 10,
   },
   levelText: {
     fontSize: 18,
@@ -593,15 +915,35 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
   },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+    marginRight: 10,
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 3,
+  },
   gameArea: {
     flex: 1,
-    justifyContent: 'space-between',
-    paddingBottom: Platform.OS === 'ios' ? 120 : 90,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   bubblesContainer: {
     width: GAME_AREA_WIDTH,
     height: GAME_AREA_HEIGHT,
-    marginHorizontal: 10,
     position: 'relative',
   },
   bubble: {
@@ -680,26 +1022,17 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
     zIndex: 2,
   },
-  targetArea: {
-    height: 100,
-    justifyContent: 'center',
+  bottomContainer: {
+    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
     alignItems: 'center',
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 140 : 110,
-    left: 0,
-    right: 0,
   },
-  targetControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
+  currentCharButton: {
+    marginBottom: 20,
   },
-  soundButton: {
-    width: 60,
-    height: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 30,
+  speakerButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -711,58 +1044,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  hintButton: {
-    padding: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  hintButtonDisabled: {
-    opacity: 0.5,
-  },
-  progressContainer: {
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 3,
-    marginHorizontal: 20,
-    marginBottom: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 3,
-    shadowColor: '#4CAF50',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 3,
-  },
   instructionsContainer: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 100 : 70,
-    left: 0,
-    right: 0,
     alignItems: 'center',
     paddingHorizontal: 20,
   },
@@ -792,5 +1074,94 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
     lineHeight: 18,
+  },
+  levelCompleteContainer: {
+    position: 'absolute',
+    top: '40%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingVertical: 20,
+    paddingHorizontal: 40,
+    borderRadius: 20,
+    marginHorizontal: 40,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  levelCompleteGradient: {
+    padding: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    width: '100%',
+  },
+  levelCompleteText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  levelCompleteScore: {
+    fontSize: 20,
+    color: '#fff',
+    marginTop: 10,
+  },
+  hintButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginHorizontal: 15,
+  },
+  hintButtonDisabled: {
+    opacity: 0.5,
+  },
+  exitButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  smallScoreText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    overflow: 'hidden',
+    minWidth: 30,
+    textAlign: 'center',
   },
 }); 

@@ -33,9 +33,9 @@ export const ja = {
 
   // Games
   wordGame: '単語マッチ',
-  pronunciationGame: '発音マッチ',
+  pronunciationGame: '音声漢字',
   wordGameDesc: '漢字を組み合わせて単語を作ろう',
-  pronunciationGameDesc: '同じ発音の漢字を見つけよう',
+  pronunciationGameDesc: '音声を聞いて漢字を見つけよう',
   level: 'レベル {{level}}',
   score: 'スコア: {{score}}',
   gameComplete: 'ゲーム完了',

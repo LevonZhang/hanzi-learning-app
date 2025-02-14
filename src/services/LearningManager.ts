@@ -164,4 +164,18 @@ export class LearningManager {
     nextDate.setDate(nextDate.getDate() + interval);
     return nextDate.toISOString().split('T')[0];
   }
+
+  // 从错字本中删除
+  public async removeFromReview(character: string): Promise<void> {
+    try {
+      const progress = await this.getAllProgress();
+      if (progress[character]) {
+        delete progress[character]; // 完全删除这个字的记录
+        await this.saveProgress(progress);
+      }
+    } catch (error) {
+      console.error('Error removing from review:', error);
+      throw error;
+    }
+  }
 } 

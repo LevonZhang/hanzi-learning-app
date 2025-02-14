@@ -8,6 +8,7 @@ import { LearningScreen } from '../screens/LearningScreen';
 import { ReviewScreen } from '../screens/ReviewScreen';
 import { GamesScreen } from '../screens/GamesScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { BubbleMatchingScreen } from '../screens/BubbleMatchingScreen';
 import { PronunciationMatchingScreen } from '../screens/PronunciationMatchingScreen';
 import { i18n } from '../i18n/i18n';
@@ -15,9 +16,10 @@ import { RouteProp } from '@react-navigation/native';
 import { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 
 type RootTabParamList = {
-  Learning: undefined;
+  Learning: { mode: 'learning' | 'review' } | undefined;
   Review: undefined;
   Games: undefined;
+  Profile: undefined;
   Settings: undefined;
 };
 
@@ -53,6 +55,9 @@ export const AppNavigator = () => {
           break;
         case 'Games':
           iconName = focused ? 'gamepad-variant' : 'gamepad-variant-outline';
+          break;
+        case 'Profile':
+          iconName = focused ? 'account' : 'account-outline';
           break;
         case 'Settings':
           iconName = focused ? 'cog' : 'cog-outline';
@@ -99,6 +104,21 @@ export const AppNavigator = () => {
           name="Learning"
           component={LearningScreen}
           options={{ title: i18n.t('learning') }}
+          initialParams={{ mode: 'learning' }}
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              e.preventDefault();
+              navigation.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'Learning',
+                    params: { mode: 'learning', reviewWords: undefined }
+                  },
+                ],
+              });
+            },
+          })}
         />
         <Tab.Screen
           name="Review"
@@ -109,6 +129,11 @@ export const AppNavigator = () => {
           name="Games"
           component={GameStackNavigator}
           options={{ title: i18n.t('games') }}
+        />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ title: i18n.t('profile') }}
         />
         <Tab.Screen
           name="Settings"

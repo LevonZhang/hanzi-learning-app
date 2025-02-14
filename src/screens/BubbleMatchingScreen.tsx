@@ -16,6 +16,7 @@ import { Audio } from 'expo-av';
 import { i18n } from '../i18n/i18n';
 import { gameService, WordPair, PronunciationChar } from '../services/GameService';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { storageService } from '../services/StorageService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
@@ -92,6 +93,8 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   const [maxScore, setMaxScore] = useState(0);
   const progressWidth = useState(new Animated.Value(0))[0];
   const floatingAnimation = useState(new Animated.Value(0))[0];
+  const levelTransition = useState(new Animated.Value(1))[0];
+  const scoreTransition = useState(new Animated.Value(1))[0];
 
   const getLevelBubbleCount = (level: GameLevel) => {
     const counts = {
@@ -150,7 +153,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
         setSuccessSound(successSoundObject);
         setFailureSound(failureSoundObject);
       } catch (error) {
-        console.error('加载音效失败:', error);
+        // 忽略加载音效失败的错误
       }
     };
 
@@ -225,7 +228,6 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     
     // 获取词组数据
     const wordPairs = gameService.getWordPairsForLevel(level);
-    console.log('获取到的词组:', wordPairs);
     
     // 过滤掉无效的词组（确保每个词组都有有效的字符）
     const validWordPairs = wordPairs.filter(pair => 
@@ -236,7 +238,6 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     );
     
     if (validWordPairs.length === 0) {
-      console.warn(`Level ${level} has no valid word pairs`);
       // 如果当前关卡没有有效词组，直接进入下一关或结束游戏
       if (level === 5) {
         Alert.alert(i18n.t('gameComplete'), i18n.t('gameCompleteMessage'));
@@ -295,14 +296,11 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
     // 随机打乱第一个字的顺序
     newBubbles = shuffleArray(firstChars);
-
     setBubbles(newBubbles);
     
     // 设置第一个要匹配的字
     if (shuffledSecondChars.length > 0) {
-      const secondChar = shuffledSecondChars[0].char;
-      console.log('设置当前要匹配的字:', secondChar);
-      setCurrentChar(secondChar);
+      setCurrentChar(shuffledSecondChars[0].char);
     }
   };
 
@@ -339,8 +337,6 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   const handleBubblePress = async (bubble: Bubble) => {
     if (!currentChar || bubble.isSecondChar) return;
 
-    console.log('尝试匹配:', currentChar, '+', bubble.char);
-
     // 检查这两个字是否能组成词组
     const canFormWord = bubbles.some(b => {
       const word1 = bubble.char + currentChar;
@@ -348,66 +344,61 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       return b.word === word1 || b.word === word2;
     });
 
-    console.log('是否能组成词组:', canFormWord);
-
     if (canFormWord) {
-      console.log('匹配成功！');
       if (successSound) {
         try {
           await successSound.setPositionAsync(0);
           await successSound.playAsync();
         } catch (error) {
-          console.error('Error playing success sound:', error);
+          // 忽略播放音效失败的错误
         }
       }
       
       playBubblePopAnimation(bubble);
 
-      // 更新分数（正确配对加10分）
       setScore(prev => {
         const newScore = prev + 10;
         updateProgressBar(newScore);
         return newScore;
       });
       
-      // 等待动画完成后移除气球
       setTimeout(() => {
         setBubbles(prev => prev.filter(b => b.id !== bubble.id));
         
-        // 移除已使用的第一个字
+        const handleGameEnd = async () => {
+          if (level === 5) {
+            const isNewRecord = await storageService.saveGameScore('word', score);
+            Alert.alert(
+              i18n.t('gameComplete'),
+              isNewRecord ? i18n.t('gameCompleteWithRecord') : i18n.t('gameCompleteMessage')
+            );
+            navigation.goBack();
+          } else {
+            setLevel(prev => (prev + 1) as GameLevel);
+          }
+        };
+
         setRemainingFirstChars(prev => {
           const newChars = prev.filter(char => char !== currentChar);
-          console.log('剩余待匹配的字:', newChars);
-          // 设置下一个要匹配的字
+          
           if (newChars.length > 0) {
-            const nextChar = newChars[0];
-            console.log('设置下一个要匹配的字:', nextChar);
-            setCurrentChar(nextChar);
+            setCurrentChar(newChars[0]);
           } else {
-            console.log('所有字都已匹配完成');
-            // 如果没有剩余的字了，检查是否要进入下一关
-            if (level === 5) {
-              Alert.alert(i18n.t('gameComplete'), i18n.t('gameCompleteMessage'));
-              navigation.goBack();
-            } else {
-              setLevel(prev => (prev + 1) as GameLevel);
-            }
+            handleGameEnd();
           }
           return newChars;
         });
       }, 300);
     } else {
-      console.log('匹配失败');
       if (failureSound) {
         try {
           await failureSound.setPositionAsync(0);
           await failureSound.playAsync();
         } catch (error) {
-          console.error('Error playing failure sound:', error);
+          // 忽略播放音效失败的错误
         }
       }
       
-      // 更新分数（错误匹配扣5分）
       setScore(prev => {
         const newScore = Math.max(0, prev - 5);
         updateProgressBar(newScore);
@@ -461,6 +452,42 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   useEffect(() => {
     initializeLevel();
   }, [level]);
+
+  // 添加关卡切换动画
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(levelTransition, {
+        toValue: 1.2,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.back(2)),
+      }),
+      Animated.timing(levelTransition, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.back(2)),
+      }),
+    ]).start();
+  }, [level]);
+
+  // 添加分数更新动画
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(scoreTransition, {
+        toValue: 1.2,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.back(2)),
+      }),
+      Animated.timing(scoreTransition, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.back(2)),
+      }),
+    ]).start();
+  }, [score]);
 
   const renderBubble = (bubble: Bubble) => {
     return (
@@ -531,34 +558,53 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.levelText}>{i18n.t('level', { level })}</Text>
-        <TouchableOpacity 
-          style={[styles.hintButton, isShowingHint && styles.hintButtonDisabled]}
-          onPress={showHintAnimation}
-          disabled={isShowingHint}
-        >
-          <MaterialCommunityIcons 
-            name="lightbulb" 
-            size={24} 
-            color={isShowingHint ? '#999' : '#FFD700'} 
-          />
-        </TouchableOpacity>
-        <Text style={styles.scoreText}>{i18n.t('score', { score })}</Text>
-      </View>
+        <View style={styles.topRow}>
+          <TouchableOpacity
+            style={styles.exitButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialCommunityIcons 
+              name="arrow-left-circle" 
+              size={28} 
+              color="#4CAF50" 
+            />
+          </TouchableOpacity>
 
-      {/* 添加进度条 */}
-      <View style={styles.progressContainer}>
-        <Animated.View 
-          style={[
-            styles.progressBar,
-            {
-              width: progressWidth.interpolate({
-                inputRange: [0, 100],
-                outputRange: ['0%', '100%']
-              })
-            }
-          ]} 
-        />
+          <TouchableOpacity
+            style={[styles.hintButton, isShowingHint && styles.hintButtonDisabled]}
+            onPress={showHintAnimation}
+            disabled={isShowingHint}
+          >
+            <MaterialCommunityIcons 
+              name="lightbulb" 
+              size={24} 
+              color={isShowingHint ? '#999' : '#FFD700'} 
+            />
+          </TouchableOpacity>
+
+          <Animated.View style={{ transform: [{ scale: levelTransition }] }}>
+            <Text style={styles.levelText}>{i18n.t('level', { level })}</Text>
+          </Animated.View>
+        </View>
+
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBarContainer}>
+            <Animated.View 
+              style={[
+                styles.progressBar,
+                {
+                  width: progressWidth.interpolate({
+                    inputRange: [0, 100],
+                    outputRange: ['0%', '100%']
+                  })
+                }
+              ]} 
+            />
+          </View>
+          <Animated.View style={{ transform: [{ scale: scoreTransition }] }}>
+            <Text style={styles.smallScoreText}>{score}</Text>
+          </Animated.View>
+        </View>
       </View>
 
       <View style={styles.gameArea}>
@@ -633,12 +679,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f8ff',
   },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    backgroundColor: 'transparent',
+  },
+  topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    backgroundColor: 'transparent',
+    marginBottom: 10,
+  },
+  rightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  exitButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   levelText: {
     fontSize: 18,
@@ -650,7 +718,52 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
   },
-  scoreText: {
+  hintButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  hintButtonDisabled: {
+    opacity: 0.5,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+    marginRight: 10,
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 3,
+    // 添加渐变效果
+    shadowColor: '#4CAF50',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  smallScoreText: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
@@ -789,54 +902,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
     zIndex: 2,
-  },
-  hintButton: {
-    padding: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  hintButtonDisabled: {
-    opacity: 0.5,
-  },
-  progressContainer: {
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 3,
-    marginHorizontal: 20,
-    marginBottom: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 3,
-    // 添加渐变效果
-    shadowColor: '#4CAF50',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 3,
   },
   instructionsContainer: {
     position: 'absolute',

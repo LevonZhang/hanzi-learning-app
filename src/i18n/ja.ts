@@ -10,12 +10,14 @@ export const ja = {
   reviewMode: '復習モード',
   learningProgress: '学習進度',
   reviewProgress: '復習進度',
-  completed: '完了',
+  learningCompleted: '今日の学習タスクが完了しました',
+  reviewCompleted: '全ての文字を復習しました',
+  continueLearning: '学習を続ける',
+  continueNewLearning: '新しい文字を学ぶ',
   totalLearned: '学習済み',
   mastered: '習得済み',
   needReview: '要復習',
   characters: '文字',
-  restart: '再開',
   next: '次へ',
   showMore: 'もっと見る',
   fullMeanings: '全ての意味',
@@ -40,6 +42,7 @@ export const ja = {
   score: 'スコア: {{score}}',
   gameComplete: 'ゲーム完了',
   gameCompleteMessage: 'おめでとう！全レベルをクリアしました！',
+  gameCompleteWithRecord: 'おめでとう！全レベルをクリアし、新記録を達成しました！',
 
   // Game Rules
   correctMatch: '正解',
@@ -66,5 +69,31 @@ export const ja = {
   confirm: 'OK',
   close: '閉じる',
   addedToReview: '復習に追加しました',
-  addToReviewFailed: '追加に失敗しました'
+  addToReviewFailed: '追加に失敗しました',
+  removedFromReview: '復習リストから削除しました',
+  removeFromReviewFailed: '削除に失敗しました',
+
+  // Profile
+  profile: 'プロフィール',
+  gameHighScores: 'ゲームハイスコア',
+  studyProgress: '学習進捗',
+  thisWeek: '今週',
+  thisMonth: '今月',
+  thisYear: '今年',
+  total: '合計',
+  newRecord: '新記録！',
+
+  // Settings
+  learningSettings: '学習設定',
+  dailyWords: '1日の学習文字数',
+  language: '言語設定',
+  premium: 'プレミアム',
+  getPremium: 'プレミアム会員になる',
+  premiumActive: 'プレミアム会員',
+  alreadyPremium: 'すでにプレミアム会員です',
+  premiumFeatures: 'プレミアム会員になって、より多くの機能を利用しましょう',
+  subscribe: '登録する',
+  cancel: 'キャンセル',
+  comingSoon: '近日公開',
+  featureInDevelopment: 'この機能は開発中です'
 }; 

@@ -16,6 +16,7 @@ import { Audio } from 'expo-av';
 import { i18n } from '../i18n/i18n';
 import { gameService, PronunciationChar } from '../services/GameService';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { storageService } from '../services/StorageService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
@@ -492,14 +493,26 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
           });
         });
         
+        const handleGameEnd = async () => {
+          if (level === 5) {
+            const isNewRecord = await storageService.saveGameScore('pronunciation', score);
+            Alert.alert(
+              i18n.t('gameComplete'),
+              isNewRecord ? i18n.t('gameCompleteWithRecord') : i18n.t('gameCompleteMessage')
+            );
+            navigation.goBack();
+          } else {
+            setLevel(prev => (prev + 1) as GameLevel);
+          }
+        };
+
         setRemainingChars(prev => {
           const newChars = prev.filter(char => char.char !== currentChar.char);
-          
           if (newChars.length > 0) {
             const nextChar = newChars[0];
             updateCurrentChar(nextChar);
           } else {
-            playLevelCompleteAnimation();
+            handleGameEnd();
           }
           return newChars;
         });
@@ -636,7 +649,6 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     ]).start(() => {
       setShowLevelComplete(false);
       if (level === 5) {
-        Alert.alert(i18n.t('gameComplete'), i18n.t('gameCompleteMessage'));
         navigation.goBack();
       } else {
         setLevel(prev => (prev + 1) as GameLevel);

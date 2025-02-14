@@ -188,18 +188,50 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   if (!state.currentWord) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>{i18n.t('completed')}</Text>
+        <Text style={styles.title}>
+          {state.isReviewMode 
+            ? i18n.t('reviewCompleted') 
+            : i18n.t('learningCompleted')
+          }
+        </Text>
         <View style={styles.statsContainer}>
           <Text style={styles.statsText}>{i18n.t('totalLearned')}: {state.statistics.totalLearned} {i18n.t('characters')}</Text>
           <Text style={styles.statsText}>{i18n.t('mastered')}: {state.statistics.mastered} {i18n.t('characters')}</Text>
           <Text style={styles.statsText}>{i18n.t('needReview')}: {state.statistics.needReview} {i18n.t('characters')}</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.button}
-          onPress={loadTodayLearning}
-        >
-          <Text style={styles.buttonText}>{i18n.t('restart')}</Text>
-        </TouchableOpacity>
+        {state.isReviewMode ? (
+          <TouchableOpacity 
+            style={styles.button}
+            onPress={() => {
+              navigation.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'Learning',
+                    params: { mode: 'learning', reviewWords: undefined }
+                  },
+                ],
+              });
+            }}
+          >
+            <Text style={styles.buttonText}>{i18n.t('continueNewLearning')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity 
+              style={[styles.button, styles.buttonHalf]}
+              onPress={loadTodayLearning}
+            >
+              <Text style={styles.buttonText}>{i18n.t('continueLearning')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.button, styles.buttonHalf]}
+              onPress={() => navigation.navigate('Review')}
+            >
+              <Text style={styles.buttonText}>{i18n.t('review')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
     );
   }
@@ -214,7 +246,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
           <Text style={styles.progress}>
             {state.isReviewMode 
               ? `${i18n.t('reviewProgress')}: ${state.reviewWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.reviewWords.length}`
-              : `${i18n.t('learningProgress')}: ${state.newWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.newWords.length}`
+              : `${i18n.t('studyProgress')}: ${state.newWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.newWords.length}`
             }
           </Text>
         </View>
@@ -669,5 +701,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     width: '100%',
     paddingVertical: 10,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  buttonHalf: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
   },
 }); 

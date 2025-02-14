@@ -10,12 +10,14 @@ export const zh = {
   reviewMode: '复习模式',
   learningProgress: '学习进度',
   reviewProgress: '复习进度',
-  completed: '已完成',
+  learningCompleted: '已完成今日学习任务',
+  reviewCompleted: '已复习完全部生字',
+  continueLearning: '继续学习',
+  continueNewLearning: '继续学习新字',
   totalLearned: '已学习',
   mastered: '已掌握',
   needReview: '需要复习',
   characters: '汉字',
-  restart: '重新开始',
   next: '下一个',
   showMore: '显示更多',
   fullMeanings: '完整释义',
@@ -40,6 +42,7 @@ export const zh = {
   score: '得分: {{score}}',
   gameComplete: '游戏完成',
   gameCompleteMessage: '恭喜你完成了所有关卡！',
+  gameCompleteWithRecord: '恭喜你完成了所有关卡，并创造了新的记录！',
 
   // Game Rules
   correctMatch: '正确配对',
@@ -66,5 +69,31 @@ export const zh = {
   confirm: '确定',
   close: '关闭',
   addedToReview: '已添加到复习',
-  addToReviewFailed: '添加失败'
-}; 
+  addToReviewFailed: '添加失败',
+  removedFromReview: '已从错字本中移除',
+  removeFromReviewFailed: '移除失败',
+
+  // Profile
+  profile: '我的',
+  gameHighScores: '游戏最高分',
+  studyProgress: '学习进度',
+  thisWeek: '本周',
+  thisMonth: '本月',
+  thisYear: '本年',
+  total: '总计',
+  newRecord: '新纪录！',
+
+  // Settings
+  learningSettings: '学习设置',
+  dailyWords: '每日学习字数',
+  language: '语言设置',
+  premium: '高级会员',
+  getPremium: '开通会员',
+  premiumActive: '会员已激活',
+  alreadyPremium: '您已经是会员用户',
+  premiumFeatures: '开通会员即可享受更多功能',
+  subscribe: '立即订阅',
+  cancel: '取消',
+  comingSoon: '即将推出',
+  featureInDevelopment: '该功能正在开发中'
+};

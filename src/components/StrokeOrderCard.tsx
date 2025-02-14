@@ -8,6 +8,8 @@ import { WebView } from 'react-native-webview';
 import { i18n } from '../i18n/i18n';
 import cnchar from 'cnchar';
 import 'cnchar-draw';  // 导入绘制模块
+import * as Share from 'expo-sharing';
+import { useTranslation } from 'react-i18next';
 
 interface StrokeOrderCardProps {
   character: string;
@@ -15,6 +17,7 @@ interface StrokeOrderCardProps {
 }
 
 export const StrokeOrderCard = ({ character, strokeCount }: StrokeOrderCardProps) => {
+  const { t } = useTranslation();
   const viewShotRef = useRef<ViewShot>(null);
   const webViewRefs = useRef<WebView[]>([]);
   const [modalHeight, setModalHeight] = useState(0);
@@ -122,7 +125,14 @@ export const StrokeOrderCard = ({ character, strokeCount }: StrokeOrderCardProps
               delayBetweenStrokes: 0,
               strokeColor: '#dddddd',
               outlineColor: '#dddddd',
-              drawingWidth: 3
+              drawingWidth: 3,
+              coordSystem: {
+                scale: 1,
+                xOffset: 0,
+                yOffset: 0,
+                flipX: false,
+                flipY: false
+              }
             });
 
             // 等待字体加载完成
@@ -139,21 +149,32 @@ export const StrokeOrderCard = ({ character, strokeCount }: StrokeOrderCardProps
               const strokes = writer.getStrokes();
               const targetIndex = ${index};
 
-              // 重置所有笔画状态
+              // 显示所有笔画
               strokes.forEach((stroke, i) => {
-                if (i <= targetIndex) {
-                  stroke.show();
-                  if (i === targetIndex) {
-                    stroke.setColor('#000000');
-                  } else {
-                    stroke.setColor('#dddddd');
-                  }
+                stroke.show();
+                if (i === targetIndex) {
+                  // 当前笔画显示为黑色
+                  stroke.setColor('#000000');
+                } else if (i < targetIndex) {
+                  // 之前的笔画显示为浅灰色
+                  stroke.setColor('#dddddd');
                 } else {
+                  // 后面的笔画隐藏
                   stroke.hide();
                 }
               });
+
+              // 发送完成消息
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'strokeComplete',
+                index: targetIndex
+              }));
             } catch (error) {
               console.error('Error updating strokes:', error);
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'error',
+                message: error.message
+              }));
             }
           }
 
@@ -196,28 +217,52 @@ export const StrokeOrderCard = ({ character, strokeCount }: StrokeOrderCardProps
     return grids;
   };
 
+  const handleCapture = async () => {
+    try {
+      if (viewShotRef.current?.capture) {
+        const uri = await viewShotRef.current.capture();
+        return uri;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error capturing view:', error);
+      return null;
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      if (viewShotRef.current?.capture) {
+        const uri = await viewShotRef.current.capture();
+        if (uri) {
+          await Share.share({
+            url: uri,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
   const saveToGallery = async () => {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(i18n.t('permissionNeeded'), i18n.t('galleryPermission'));
+        Alert.alert(t('permissionNeeded'), t('galleryPermission'));
         return;
       }
 
-      if (viewShotRef.current) {
-        const uri = await viewShotRef.current.capture({
-          format: "jpg",
-          quality: 0.8,
-          result: "tmpfile",
-          height: modalHeight,
-          width: Dimensions.get('window').width - 60 // 考虑边距
-        });
-        await MediaLibrary.saveToLibraryAsync(uri);
-        Alert.alert(i18n.t('saveSuccess'), i18n.t('cardSaved'));
+      if (viewShotRef.current?.capture) {
+        const uri = await viewShotRef.current.capture();
+        if (uri) {
+          await MediaLibrary.saveToLibraryAsync(uri);
+          Alert.alert(t('saveSuccess'), t('cardSaved'));
+        }
       }
     } catch (error) {
-      console.error('Save failed:', error);
-      Alert.alert(i18n.t('error'), i18n.t('saveFailed'));
+      console.error('Error saving to gallery:', error);
+      Alert.alert(t('error'), t('saveFailed'));
     }
   };
 

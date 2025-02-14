@@ -10,12 +10,14 @@ export const en = {
   reviewMode: 'Review Mode',
   learningProgress: 'Learning Progress',
   reviewProgress: 'Review Progress',
-  completed: 'Completed',
+  learningCompleted: "Today's learning task completed",
+  reviewCompleted: 'All characters reviewed',
+  continueLearning: 'Continue Learning',
+  continueNewLearning: 'Learn New Characters',
   totalLearned: 'Total Learned',
   mastered: 'Mastered',
   needReview: 'Need Review',
   characters: 'Characters',
-  restart: 'Restart',
   next: 'Next',
   showMore: 'Show More',
   fullMeanings: 'Full Meanings',
@@ -40,6 +42,7 @@ export const en = {
   score: 'Score: {{score}}',
   gameComplete: 'Game Complete',
   gameCompleteMessage: 'Congratulations! You have completed all levels!',
+  gameCompleteWithRecord: 'Congratulations! You have completed all levels and set a new record!',
 
   // Game Rules
   correctMatch: 'Correct Match',
@@ -66,5 +69,31 @@ export const en = {
   confirm: 'OK',
   close: 'Close',
   addedToReview: 'Added to review',
-  addToReviewFailed: 'Failed to add'
+  addToReviewFailed: 'Failed to add',
+  removedFromReview: 'Removed from review list',
+  removeFromReviewFailed: 'Failed to remove',
+
+  // Profile
+  profile: 'Profile',
+  gameHighScores: 'Game High Scores',
+  studyProgress: 'Learning Progress',
+  thisWeek: 'This Week',
+  thisMonth: 'This Month',
+  thisYear: 'This Year',
+  total: 'Total',
+  newRecord: 'New Record!',
+
+  // Settings
+  learningSettings: 'Learning Settings',
+  dailyWords: 'Daily Characters',
+  language: 'Language',
+  premium: 'Premium',
+  getPremium: 'Get Premium',
+  premiumActive: 'Premium Active',
+  alreadyPremium: 'You are already a premium user',
+  premiumFeatures: 'Get premium to unlock more features',
+  subscribe: 'Subscribe',
+  cancel: 'Cancel',
+  comingSoon: 'Coming Soon',
+  featureInDevelopment: 'This feature is under development'
 }; 

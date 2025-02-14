@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, FlatList, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import { LearningManager } from '../services/LearningManager';
@@ -27,20 +27,46 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
     setReviewItems(items);
   };
 
-  const startReview = (items: ReviewItem[]) => {
+  const startReviewForChar = (item: ReviewItem) => {
+    // 找到当前字在列表中的索引
+    const currentIndex = reviewItems.findIndex(i => i.character === item.character);
+    // 从当前字开始的所有字
+    const remainingChars = reviewItems.slice(currentIndex).map(item => item.character);
+    
     navigation.navigate('Learning', {
       mode: 'review',
-      reviewWords: items.map(item => item.character)
+      reviewWords: remainingChars
     });
+  };
+
+  const removeFromReview = async (character: string) => {
+    try {
+      const learningManager = LearningManager.getInstance();
+      await learningManager.removeFromReview(character);
+      // 重新加载列表
+      loadReviewItems();
+    } catch (error) {
+      console.error('Error removing from review:', error);
+    }
   };
 
   const renderReviewItem = ({ item }: { item: ReviewItem }) => (
     <View style={styles.reviewItem}>
-      <Text style={styles.character}>{item.character}</Text>
-      <View style={styles.itemInfo}>
-        <Text style={styles.mistakes}>{i18n.t('mistakes')}: {item.mistakes}</Text>
-        <Text style={styles.date}>{i18n.t('lastReview')}: {new Date(item.lastReviewDate).toLocaleDateString()}</Text>
-      </View>
+      <TouchableOpacity 
+        style={styles.itemContent}
+        onPress={() => startReviewForChar(item)}
+      >
+        <Text style={styles.character}>{item.character}</Text>
+        <View style={styles.itemInfo}>
+          <Text style={styles.date}>{new Date(item.lastReviewDate).toLocaleDateString()}</Text>
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.deleteButton}
+        onPress={() => removeFromReview(item.character)}
+      >
+        <MaterialCommunityIcons name="trash-can-outline" size={22} color="#FF3B30" />
+      </TouchableOpacity>
     </View>
   );
 
@@ -58,21 +84,12 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
 
       <View style={styles.content}>
         {reviewItems.length > 0 ? (
-          <>
-            <FlatList
-              data={reviewItems}
-              renderItem={renderReviewItem}
-              keyExtractor={(item) => item.character}
-              contentContainerStyle={styles.listContent}
-            />
-            <TouchableOpacity 
-              style={styles.startButton}
-              onPress={() => startReview(reviewItems)}
-            >
-              <MaterialCommunityIcons name="play" size={24} color="#fff" />
-              <Text style={styles.startButtonText}>{i18n.t('startReview')}</Text>
-            </TouchableOpacity>
-          </>
+          <FlatList
+            data={reviewItems}
+            renderItem={renderReviewItem}
+            keyExtractor={(item) => item.character}
+            contentContainerStyle={styles.listContent}
+          />
         ) : (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="check-circle" size={64} color="#34C759" />
@@ -119,6 +136,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
+  itemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   character: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -130,29 +152,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 15,
   },
-  mistakes: {
-    fontSize: 16,
-    color: '#FF3B30',
-    marginBottom: 4,
-  },
   date: {
     fontSize: 14,
     color: '#666',
   },
-  startButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FF9500',
-    margin: 20,
-    padding: 15,
-    borderRadius: 10,
-    gap: 10,
-  },
-  startButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+  deleteButton: {
+    padding: 8,
   },
   emptyState: {
     flex: 1,

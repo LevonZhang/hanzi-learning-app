@@ -6,6 +6,7 @@ import cnchar from 'cnchar';
 import { hanziDict as importedHanziDict } from '../data/hanziDict';
 import { StrokeOrderCard } from './StrokeOrderCard';
 import { i18n } from '../i18n/i18n';
+import { LearningManager } from '../services/LearningManager';
 
 const hanziDict = importedHanziDict as HanziDict;
 
@@ -289,33 +290,37 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
         </View>
         
         <View style={styles.buttonRow}>
-          <TouchableOpacity 
-            style={[styles.button, styles.wrongBookButton]}
-            onPress={async () => {
-              try {
-                await onComplete?.(false);
-                // 显示添加成功提示
-                Alert.alert(
-                  i18n.t('success'),
-                  i18n.t('addedToReview'),
-                  [{ text: i18n.t('confirm') }]
-                );
-              } catch (error) {
-                console.error('Error adding to review:', error);
-                Alert.alert(
-                  i18n.t('error'),
-                  i18n.t('addToReviewFailed'),
-                  [{ text: i18n.t('confirm') }]
-                );
-              }
-            }}
-          >
-            <MaterialCommunityIcons name="bookmark-plus" size={20} color="#fff" />
-            <Text style={styles.buttonText}>{i18n.t('addToWrongBook')}</Text>
-          </TouchableOpacity>
+          {!isReviewMode && (
+            <TouchableOpacity 
+              style={[styles.button, styles.wrongBookButton]}
+              onPress={async () => {
+                try {
+                  const learningManager = LearningManager.getInstance();
+                  await learningManager.recordProgress(character, false);
+                  await onComplete?.(false);
+                  // 显示添加成功提示
+                  Alert.alert(
+                    i18n.t('success'),
+                    i18n.t('addedToReview'),
+                    [{ text: i18n.t('confirm') }]
+                  );
+                } catch (error) {
+                  console.error('Error adding to review:', error);
+                  Alert.alert(
+                    i18n.t('error'),
+                    i18n.t('addToReviewFailed'),
+                    [{ text: i18n.t('confirm') }]
+                  );
+                }
+              }}
+            >
+              <MaterialCommunityIcons name="bookmark-plus" size={20} color="#fff" />
+              <Text style={styles.buttonText}>{i18n.t('addToWrongBook')}</Text>
+            </TouchableOpacity>
+          )}
           
           <TouchableOpacity 
-            style={[styles.button, styles.generateButton]}
+            style={[styles.button, styles.generateButton, !isReviewMode && { flex: 1 }]}
             onPress={() => setShowStrokeOrder(true)}
           >
             <MaterialCommunityIcons name="card-outline" size={20} color="#fff" />

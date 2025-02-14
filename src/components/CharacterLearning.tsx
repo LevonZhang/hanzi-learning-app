@@ -337,18 +337,10 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{i18n.t('strokeOrder')}</Text>
-              <TouchableOpacity 
-                onPress={() => setShowStrokeOrder(false)}
-                style={styles.closeButton}
-              >
-                <Text style={styles.closeButtonText}>{i18n.t('close')}</Text>
-              </TouchableOpacity>
-            </View>
             <StrokeOrderCard 
               character={character} 
               strokeCount={strokeCount}
+              onClose={() => setShowStrokeOrder(false)}
             />
           </View>
         </View>

@@ -10,181 +10,222 @@ import cnchar from 'cnchar';
 import 'cnchar-draw';  // 导入绘制模块
 import * as Share from 'expo-sharing';
 import { useTranslation } from 'react-i18next';
+import HanziWriter from 'hanzi-writer';
 
 interface StrokeOrderCardProps {
   character: string;
   strokeCount: number;
+  onClose?: () => void;
 }
 
-export const StrokeOrderCard = ({ character, strokeCount }: StrokeOrderCardProps) => {
+declare global {
+  interface Window {
+    HanziWriter: any;
+    ReactNativeWebView: {
+      postMessage: (message: string) => void;
+    };
+  }
+}
+
+export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrderCardProps) => {
   const { t } = useTranslation();
   const viewShotRef = useRef<ViewShot>(null);
   const webViewRefs = useRef<WebView[]>([]);
   const [modalHeight, setModalHeight] = useState(0);
   const windowHeight = Dimensions.get('window').height;
+  const [writer, setWriter] = useState<HanziWriter | null>(null);
+  const [targetStrokeIndex, setTargetStrokeIndex] = useState<number>(-1);
 
   const getHtmlContent = (index: number) => `
     <!DOCTYPE html>
     <html>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://fastly.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
         <style>
-          body { 
-            margin: 0; 
+          html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+          }
+          body {
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
             background-color: transparent;
           }
-          #grid-${index} {
-            width: 100px;
-            height: 100px;
-            background-color: transparent;
-            position: relative;
-          }
-          .grid-lines {
-            position: absolute;
+          #target {
             width: 100%;
             height: 100%;
-            pointer-events: none;
-            z-index: 0;
+            background-color: white;
+            background-image: url('data:image/svg+xml;utf8,\
+              <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">\
+                <rect width="100" height="100" fill="none" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="0" y1="50" x2="100" y2="50" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="50" y1="0" x2="50" y2="100" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="0" y1="0" x2="100" y2="100" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="100" y1="0" x2="0" y2="100" stroke="%23DDD" stroke-width="1"/>\
+              </svg>');
+            background-size: 100% 100%;
           }
-          .grid-line {
-            position: absolute;
-            background-color: #e0e0e0;
-          }
-          .horizontal { 
-            width: 100%; 
-            height: 1px; 
-            left: 0;
-          }
-          .vertical { 
-            height: 100%; 
-            width: 1px; 
-            top: 0;
-          }
-          .diagonal1 { 
-            width: 141.4%; 
-            height: 1px;
-            top: 50%;
-            left: -20.7%;
-            transform: rotate(45deg);
-            transform-origin: center;
-          }
-          .diagonal2 { 
-            width: 141.4%; 
-            height: 1px;
-            top: 50%;
-            left: -20.7%;
-            transform: rotate(-45deg);
-            transform-origin: center;
-          }
-          .character-target {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
+          .stroke-path {
+            stroke-linecap: round;
+            stroke-linejoin: round;
           }
         </style>
       </head>
       <body>
-        <div id="grid-${index}">
-          <div class="grid-lines">
-            <div class="grid-line horizontal" style="top: 0%"></div>
-            <div class="grid-line horizontal" style="top: 50%"></div>
-            <div class="grid-line horizontal" style="top: 100%"></div>
-            <div class="grid-line vertical" style="left: 0%"></div>
-            <div class="grid-line vertical" style="left: 50%"></div>
-            <div class="grid-line vertical" style="left: 100%"></div>
-            <div class="grid-line diagonal1"></div>
-            <div class="grid-line diagonal2"></div>
-          </div>
-          <div id="character-target-${index}" class="character-target"></div>
-        </div>
+        <div id="target"></div>
         <script>
+          let isInitialized = false;
           let writer = null;
+          const strokeColors = ['#FF0000', '#0000FF', '#00AA00', '#AA00FF', '#FF8800'];
+          const currentColor = strokeColors[${index} % strokeColors.length];
 
-          async function initializeWriter() {
-            if (writer) {
-              writer.quiz?.cancel();
-              writer.animateCharacter?.cancel();
-              writer = null;
-            }
-
-            writer = HanziWriter.create('character-target-${index}', '${character}', {
-              width: 100,
-              height: 100,
-              padding: 5,
-              showOutline: false,
-              showCharacter: false,
-              strokeAnimationSpeed: 0,
-              delayBetweenStrokes: 0,
-              strokeColor: '#dddddd',
-              outlineColor: '#dddddd',
-              drawingWidth: 3,
-              coordSystem: {
-                scale: 1,
-                xOffset: 0,
-                yOffset: 0,
-                flipX: false,
-                flipY: false
-              }
-            });
-
-            // 等待字体加载完成
-            await new Promise(resolve => setTimeout(resolve, 500));
-            return writer;
-          }
-
-          async function updateStrokes() {
-            if (!writer) {
-              writer = await initializeWriter();
+          async function initWriter() {
+            if (isInitialized) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'debug',
+                message: 'Already initialized, skipping'
+              }));
+              return;
             }
 
             try {
-              const strokes = writer.getStrokes();
-              const targetIndex = ${index};
+              const target = document.getElementById('target');
+              if (!target) {
+                console.error('Target element not found');
+                return;
+              }
 
-              // 显示所有笔画
-              strokes.forEach((stroke, i) => {
-                stroke.show();
-                if (i === targetIndex) {
-                  // 当前笔画显示为黑色
-                  stroke.setColor('#000000');
-                } else if (i < targetIndex) {
-                  // 之前的笔画显示为浅灰色
-                  stroke.setColor('#dddddd');
-                } else {
-                  // 后面的笔画隐藏
-                  stroke.hide();
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'debug',
+                message: \`Starting initialization for stroke \${${index}}\`
+              }));
+
+              writer = HanziWriter.create(target, '${character}', {
+                width: target.offsetWidth,
+                height: target.offsetHeight,
+                padding: 5,
+                showOutline: true,
+                showCharacter: false,
+                strokeColor: currentColor,
+                outlineColor: '#CCCCCC',
+                strokeWidth: 3,
+                delayBetweenStrokes: 50,
+                renderer: 'svg',
+                onLoadCharDataSuccess: () => {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'debug',
+                    message: 'Character data loaded'
+                  }));
+                  isInitialized = true;
+                  setupDisplay();
+                },
+                onLoadCharDataError: (error) => {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'error',
+                    message: \`Failed to load character data: \${error}\`
+                  }));
                 }
               });
-
-              // 发送完成消息
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'strokeComplete',
-                index: targetIndex
-              }));
             } catch (error) {
-              console.error('Error updating strokes:', error);
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'error',
-                message: error.message
+                message: error.toString()
               }));
             }
           }
 
-          window.onload = async function() {
+          function setupDisplay() {
             try {
-              await updateStrokes();
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'debug',
+                message: 'Setting up display'
+              }));
+
+              // 重置显示状态
+              writer.hideCharacter();
+              writer.hideOutline();
+
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'debug',
+                message: 'Reset display state'
+              }));
+
+              // 先显示轮廓
+              writer.showOutline();
+              
+              // 等待一小段时间确保轮廓显示完成
+              setTimeout(() => {
+                try {
+                  // 获取所有笔画路径并设置颜色
+                  const svg = document.querySelector('#target svg');
+                  const paths = svg.querySelectorAll('path');
+                  
+                  // 记录找到的路径数量
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'debug',
+                    message: \`Found \${paths.length} paths\`
+                  }));
+
+                  // 先隐藏所有笔画
+                  writer.hideCharacter();
+                  
+                  // 显示当前笔画
+                  writer.showStroke(${index});
+
+                  // 设置颜色
+                  const strokePaths = Array.from(paths).filter(path => {
+                    const style = window.getComputedStyle(path);
+                    return style.display !== 'none' && style.opacity !== '0';
+                  });
+
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'debug',
+                    message: \`Active paths: \${strokePaths.length}\`
+                  }));
+
+                  strokePaths.forEach(path => {
+                    path.setAttribute('stroke', currentColor);
+                    path.setAttribute('style', \`stroke: \${currentColor} !important; opacity: 1 !important;\`);
+                  });
+
+                  // 设置轮廓颜色
+                  const outlinePaths = Array.from(paths).filter(path => {
+                    const style = window.getComputedStyle(path);
+                    return style.display !== 'none' && style.opacity === '0';
+                  });
+
+                  outlinePaths.forEach(path => {
+                    path.setAttribute('stroke', '#CCCCCC');
+                    path.setAttribute('style', 'stroke: #CCCCCC !important; opacity: 0.5 !important;');
+                  });
+
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'debug',
+                    message: 'Colors applied'
+                  }));
+                } catch (error) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'error',
+                    message: \`Error in color setup: \${error.toString()}\`
+                  }));
+                }
+              }, 100);
+
             } catch (error) {
-              console.error('Error:', error);
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'error',
+                message: \`Error in display setup: \${error.toString()}\`
+              }));
             }
-          };
+          }
+
+          initWriter();
         </script>
       </body>
     </html>
@@ -208,6 +249,12 @@ export const StrokeOrderCard = ({ character, strokeCount }: StrokeOrderCardProps
               bounces={false}
               javaScriptEnabled={true}
               onShouldStartLoadWithRequest={() => true}
+              onMessage={(event) => {
+                const data = JSON.parse(event.nativeEvent.data);
+                if (data.type === 'debug') {
+                  console.log(`Grid ${i} Debug:`, data.message);
+                }
+              }}
             />
           </View>
           <Text style={styles.gridLabel}>{i18n.t('stroke', { number: i + 1 })}</Text>
@@ -235,9 +282,7 @@ export const StrokeOrderCard = ({ character, strokeCount }: StrokeOrderCardProps
       if (viewShotRef.current?.capture) {
         const uri = await viewShotRef.current.capture();
         if (uri) {
-          await Share.share({
-            url: uri,
-          });
+          await Sharing.shareAsync(uri);
         }
       }
     } catch (error) {
@@ -273,15 +318,11 @@ export const StrokeOrderCard = ({ character, strokeCount }: StrokeOrderCardProps
         return;
       }
 
-      if (viewShotRef.current) {
-        const uri = await viewShotRef.current.capture({
-          format: "jpg",
-          quality: 0.8,
-          result: "tmpfile",
-          height: modalHeight,
-          width: Dimensions.get('window').width - 60
-        });
-        await Sharing.shareAsync(uri);
+      if (viewShotRef.current?.capture) {
+        const uri = await viewShotRef.current.capture();
+        if (uri) {
+          await Sharing.shareAsync(uri);
+        }
       }
     } catch (error) {
       console.error('Share failed:', error);
@@ -296,6 +337,13 @@ export const StrokeOrderCard = ({ character, strokeCount }: StrokeOrderCardProps
           <MaterialCommunityIcons name="pencil-outline" size={24} color="#4CAF50" />
           <Text style={styles.title}>{i18n.t('strokeOrder')}</Text>
         </View>
+        <TouchableOpacity 
+          onPress={onClose}
+          style={[styles.actionButton, styles.closeButton]}
+        >
+          <MaterialCommunityIcons name="close-circle" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>{i18n.t('close')}</Text>
+        </TouchableOpacity>
       </View>
       
       <View style={styles.contentContainer}>
@@ -344,6 +392,9 @@ const styles = StyleSheet.create({
     height: Dimensions.get('window').height * 0.7,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
     paddingBottom: 10,
@@ -352,6 +403,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   title: {
     fontSize: 18,
@@ -373,31 +425,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 15,
+    gap: 25,
     backgroundColor: '#fff',
-    padding: 10,
+    padding: 20,
   },
   gridContainer: {
     alignItems: 'center',
     marginBottom: 15,
+    width: 120,
+    minWidth: 120,
   },
   grid: {
-    width: 100,
-    height: 100,
-    borderWidth: 1,
-    borderColor: '#4CAF50',
+    width: 120,
+    height: 120,
     backgroundColor: '#fff',
     overflow: 'hidden',
   },
   webview: {
-    width: 100,
-    height: 100,
+    width: 120,
+    height: 120,
     backgroundColor: 'transparent',
   },
   gridLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
-    marginTop: 8,
+    marginTop: 4,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -426,5 +478,9 @@ const styles = StyleSheet.create({
   },
   shareButton: {
     backgroundColor: '#4CAF50',
+  },
+  closeButton: {
+    backgroundColor: '#FF4444',
+    marginLeft: 0,
   },
 }); 

@@ -42,22 +42,7 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <script>
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'debug',
-            message: 'Page starting to load'
-          }));
-        </script>
-        <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js" 
-          onload="window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'debug',
-            message: 'HanziWriter loaded successfully'
-          }));"
-          onerror="window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'error',
-            message: 'Failed to load HanziWriter'
-          }));">
-        </script>
+        <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
         <style>
           html, body {
             margin: 0;
@@ -77,12 +62,12 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
             height: 100%;
             background-color: white;
             background-image: url('data:image/svg+xml;utf8,\
-              <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">\
-                <rect width="100" height="100" fill="none" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="0" y1="50" x2="100" y2="50" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="50" y1="0" x2="50" y2="100" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="0" y1="0" x2="100" y2="100" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="100" y1="0" x2="0" y2="100" stroke="%23DDD" stroke-width="1"/>\
+              <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60">\
+                <rect width="60" height="60" fill="none" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="0" y1="30" x2="60" y2="30" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="30" y1="0" x2="30" y2="60" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="0" y1="0" x2="60" y2="60" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="60" y1="0" x2="0" y2="60" stroke="%23DDD" stroke-width="1"/>\
               </svg>');
             background-size: 100% 100%;
           }
@@ -99,39 +84,20 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
           let writer = null;
 
           function initWriter() {
-            // 防止重复初始化
             if (isInitialized) {
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'debug',
-                message: 'Already initialized, skipping'
-              }));
               return;
             }
 
             try {
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'debug',
-                message: 'Starting writer initialization'
-              }));
-
               const target = document.getElementById('target');
               if (!target) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'error',
-                  message: 'Target element not found'
-                }));
                 return;
               }
 
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'debug',
-                message: 'Target element found, creating writer'
-              }));
-
               writer = HanziWriter.create(target, '${character}', {
-                width: 100,
-                height: 100,
-                padding: 5,
+                width: 60,
+                height: 60,
+                padding: 0,
                 showOutline: true,
                 showCharacter: false,
                 strokeColor: '#000000',
@@ -139,99 +105,43 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
                 strokeWidth: 2,
                 delayBetweenStrokes: 50,
                 onLoadCharDataSuccess: () => {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'debug',
-                    message: 'Character data loaded successfully'
-                  }));
-
                   try {
-                    // 隐藏所有笔画
                     writer.hideCharacter();
-                    
-                    // 显示轮廓
                     writer.showOutline();
-
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                      type: 'debug',
-                      message: \`Setting up stroke \${${index}}\`
-                    }));
-
-                    // 先显示所有笔画
                     writer.showCharacter();
 
-                    // 使用定时器等待笔画渲染完成
                     setTimeout(() => {
                       try {
-                        // 找到所有笔画元素
                         const strokePaths = target.querySelectorAll('path[stroke]');
-                        window.ReactNativeWebView.postMessage(JSON.stringify({
-                          type: 'debug',
-                          message: \`Found \${strokePaths.length} stroke paths\`
-                        }));
-
-                        // 隐藏不需要的笔画
                         strokePaths.forEach((path, i) => {
                           if (i !== ${index}) {
-                            path.style.display = 'none';
+                            path.style.stroke = '#DDDDDD';
+                            path.style.opacity = '0.5';
+                            path.style.zIndex = '1';
                           } else {
-                            // 当前笔画设置为黑色
                             path.style.stroke = '#000000';
+                            path.style.opacity = '1';
+                            path.style.zIndex = '2';
+                            path.parentNode.appendChild(path);
                           }
                         });
-
-                        window.ReactNativeWebView.postMessage(JSON.stringify({
-                          type: 'debug',
-                          message: 'Stroke display updated'
-                        }));
                       } catch (error) {
-                        window.ReactNativeWebView.postMessage(JSON.stringify({
-                          type: 'error',
-                          message: 'Error updating strokes: ' + error.toString()
-                        }));
+                        console.error(error);
                       }
                     }, 100);
-
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                      type: 'debug',
-                      message: 'Display setup complete'
-                    }));
                   } catch (error) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                      type: 'error',
-                      message: 'Error in display setup: ' + error.toString()
-                    }));
+                    console.error(error);
                   }
-                },
-                onLoadCharDataError: (error) => {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'error',
-                    message: 'Failed to load character data: ' + error.toString()
-                  }));
                 }
               });
 
               isInitialized = true;
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'debug',
-                message: 'Writer created successfully'
-              }));
-
             } catch (error) {
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'error',
-                message: 'Error in initialization: ' + error.toString()
-              }));
+              console.error(error);
             }
           }
 
-          // 等待页面加载完成后初始化
-          window.addEventListener('load', () => {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'debug',
-              message: 'Page loaded, starting initialization'
-            }));
-            initWriter();
-          });
+          window.addEventListener('load', initWriter);
         </script>
       </body>
     </html>
@@ -262,19 +172,13 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
               mixedContentMode="always"
               onError={(syntheticEvent) => {
                 const { nativeEvent } = syntheticEvent;
-                console.warn('WebView error: ', nativeEvent);
+                console.warn('WebView error:', nativeEvent);
               }}
               onHttpError={(syntheticEvent) => {
                 const { nativeEvent } = syntheticEvent;
-                console.warn('WebView HTTP error: ', nativeEvent);
+                console.warn('WebView HTTP error:', nativeEvent);
               }}
               onShouldStartLoadWithRequest={() => true}
-              onMessage={(event) => {
-                const data = JSON.parse(event.nativeEvent.data);
-                if (data.type === 'debug' || data.type === 'error') {
-                  console.log(`Grid ${i} ${data.type}:`, data.message);
-                }
-              }}
             />
           </View>
           <Text style={styles.gridLabel}>{i18n.t('stroke', { number: i + 1 })}</Text>
@@ -407,8 +311,8 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 15,
-    margin: 10,
+    padding: 10,
+    margin: 5,
     height: Dimensions.get('window').height * 0.7,
   },
   header: {
@@ -417,8 +321,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    paddingBottom: 10,
-    marginBottom: 10,
+    paddingBottom: 8,
+    marginBottom: 8,
   },
   iconContainer: {
     flexDirection: 'row',
@@ -426,10 +330,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginLeft: 8,
+    marginLeft: 6,
   },
   contentContainer: {
     flex: 1,
@@ -439,43 +343,44 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollViewContent: {
-    paddingBottom: 10,
+    paddingBottom: 5,
   },
   gridsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 25,
+    justifyContent: 'flex-start',
+    gap: 4,
     backgroundColor: '#fff',
-    padding: 20,
+    padding: 4,
   },
   gridContainer: {
     alignItems: 'center',
-    marginBottom: 15,
-    width: 120,
-    minWidth: 120,
+    marginBottom: 6,
+    width: '24%',
+    minWidth: 60,
+    maxWidth: 60,
   },
   grid: {
-    width: 120,
-    height: 120,
+    width: 60,
+    height: 60,
     backgroundColor: '#fff',
     overflow: 'hidden',
   },
   webview: {
-    width: 120,
-    height: 120,
+    width: 60,
+    height: 60,
     backgroundColor: 'transparent',
   },
   gridLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
-    marginTop: 4,
+    marginTop: 2,
   },
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingTop: 15,
-    paddingBottom: 10,
+    paddingTop: 10,
+    paddingBottom: 8,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     backgroundColor: '#fff',
@@ -483,14 +388,14 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 6,
+    gap: 6,
   },
   actionButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   saveButton: {

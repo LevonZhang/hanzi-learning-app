@@ -27,6 +27,7 @@
     "expo-media-library": "^17.0.5",
     "expo-sharing": "^13.0.1",
     "expo-speech": "^13.0.1",
+    "hanzi-writer": "^3.7.2",
     "i18n-js": "^4.5.1",
     "i18next": "^24.2.2",
     "pinyin-pro": "^3.26.0",

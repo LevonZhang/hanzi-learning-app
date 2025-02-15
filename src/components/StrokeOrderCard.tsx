@@ -42,7 +42,22 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+        <script>
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'debug',
+            message: 'Page starting to load'
+          }));
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js" 
+          onload="window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'debug',
+            message: 'HanziWriter loaded successfully'
+          }));"
+          onerror="window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'error',
+            message: 'Failed to load HanziWriter'
+          }));">
+        </script>
         <style>
           html, body {
             margin: 0;
@@ -82,10 +97,9 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
         <script>
           let isInitialized = false;
           let writer = null;
-          const strokeColors = ['#FF0000', '#0000FF', '#00AA00', '#AA00FF', '#FF8800'];
-          const currentColor = strokeColors[${index} % strokeColors.length];
 
-          async function initWriter() {
+          function initWriter() {
+            // 防止重复初始化
             if (isInitialized) {
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'debug',
@@ -95,137 +109,129 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
             }
 
             try {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'debug',
+                message: 'Starting writer initialization'
+              }));
+
               const target = document.getElementById('target');
               if (!target) {
-                console.error('Target element not found');
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'error',
+                  message: 'Target element not found'
+                }));
                 return;
               }
 
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'debug',
-                message: \`Starting initialization for stroke \${${index}}\`
+                message: 'Target element found, creating writer'
               }));
 
               writer = HanziWriter.create(target, '${character}', {
-                width: target.offsetWidth,
-                height: target.offsetHeight,
+                width: 100,
+                height: 100,
                 padding: 5,
                 showOutline: true,
                 showCharacter: false,
-                strokeColor: currentColor,
+                strokeColor: '#000000',
                 outlineColor: '#CCCCCC',
-                strokeWidth: 3,
+                strokeWidth: 2,
                 delayBetweenStrokes: 50,
-                renderer: 'svg',
                 onLoadCharDataSuccess: () => {
                   window.ReactNativeWebView.postMessage(JSON.stringify({
                     type: 'debug',
-                    message: 'Character data loaded'
+                    message: 'Character data loaded successfully'
                   }));
-                  isInitialized = true;
-                  setupDisplay();
+
+                  try {
+                    // 隐藏所有笔画
+                    writer.hideCharacter();
+                    
+                    // 显示轮廓
+                    writer.showOutline();
+
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'debug',
+                      message: \`Setting up stroke \${${index}}\`
+                    }));
+
+                    // 先显示所有笔画
+                    writer.showCharacter();
+
+                    // 使用定时器等待笔画渲染完成
+                    setTimeout(() => {
+                      try {
+                        // 找到所有笔画元素
+                        const strokePaths = target.querySelectorAll('path[stroke]');
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                          type: 'debug',
+                          message: \`Found \${strokePaths.length} stroke paths\`
+                        }));
+
+                        // 隐藏不需要的笔画
+                        strokePaths.forEach((path, i) => {
+                          if (i !== ${index}) {
+                            path.style.display = 'none';
+                          } else {
+                            // 当前笔画设置为黑色
+                            path.style.stroke = '#000000';
+                          }
+                        });
+
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                          type: 'debug',
+                          message: 'Stroke display updated'
+                        }));
+                      } catch (error) {
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                          type: 'error',
+                          message: 'Error updating strokes: ' + error.toString()
+                        }));
+                      }
+                    }, 100);
+
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'debug',
+                      message: 'Display setup complete'
+                    }));
+                  } catch (error) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'error',
+                      message: 'Error in display setup: ' + error.toString()
+                    }));
+                  }
                 },
                 onLoadCharDataError: (error) => {
                   window.ReactNativeWebView.postMessage(JSON.stringify({
                     type: 'error',
-                    message: \`Failed to load character data: \${error}\`
+                    message: 'Failed to load character data: ' + error.toString()
                   }));
                 }
               });
-            } catch (error) {
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'error',
-                message: error.toString()
-              }));
-            }
-          }
 
-          function setupDisplay() {
-            try {
+              isInitialized = true;
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'debug',
-                message: 'Setting up display'
+                message: 'Writer created successfully'
               }));
-
-              // 重置显示状态
-              writer.hideCharacter();
-              writer.hideOutline();
-
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'debug',
-                message: 'Reset display state'
-              }));
-
-              // 先显示轮廓
-              writer.showOutline();
-              
-              // 等待一小段时间确保轮廓显示完成
-              setTimeout(() => {
-                try {
-                  // 获取所有笔画路径并设置颜色
-                  const svg = document.querySelector('#target svg');
-                  const paths = svg.querySelectorAll('path');
-                  
-                  // 记录找到的路径数量
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'debug',
-                    message: \`Found \${paths.length} paths\`
-                  }));
-
-                  // 先隐藏所有笔画
-                  writer.hideCharacter();
-                  
-                  // 显示当前笔画
-                  writer.showStroke(${index});
-
-                  // 设置颜色
-                  const strokePaths = Array.from(paths).filter(path => {
-                    const style = window.getComputedStyle(path);
-                    return style.display !== 'none' && style.opacity !== '0';
-                  });
-
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'debug',
-                    message: \`Active paths: \${strokePaths.length}\`
-                  }));
-
-                  strokePaths.forEach(path => {
-                    path.setAttribute('stroke', currentColor);
-                    path.setAttribute('style', \`stroke: \${currentColor} !important; opacity: 1 !important;\`);
-                  });
-
-                  // 设置轮廓颜色
-                  const outlinePaths = Array.from(paths).filter(path => {
-                    const style = window.getComputedStyle(path);
-                    return style.display !== 'none' && style.opacity === '0';
-                  });
-
-                  outlinePaths.forEach(path => {
-                    path.setAttribute('stroke', '#CCCCCC');
-                    path.setAttribute('style', 'stroke: #CCCCCC !important; opacity: 0.5 !important;');
-                  });
-
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'debug',
-                    message: 'Colors applied'
-                  }));
-                } catch (error) {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'error',
-                    message: \`Error in color setup: \${error.toString()}\`
-                  }));
-                }
-              }, 100);
 
             } catch (error) {
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'error',
-                message: \`Error in display setup: \${error.toString()}\`
+                message: 'Error in initialization: ' + error.toString()
               }));
             }
           }
 
-          initWriter();
+          // 等待页面加载完成后初始化
+          window.addEventListener('load', () => {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'debug',
+              message: 'Page loaded, starting initialization'
+            }));
+            initWriter();
+          });
         </script>
       </body>
     </html>
@@ -243,16 +249,30 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
                   webViewRefs.current[i] = ref;
                 }
               }}
-              source={{ html: getHtmlContent(i) }}
+              source={{ 
+                html: getHtmlContent(i),
+                baseUrl: '' 
+              }}
               style={styles.webview}
               scrollEnabled={false}
               bounces={false}
               javaScriptEnabled={true}
+              domStorageEnabled={true}
+              originWhitelist={['*']}
+              mixedContentMode="always"
+              onError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.warn('WebView error: ', nativeEvent);
+              }}
+              onHttpError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.warn('WebView HTTP error: ', nativeEvent);
+              }}
               onShouldStartLoadWithRequest={() => true}
               onMessage={(event) => {
                 const data = JSON.parse(event.nativeEvent.data);
-                if (data.type === 'debug') {
-                  console.log(`Grid ${i} Debug:`, data.message);
+                if (data.type === 'debug' || data.type === 'error') {
+                  console.log(`Grid ${i} ${data.type}:`, data.message);
                 }
               }}
             />

@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import { LearningManager } from '../services/LearningManager';
 import StatisticsService from '../services/StatisticsService';
+import SubscriptionService from '../services/SubscriptionService';
 
 interface ReviewScreenProps {
   navigation: any;
@@ -17,10 +18,17 @@ interface ReviewItem {
 
 export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
+  const [canReview, setCanReview] = useState(false);
 
   useEffect(() => {
     loadReviewItems();
+    checkReviewPermission();
   }, []);
+
+  const checkReviewPermission = async () => {
+    const hasPermission = await SubscriptionService.canUseReview();
+    setCanReview(hasPermission);
+  };
 
   const loadReviewItems = async () => {
     const learningManager = LearningManager.getInstance();
@@ -29,6 +37,23 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
   };
 
   const startReviewForChar = (item: ReviewItem) => {
+    if (!canReview) {
+      Alert.alert(
+        i18n.t('premiumFeature'),
+        i18n.t('reviewPremiumDesc'),
+        [
+          { text: i18n.t('cancel'), style: 'cancel' },
+          { 
+            text: i18n.t('getPremium'),
+            onPress: () => {
+              navigation.navigate('Settings', { screen: 'premium' });
+            }
+          }
+        ]
+      );
+      return;
+    }
+
     // 找到当前字在列表中的索引
     const currentIndex = reviewItems.findIndex(i => i.character === item.character);
     // 从当前字开始的所有字

@@ -6,6 +6,8 @@ import { i18n } from '../i18n/i18n';
 import SubscriptionService from '../services/SubscriptionService';
 import { LearningManager } from '../services/LearningManager';
 import HanziService from '../services/HanziService';
+import StatisticsService from '../services/StatisticsService';
+import GameService from '../services/GameService';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -36,10 +38,12 @@ interface GameStats {
   wordGame: {
     highScore: number;
     gamesPlayed: number;
+    isCompleted: boolean;
   };
   pronunciationGame: {
     highScore: number;
     gamesPlayed: number;
+    isCompleted: boolean;
   };
 }
 
@@ -78,10 +82,15 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     monthlyProgress: [],
   });
   const [gameStats, setGameStats] = useState<GameStats>({
-    wordGame: { highScore: 0, gamesPlayed: 0 },
-    pronunciationGame: { highScore: 0, gamesPlayed: 0 },
+    wordGame: { highScore: 0, gamesPlayed: 0, isCompleted: false },
+    pronunciationGame: { highScore: 0, gamesPlayed: 0, isCompleted: false }
   });
   const [learnedCharacters, setLearnedCharacters] = useState<LearnedCharacter[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 18;
+  const [gameProgress, setGameProgress] = useState<any>(null);
+  const [pronunciationGameProgress, setPronunciationGameProgress] = useState<any>(null);
 
   useEffect(() => {
     loadSettings();
@@ -108,6 +117,37 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       SubscriptionService.cleanup();
     };
   }, []);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const stats = await AsyncStorage.getItem('gameStats');
+        const progress = await GameService.loadGameProgress('word');
+        const pronunciationProgress = await GameService.loadGameProgress('pronunciation');
+        setGameStats(stats ? JSON.parse(stats) : {
+          wordGame: { highScore: 0, gamesPlayed: 0, isCompleted: false },
+          pronunciationGame: { highScore: 0, gamesPlayed: 0, isCompleted: false }
+        });
+        setGameProgress(progress);
+        setPronunciationGameProgress(pronunciationProgress);
+      } catch (error) {
+        // Silent error handling
+      }
+    };
+
+    // 初始加载
+    loadData();
+
+    // 添加焦点监听器
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData(); // 当屏幕重新获得焦点时重新加载数据
+    });
+
+    // 清理订阅
+    return () => {
+      unsubscribe();
+    };
+  }, [navigation]);
 
   const updateSubscriptionPlans = () => {
     const plans: SubscriptionPlan[] = [
@@ -239,10 +279,48 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
         masteryLevel: data.masteryLevel,
         lastReviewDate: data.lastReviewDate,
       }));
-      setLearnedCharacters(characters.sort((a, b) => b.masteryLevel - a.masteryLevel));
+      const sortedCharacters = characters.sort((a, b) => b.masteryLevel - a.masteryLevel);
+      setLearnedCharacters(sortedCharacters);
+      setHasMore(sortedCharacters.length > ITEMS_PER_PAGE);
     } catch (error) {
       console.error('加载已学习汉字失败:', error);
     }
+  };
+
+  const getPaginatedCharacters = () => {
+    const endIndex = (currentPage + 1) * ITEMS_PER_PAGE;
+    return learnedCharacters.slice(0, endIndex);
+  };
+
+  const handleLoadMore = () => {
+    const nextPage = currentPage + 1;
+    const nextEndIndex = (nextPage + 1) * ITEMS_PER_PAGE;
+    setCurrentPage(nextPage);
+    setHasMore(nextEndIndex < learnedCharacters.length);
+  };
+
+  const renderCharacterItem = ({ item }: { item: LearnedCharacter }) => (
+    <TouchableOpacity 
+      style={styles.characterItem}
+      onPress={() => navigation.navigate('Learning', {
+        mode: 'display',
+        character: item.character,
+        fromSettings: true
+      })}
+    >
+      <Text style={[styles.characterText, { color: getMasteryLevelColor(item.masteryLevel) }]}>
+        {item.character}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderFooter = () => {
+    if (!hasMore) return null;
+    return (
+      <TouchableOpacity style={styles.loadMoreButton} onPress={handleLoadMore}>
+        <Text style={styles.loadMoreText}>{i18n.t('showMore')}</Text>
+      </TouchableOpacity>
+    );
   };
 
   const saveDailyWords = async (value: number) => {
@@ -296,11 +374,15 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   };
 
   const formatLearningTime = (minutes: number): string => {
+    if (minutes < 60) {
+      return `${minutes}${i18n.t('minutes')}`;
+    }
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
-    return hours > 0 
-      ? `${hours}${i18n.t('hours')} ${remainingMinutes}${i18n.t('minutes')}`
-      : `${remainingMinutes}${i18n.t('minutes')}`;
+    if (remainingMinutes === 0) {
+      return `${hours}${i18n.t('hours')}`;
+    }
+    return `${hours}${i18n.t('hours')}${remainingMinutes}${i18n.t('minutes')}`;
   };
 
   const formatRemainingDays = (expirationDate: Date): string => {
@@ -312,27 +394,17 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
 
   const getMasteryLevelColor = (level: number): string => {
     switch (level) {
-      case 5: return '#34C759'; // 完全掌握
-      case 4: return '#5856D6'; // 熟练
-      case 3: return '#007AFF'; // 一般
-      case 2: return '#FF9500'; // 需要练习
-      case 1: return '#FF3B30'; // 刚学习
-      default: return '#8E8E93'; // 未知状态
+      case 2:
+        return '#34C759'; // 已掌握 - 绿色
+      case 1:
+        return '#333333'; // 已学习 - 黑色
+      default:
+        return '#333333'; // 默认黑色
     }
   };
 
-  const renderCharacterItem = ({ item }: { item: LearnedCharacter }) => (
-    <TouchableOpacity
-      style={[styles.characterItem, { borderColor: getMasteryLevelColor(item.masteryLevel) }]}
-      onPress={() => navigation.navigate('Learning', { mode: 'display', character: item.character })}
-    >
-      <Text style={styles.characterText}>{item.character}</Text>
-      <View style={[styles.masteryIndicator, { backgroundColor: getMasteryLevelColor(item.masteryLevel) }]} />
-    </TouchableOpacity>
-  );
-
   const renderMenuItem = (section: MenuSection, icon: keyof typeof MaterialCommunityIcons.glyphMap, title: string) => (
-    <TouchableOpacity
+        <TouchableOpacity 
       style={[styles.menuItem, activeSection === section && styles.activeMenuItem]}
       onPress={() => setActiveSection(section)}
     >
@@ -344,7 +416,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       <Text style={[styles.menuItemText, activeSection === section && styles.activeMenuItemText]}>
         {title}
       </Text>
-    </TouchableOpacity>
+        </TouchableOpacity>
   );
 
   const renderContent = () => {
@@ -373,8 +445,8 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                   {i18n.t('daysRemaining', { days: formatRemainingDays(subscriptionStatus.expirationDate) })}
                 </Text>
               )}
-            </View>
-            
+      </View>
+
             {!subscriptionStatus.isLifetime && (
               <View style={styles.subscriptionPlans}>
                 {subscriptionPlansState.map((plan) => (
@@ -410,54 +482,54 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           <View style={styles.sectionContent}>
             <View style={styles.settingGroup}>
               <Text style={styles.settingGroupTitle}>{i18n.t('learningSettings')}</Text>
-              <View style={styles.settingItem}>
-                <Text style={styles.settingLabel}>{i18n.t('dailyWords')}</Text>
-                <View style={styles.numberSelector}>
-                  <TouchableOpacity 
-                    onPress={() => dailyWords > 1 && saveDailyWords(dailyWords - 1)}
-                    style={styles.numberButton}
-                  >
-                    <Text style={styles.numberButtonText}>-</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.numberValue}>{dailyWords}</Text>
-                  <TouchableOpacity 
-                    onPress={() => dailyWords < 20 && saveDailyWords(dailyWords + 1)}
-                    style={styles.numberButton}
-                  >
-                    <Text style={styles.numberButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+          <View style={styles.settingItem}>
+            <Text style={styles.settingLabel}>{i18n.t('dailyWords')}</Text>
+            <View style={styles.numberSelector}>
+              <TouchableOpacity 
+                onPress={() => dailyWords > 1 && saveDailyWords(dailyWords - 1)}
+                style={styles.numberButton}
+              >
+                <Text style={styles.numberButtonText}>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.numberValue}>{dailyWords}</Text>
+              <TouchableOpacity 
+                onPress={() => dailyWords < 20 && saveDailyWords(dailyWords + 1)}
+                style={styles.numberButton}
+              >
+                <Text style={styles.numberButtonText}>+</Text>
+              </TouchableOpacity>
             </View>
+          </View>
+        </View>
             <View style={styles.settingGroup}>
               <Text style={styles.settingGroupTitle}>{i18n.t('language')}</Text>
-              <View style={styles.languageButtons}>
-                <TouchableOpacity 
-                  style={[styles.languageButton, currentLanguage === 'zh' && styles.activeLanguage]}
-                  onPress={() => changeLanguage('zh')}
-                >
-                  <Text style={[styles.languageButtonText, currentLanguage === 'zh' && styles.activeLanguageText]}>
-                    中文
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.languageButton, currentLanguage === 'en' && styles.activeLanguage]}
-                  onPress={() => changeLanguage('en')}
-                >
-                  <Text style={[styles.languageButtonText, currentLanguage === 'en' && styles.activeLanguageText]}>
-                    English
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.languageButton, currentLanguage === 'ja' && styles.activeLanguage]}
-                  onPress={() => changeLanguage('ja')}
-                >
-                  <Text style={[styles.languageButtonText, currentLanguage === 'ja' && styles.activeLanguageText]}>
-                    日本語
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+          <View style={styles.languageButtons}>
+            <TouchableOpacity 
+              style={[styles.languageButton, currentLanguage === 'zh' && styles.activeLanguage]}
+              onPress={() => changeLanguage('zh')}
+            >
+              <Text style={[styles.languageButtonText, currentLanguage === 'zh' && styles.activeLanguageText]}>
+                中文
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.languageButton, currentLanguage === 'en' && styles.activeLanguage]}
+              onPress={() => changeLanguage('en')}
+            >
+              <Text style={[styles.languageButtonText, currentLanguage === 'en' && styles.activeLanguageText]}>
+                English
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.languageButton, currentLanguage === 'ja' && styles.activeLanguage]}
+              onPress={() => changeLanguage('ja')}
+            >
+              <Text style={[styles.languageButtonText, currentLanguage === 'ja' && styles.activeLanguageText]}>
+                日本語
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
           </View>
         );
       case 'gameStats':
@@ -465,69 +537,158 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           <View style={styles.sectionContent}>
             <View style={styles.gameStatsContainer}>
               <View style={styles.gameStatItem}>
-                <MaterialCommunityIcons name="puzzle" size={24} color="#007AFF" />
                 <Text style={styles.gameTitle}>{i18n.t('wordGame')}</Text>
-                <Text style={styles.gameScore}>
+                <Text style={styles.statText}>
                   {i18n.t('highScore')}: {gameStats.wordGame.highScore}
                 </Text>
-                <Text style={styles.gamesPlayed}>
+                <Text style={styles.statText}>
                   {i18n.t('gamesPlayed')}: {gameStats.wordGame.gamesPlayed}
                 </Text>
+                {gameProgress && (
+                  <Text style={styles.statText}>
+                    {i18n.t('currentProgress')}: {i18n.t('level', { level: gameProgress.currentLevel })} - {gameProgress.score}{i18n.t('points')}
+                  </Text>
+                )}
+                <TouchableOpacity
+                  style={styles.resetButton}
+                  onPress={() => handleResetGame('word')}
+                >
+                  <Text style={styles.resetButtonText}>{i18n.t('resetGame')}</Text>
+                </TouchableOpacity>
               </View>
+
               <View style={styles.gameStatItem}>
-                <MaterialCommunityIcons name="music-note" size={24} color="#007AFF" />
                 <Text style={styles.gameTitle}>{i18n.t('pronunciationGame')}</Text>
-                <Text style={styles.gameScore}>
+                <Text style={styles.statText}>
                   {i18n.t('highScore')}: {gameStats.pronunciationGame.highScore}
                 </Text>
-                <Text style={styles.gamesPlayed}>
+                <Text style={styles.statText}>
                   {i18n.t('gamesPlayed')}: {gameStats.pronunciationGame.gamesPlayed}
                 </Text>
+                {pronunciationGameProgress && (
+                  <Text style={styles.statText}>
+                    {i18n.t('currentProgress')}: {i18n.t('level', { level: pronunciationGameProgress.currentLevel })} - {pronunciationGameProgress.score}{i18n.t('points')}
+                  </Text>
+                )}
+                <TouchableOpacity
+                  style={styles.resetButton}
+                  onPress={() => handleResetGame('pronunciation')}
+                >
+                  <Text style={styles.resetButtonText}>{i18n.t('resetGame')}</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
         );
       case 'learningStats':
         return (
-          <View style={styles.sectionContent}>
-            <View style={styles.statsContainer}>
+          <View style={styles.statsContainer}>
+            <View style={styles.statsHeader}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{learningStats.totalCharacters}</Text>
-                <Text style={styles.statLabel}>{i18n.t('totalLearned')}</Text>
+                <MaterialCommunityIcons name="book-open-variant" size={24} color="#007AFF" />
+                <Text style={styles.statsText}>
+                  {learningStats.totalCharacters}
+                </Text>
+                <Text style={styles.statsLabel}>{i18n.t('learned')}</Text>
               </View>
+              <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{learningStats.masteredCharacters}</Text>
-                <Text style={styles.statLabel}>{i18n.t('mastered')}</Text>
+                <MaterialCommunityIcons name="star" size={24} color="#007AFF" />
+                <Text style={styles.statsText}>
+                  {learningStats.masteredCharacters}
+                </Text>
+                <Text style={styles.statsLabel}>{i18n.t('mastered')}</Text>
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
+              <View style={styles.statDivider} />
+              <View style={[styles.statItem, styles.timeStatItem]}>
+                <MaterialCommunityIcons name="clock-outline" size={24} color="#007AFF" />
+                <Text style={styles.statsText}>
                   {formatLearningTime(learningStats.totalLearningTime)}
                 </Text>
-                <Text style={styles.statLabel}>{i18n.t('totalLearningTime')}</Text>
+                <Text style={styles.statsLabel}>{i18n.t('totalLearningTime')}</Text>
               </View>
             </View>
-
-            <View style={styles.learnedCharsContainer}>
+            <Text style={styles.sectionTitle}>{i18n.t('learnedCharacters')}</Text>
+            <View style={styles.legendContainer}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: '#34C759' }]} />
+                <Text style={styles.legendText}>{i18n.t('masteryLevel2')}</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: '#333333' }]} />
+                <Text style={styles.legendText}>{i18n.t('masteryLevel1')}</Text>
+              </View>
+            </View>
+            {learnedCharacters.length > 0 ? (
               <FlatList
-                data={learnedCharacters}
+                data={getPaginatedCharacters()}
                 renderItem={renderCharacterItem}
-                keyExtractor={item => item.character}
+                keyExtractor={(item) => item.character}
                 numColumns={3}
                 contentContainerStyle={styles.characterGrid}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={() => (
-                  <View style={styles.emptyState}>
-                    <MaterialCommunityIcons name="book-open-page-variant" size={64} color="#8E8E93" />
-                    <Text style={styles.emptyStateText}>{i18n.t('noLearnedChars')}</Text>
-                  </View>
-                )}
+                ListFooterComponent={renderFooter}
+                scrollEnabled={true}
+                nestedScrollEnabled={true}
+                style={styles.characterList}
               />
-            </View>
+            ) : (
+              <Text style={styles.noDataText}>{i18n.t('noLearnedChars')}</Text>
+            )}
           </View>
         );
       default:
         return null;
     }
+  };
+
+  const handleResetGame = async (gameType: 'word' | 'pronunciation') => {
+    Alert.alert(
+      i18n.t('resetGameConfirm'),
+      i18n.t('resetGameConfirmMessage'),
+      [
+        {
+          text: i18n.t('cancel'),
+          style: 'cancel'
+        },
+        {
+          text: i18n.t('confirm'),
+          onPress: async () => {
+            try {
+              await GameService.resetGame(gameType);
+              
+              // 重置游戏进度状态
+              if (gameType === 'word') {
+                setGameProgress({
+                  currentLevel: 1,
+                  completedWords: [],
+                  score: 0,
+                  isCompleted: false
+                });
+              } else {
+                setPronunciationGameProgress({
+                  currentLevel: 1,
+                  completedWords: [],
+                  score: 0,
+                  isCompleted: false
+                });
+              }
+
+              // 更新游戏统计数据
+              setGameStats(prev => ({
+                ...prev,
+                [gameType === 'word' ? 'wordGame' : 'pronunciationGame']: {
+                  highScore: prev[gameType === 'word' ? 'wordGame' : 'pronunciationGame'].highScore,
+                  gamesPlayed: prev[gameType === 'word' ? 'wordGame' : 'pronunciationGame'].gamesPlayed,
+                  isCompleted: false
+                }
+              }));
+            } catch (error) {
+              console.error('重置游戏失败:', error);
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -540,9 +701,12 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           {renderMenuItem('learningStats', 'chart-bar', i18n.t('learningProgress'))}
         </View>
         <View style={styles.mainContentWrapper}>
-          <ScrollView style={styles.mainContent}>
-            {renderContent()}
-          </ScrollView>
+          <FlatList
+            data={[{ key: 'content' }]}
+            renderItem={() => renderContent()}
+            style={styles.mainContent}
+            showsVerticalScrollIndicator={true}
+          />
         </View>
       </View>
     </SafeAreaView>
@@ -586,10 +750,10 @@ const styles = StyleSheet.create({
   },
   mainContentWrapper: {
     width: CONTENT_WIDTH,
+    flex: 1,
   },
   mainContent: {
     flex: 1,
-    padding: 20,
   },
   sectionContent: {
     flex: 1,
@@ -747,88 +911,151 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   statsContainer: {
+    flex: 1,
+    paddingBottom: 80, // Add padding at the bottom to avoid navigation bar overlap
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 15,
+  },
+  noDataText: {
+    fontSize: 16,
+    color: '#8E8E93',
+    textAlign: 'center',
+  },
+  characterGrid: {
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  characterItem: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 10,
+    marginBottom: 10,
+  },
+  characterText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  masteryText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  loadMoreButton: {
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  loadMoreText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  gameStatsContainer: {
+    marginTop: 10,
+  },
+  gameStatItem: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  gameTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  statText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 4,
+  },
+  resetButton: {
+    backgroundColor: '#ff6b6b',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  statsHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 15,
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: '#f8f9fa',
+    padding: 20,
     borderRadius: 12,
     marginBottom: 20,
   },
   statItem: {
     alignItems: 'center',
+    width: '30%',
+    paddingHorizontal: 8,
   },
-  statValue: {
+  timeStatItem: {
+    alignItems: 'center',
+    width: '34%',
+    paddingHorizontal: 8,
+  },
+  statsText: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#007AFF',
-    marginBottom: 4,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 8,
+    textAlign: 'center',
   },
-  statLabel: {
+  statsLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: '70%',
+    backgroundColor: '#E0E0E0',
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    gap: 20,
+    marginBottom: 15,
+    paddingHorizontal: 10,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendColor: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
     fontSize: 12,
     color: '#666',
   },
-  gameStatsContainer: {
-    marginTop: 10,
-    gap: 15,
-  },
-  gameStatItem: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 15,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  gameTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginVertical: 8,
-  },
-  gameScore: {
-    fontSize: 14,
-    color: '#007AFF',
-    marginBottom: 4,
-  },
-  gamesPlayed: {
-    fontSize: 14,
-    color: '#666',
-  },
-  learnedCharsContainer: {
+  characterList: {
     flex: 1,
-  },
-  characterGrid: {
-    paddingVertical: 10,
-  },
-  characterItem: {
-    width: '30%',
-    aspectRatio: 1,
-    margin: '1.5%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: '#f8f9fa',
-    borderWidth: 2,
-  },
-  characterText: {
-    fontSize: 24,
-    color: '#333',
-  },
-  masteryIndicator: {
-    position: 'absolute',
-    bottom: 4,
-    width: 20,
-    height: 3,
-    borderRadius: 1.5,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-  },
-  emptyStateText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#8E8E93',
-    textAlign: 'center',
+    height: '100%',
   },
 }); 

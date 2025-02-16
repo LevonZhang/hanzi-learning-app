@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, SafeAreaView, Alert, FlatList } from 'react-native';
 import { CharacterLearning } from '../components/CharacterLearning';
 import { LearningManager } from '../services/LearningManager';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { hanziDict } from '../data/hanziDict';  // 导入汉字字典数据
 import { i18n } from '../i18n/i18n';
 import HanziService from '../services/HanziService';
 import StatisticsService from '../services/StatisticsService';
+import SubscriptionService from '../services/SubscriptionService';
 
 interface Character {
   character: string;
@@ -21,6 +22,7 @@ interface Character {
     en: string[];
   };
   words?: string[];
+  strokes?: number;
 }
 
 interface LearningState {
@@ -82,7 +84,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
   useEffect(() => {
     if (route?.params?.mode === 'display' && route?.params?.character) {
-      // 显示模式：直接显示指定的汉字
+      // 显示模式：直接显示指定的汉字，不需要加载学习列表
       loadSingleCharacter(route.params.character);
     } else if (route?.params?.mode === 'review' && route?.params?.reviewWords) {
       // 复习模式：加载复习字列表
@@ -100,8 +102,29 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   }, [route?.params]);
 
   const loadTodayLearning = async () => {
+    const reachedLimit = await SubscriptionService.checkFreeCharacterLimit();
+    
+    if (reachedLimit) {
+      Alert.alert(
+        i18n.t('characterLimitReached'),
+        i18n.t('characterLimitDesc'),
+        [
+          { text: i18n.t('cancel'), style: 'cancel' },
+          { 
+            text: i18n.t('getPremium'),
+            onPress: () => navigation.navigate('Settings', { screen: 'premium' })
+          }
+        ]
+      );
+      setState(prev => ({
+        ...prev,
+        currentWord: null,
+      }));
+      return;
+    }
+
     const learningManager = LearningManager.getInstance();
-      const { newWords, reviewWords } = await learningManager.getTodayLearningList();
+    const { newWords, reviewWords } = await learningManager.getTodayLearningList();
     const statistics = await learningManager.getStatistics();
 
     setState(prev => ({
@@ -111,11 +134,6 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       currentWord: newWords[0] || reviewWords[0],
       statistics
     }));
-
-    // 如果是新字（非复习模式），记录为已学习
-    if (newWords[0] && !route?.params?.mode) {
-      handleCharacterLearned(newWords[0].character);
-    }
   };
 
   const loadReviewWords = async (reviewWords: string[]) => {
@@ -142,38 +160,37 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   const handleComplete = async (isCorrect: boolean) => {
     if (!state.currentWord) return;
 
+    console.log('[handleComplete] Start - Current character:', state.currentWord.character, 'isCorrect:', isCorrect);
+
     const learningManager = LearningManager.getInstance();
     await learningManager.recordProgress(state.currentWord.character, isCorrect);
+    console.log('[handleComplete] Recorded progress for character:', state.currentWord.character);
 
-    // 如果练习正确且不是复习模式，记录为已掌握
-    if (isCorrect && !state.isReviewMode) {
+    // 如果练习正确，记录为已掌握
+    if (isCorrect) {
+      console.log('[handleComplete] Character written correctly, marking as mastered');
       await handleCharacterMastered(state.currentWord.character);
     }
 
     // 更新当前字列表
     const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
-    const nextIndex = currentList.findIndex(w => w.character === state.currentWord!.character) + 1;
+    const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
+    const nextIndex = currentIndex + 1;
+    console.log('[handleComplete] Current index:', currentIndex, 'Next index:', nextIndex, 'List length:', currentList.length);
 
     if (nextIndex < currentList.length) {
-      // 还有字要学习
+      // 记录下一个字为已学习
+      if (!state.isReviewMode) {
+        console.log('[handleComplete] Not in review mode, marking next character as learned:', currentList[nextIndex].character);
+        await handleCharacterLearned(currentList[nextIndex].character);
+      }
       setState(prev => ({
         ...prev,
         currentWord: currentList[nextIndex]
       }));
-      
-      // 如果是新字（非复习模式），记录下一个字为已学习
-      if (!state.isReviewMode && currentList[nextIndex]) {
-        await handleCharacterLearned(currentList[nextIndex].character);
-      }
-    } else if (!state.isReviewMode && state.reviewWords.length > 0) {
-      // 新字学完了，开始复习
-      setState(prev => ({
-        ...prev,
-        isReviewMode: true,
-        currentWord: state.reviewWords[0]
-      }));
+      console.log('[handleComplete] Updated current word to:', currentList[nextIndex].character);
     } else {
-      // 今天的学习任务完成
+      console.log('[handleComplete] Reached end of list, updating statistics');
       const statistics = await learningManager.getStatistics();
       setState(prev => ({
         ...prev,
@@ -213,21 +230,27 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
   const handleCharacterLearned = async (character: string) => {
     try {
-      // 记录学习的汉字
-      await StatisticsService.recordLearnedCharacter(character);
-      // ... existing character learned logic ...
+      console.log('[handleCharacterLearned] Start - Character:', character);
+      // 记录学习的汉字（仅设置为已学习状态，不标记为已掌握）
+      const learningManager = LearningManager.getInstance();
+      await learningManager.recordProgress(character, false);  // 设置 isCorrect 为 false，确保不会被标记为已掌握
+      await StatisticsService.recordLearnedCharacter(character, false);
+      console.log('[handleCharacterLearned] Successfully recorded character as learned');
     } catch (error) {
-      console.error('Failed to record learned character:', error);
+      console.error('[handleCharacterLearned] Failed to record learned character:', error);
     }
   };
 
   const handleCharacterMastered = async (character: string) => {
     try {
-      // 记录掌握的汉字
+      console.log('[handleCharacterMastered] Start - Character:', character);
+      // 记录掌握的汉字（设置为已掌握状态）
+      const learningManager = LearningManager.getInstance();
+      await learningManager.recordProgress(character, true);
       await StatisticsService.recordLearnedCharacter(character, true);
-      // ... existing character mastered logic ...
+      console.log('[handleCharacterMastered] Successfully recorded character as mastered');
     } catch (error) {
-      console.error('Failed to record mastered character:', error);
+      console.error('[handleCharacterMastered] Failed to record mastered character:', error);
     }
   };
 
@@ -238,82 +261,102 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   const loadSingleCharacter = async (character: string) => {
     try {
       const hanziService = HanziService.getInstance();
-      const charDetails = await hanziService.getHanziDetails(character);
+      const hanziDetails = await hanziService.getHanziDetails(character);
+      const words = cnchar.words(character).slice(0, 4);
+
       setState(prev => ({
         ...prev,
         currentWord: {
-          character: charDetails.character,
-          pinyin: charDetails.pinyin,
-          meanings: charDetails.meanings,
+          character: hanziDetails.character,
+          pinyin: hanziDetails.pinyin,
+          meanings: {
+            zh: hanziDetails.meanings.zh,
+            en: hanziDetails.meanings.en
+          },
+          words: words,
+          strokes: hanziDetails.strokes
         },
-        isReviewMode: false,
+        isReviewMode: false
       }));
     } catch (error) {
-      console.error('Failed to load character:', error);
+      console.error('加载汉字详情失败:', error);
+      Alert.alert(i18n.t('error'), i18n.t('loadCharacterError'));
     }
   };
 
   if (!state.currentWord) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>
-          {state.isReviewMode 
-            ? i18n.t('reviewCompleted') 
-            : i18n.t('learningCompleted')
-          }
-        </Text>
-        <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>{i18n.t('totalLearned')}: {state.statistics.totalLearned} {i18n.t('characters')}</Text>
-          <Text style={styles.statsText}>{i18n.t('mastered')}: {state.statistics.mastered} {i18n.t('characters')}</Text>
-          <Text style={styles.statsText}>{i18n.t('needReview')}: {state.statistics.needReview} {i18n.t('characters')}</Text>
-        </View>
-        {state.isReviewMode ? (
-          <TouchableOpacity 
-            style={styles.button}
-            onPress={() => {
-              navigation.reset({
-                index: 0,
-                routes: [
-                  {
-                    name: 'Learning',
-                    params: { mode: 'learning', reviewWords: undefined }
-                  },
-                ],
-              });
-            }}
-          >
-            <Text style={styles.buttonText}>{i18n.t('continueNewLearning')}</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.buttonGroup}>
+        <View style={styles.completionContainer}>
+          <MaterialCommunityIcons name="check-circle" size={64} color="#4CAF50" />
+          <Text style={styles.title}>
+            {state.isReviewMode 
+              ? i18n.t('reviewCompleted') 
+              : i18n.t('learningCompleted')
+            }
+          </Text>
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="book-open-variant" size={24} color="#007AFF" />
+              <Text style={styles.statsText}>
+                {i18n.t('totalLearned')}: {state.statistics.totalLearned} {i18n.t('characters')}
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="star" size={24} color="#007AFF" />
+              <Text style={styles.statsText}>
+                {i18n.t('mastered')}: {state.statistics.mastered} {i18n.t('characters')}
+              </Text>
+            </View>
+          </View>
+          {state.isReviewMode ? (
             <TouchableOpacity 
-              style={[styles.button, styles.buttonHalf]}
-              onPress={async () => {
-                const learningManager = LearningManager.getInstance();
-                // 重置今天的学习列表
-                await learningManager.resetTodayLearning();
-                // 重置状态
-                setState(prev => ({
-                  ...prev,
-                  newWords: [],
-                  reviewWords: [],
-                  currentWord: null,
-                  isReviewMode: false
-                }));
-                // 重新加载今天的学习列表
-                await loadTodayLearning();
+              style={styles.button}
+              onPress={() => {
+                navigation.reset({
+                  index: 0,
+                  routes: [
+                    {
+                      name: 'Learning',
+                      params: { mode: 'learning', reviewWords: undefined }
+                    },
+                  ],
+                });
               }}
             >
-              <Text style={styles.buttonText}>{i18n.t('continueLearning')}</Text>
+              <MaterialCommunityIcons name="book-plus" size={24} color="#fff" />
+              <Text style={styles.buttonText}>{i18n.t('continueNewLearning')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.button, styles.buttonHalf]}
-              onPress={() => navigation.navigate('Review')}
-            >
-              <Text style={styles.buttonText}>{i18n.t('review')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          ) : (
+            <View style={styles.buttonGroup}>
+              <TouchableOpacity 
+                style={styles.button}
+                onPress={async () => {
+                  const learningManager = LearningManager.getInstance();
+                  await learningManager.resetTodayLearning();
+                  setState(prev => ({
+                    ...prev,
+                    newWords: [],
+                    reviewWords: [],
+                    currentWord: null,
+                    isReviewMode: false
+                  }));
+                  await loadTodayLearning();
+                }}
+              >
+                <MaterialCommunityIcons name="book-plus" size={24} color="#fff" />
+                <Text style={styles.buttonText}>{i18n.t('continueLearning')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.button, styles.reviewButton]}
+                onPress={() => navigation.navigate('Review')}
+              >
+                <MaterialCommunityIcons name="refresh" size={24} color="#fff" />
+                <Text style={styles.buttonText}>{i18n.t('review')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </SafeAreaView>
     );
   }
@@ -449,31 +492,25 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                   <Text style={styles.closeButtonText}>×</Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView 
-                style={styles.modalScrollView}
+              <FlatList
+                data={activeTab === 'zh' ? state.currentWord?.meanings?.zh : state.currentWord?.meanings?.en}
+                renderItem={({ item }) => (
+                  <Text style={styles.modalMeaningText}>• {item}</Text>
+                )}
+                keyExtractor={(item, index) => index.toString()}
+                contentContainerStyle={styles.modalScrollContent}
                 showsVerticalScrollIndicator={true}
-                bounces={false}
-              >
-                <View style={styles.modalScrollContent}>
-                  {activeTab === 'zh' && 
-                    state.currentWord?.meanings?.zh.map((meaning, index) => (
-                      <Text key={index} style={styles.modalMeaningText}>
-                        • {meaning}
-                      </Text>
-                    ))
-                  }
-                  {activeTab === 'en' && 
-                    state.currentWord?.meanings?.en.map((meaning, index) => (
-                      <Text key={index} style={styles.modalMeaningText}>
-                        • {meaning}
-                      </Text>
-                    ))
-                  }
-                </View>
-              </ScrollView>
+              />
             </View>
           </View>
         </Modal>
+
+        {state.currentWord?.strokes === 0 && (
+          <View style={styles.noStrokesContainer}>
+            <MaterialCommunityIcons name="information" size={20} color="#666" />
+            <Text style={styles.noStrokesText}>{i18n.t('noStrokesData')}</Text>
+          </View>
+        )}
 
         <CharacterLearning
           character={state.currentWord.character}
@@ -483,36 +520,76 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
         />
 
         {state.currentWord && route?.params?.mode !== 'display' && (
-          <TouchableOpacity 
-            style={styles.nextButton}
-            onPress={() => {
-              const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
-              const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
-              
-              if (currentIndex < currentList.length - 1) {
-                setState(prev => ({
-                  ...prev,
-                  currentWord: currentList[currentIndex + 1]
-                }));
-              } else if (!state.isReviewMode && state.reviewWords.length > 0) {
-                setState(prev => ({
-                  ...prev,
-                  isReviewMode: true,
-                  currentWord: state.reviewWords[0]
-                }));
-              } else {
-                setState(prev => ({
-                  ...prev,
-                  currentWord: null
-                }));
-              }
-            }}
-          >
-            <View style={styles.nextButtonContent}>
-              <Text style={styles.nextButtonText}>{i18n.t('next')}</Text>
-              <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
-            </View>
-          </TouchableOpacity>
+          <View style={styles.navigationButtons}>
+            <TouchableOpacity 
+              style={[
+                styles.navigationButton,
+                styles.prevButton,
+                {
+                  opacity: (() => {
+                    const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
+                    const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
+                    return currentIndex === 0 ? 0.5 : 1;
+                  })()
+                }
+              ]}
+              onPress={() => {
+                const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
+                const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
+                
+                if (currentIndex > 0) {
+                  setState(prev => ({
+                    ...prev,
+                    currentWord: currentList[currentIndex - 1]
+                  }));
+                }
+              }}
+              disabled={(() => {
+                const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
+                const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
+                return currentIndex === 0;
+              })()}
+            >
+              <View style={styles.navigationButtonContent}>
+                <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
+                <Text style={styles.navigationButtonText}>{i18n.t('previous')}</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.navigationButton]}
+              onPress={async () => {
+                const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
+                const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
+                
+                if (currentIndex < currentList.length - 1) {
+                  // 如果不是复习模式，记录当前字为已学习
+                  if (!state.isReviewMode) {
+                    await handleCharacterLearned(state.currentWord!.character);
+                  }
+                  
+                  // 更新到下一个字
+                  setState(prev => ({
+                    ...prev,
+                    currentWord: currentList[currentIndex + 1]
+                  }));
+                } else {
+                  // 如果是最后一个字，更新统计并结束学习
+                  const learningManager = LearningManager.getInstance();
+                  const statistics = await learningManager.getStatistics();
+                  setState(prev => ({
+                    ...prev,
+                    currentWord: null,
+                    statistics
+                  }));
+                }
+              }}
+            >
+              <View style={styles.navigationButtonContent}>
+                <Text style={styles.navigationButtonText}>{i18n.t('next')}</Text>
+                <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
+              </View>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </SafeAreaView>
@@ -547,25 +624,51 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
+    marginVertical: 20,
+    color: '#333',
   },
   statsContainer: {
     backgroundColor: '#f8f8f8',
     padding: 20,
-    borderRadius: 10,
-    marginBottom: 20,
+    borderRadius: 12,
+    width: '100%',
+    marginBottom: 30,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    gap: 12,
   },
   statsText: {
     fontSize: 16,
-    marginBottom: 10,
     color: '#333',
+    flex: 1,
+  },
+  buttonGroup: {
+    width: '100%',
+    gap: 15,
   },
   button: {
     backgroundColor: '#007AFF',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  reviewButton: {
+    backgroundColor: '#5856D6',
   },
   buttonText: {
     color: '#fff',
@@ -577,17 +680,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 10,
   },
-  nextButton: {
+  navigationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    position: 'absolute',
+    bottom: 75,
+    left: 20,
+    right: 20,
+    zIndex: 1,
+  },
+  navigationButton: {
     backgroundColor: '#007AFF',
-    padding: 12,
+    padding: 10,
     borderRadius: 8,
     alignItems: 'center',
-    position: 'absolute',
-    bottom: 70,
-    right: 20,
-    width: 110,
-    zIndex: 1,
-    elevation: 1,
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -595,15 +702,21 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    elevation: 5,
+    width: 100,
   },
-  nextButtonContent: {
+  prevButton: {
+    backgroundColor: '#5856D6',
+  },
+  navigationButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: 4,
   },
-  nextButtonText: {
+  navigationButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   characterInfo: {
@@ -748,11 +861,6 @@ const styles = StyleSheet.create({
     height: 24,
     lineHeight: 24,
   },
-  modalScrollView: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
   modalScrollContent: {
     flexGrow: 1,
   },
@@ -788,15 +896,23 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 10,
   },
-  buttonGroup: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  buttonHalf: {
+  completionContainer: {
     flex: 1,
-    padding: 15,
-    borderRadius: 8,
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  noStrokesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    marginVertical: 10,
+    gap: 8,
+  },
+  noStrokesText: {
+    fontSize: 14,
+    color: '#666',
   },
 }); 

@@ -5,6 +5,7 @@ export const zh = {
   search: '搜索',
   games: '游戏',
   settings: '设置',
+  profileTab: '我的',
 
   // Search Screen
   searchPlaceholder: '输入汉字或拼音',
@@ -24,6 +25,7 @@ export const zh = {
   needReview: '需要复习',
   characters: '汉字',
   next: '下一个',
+  previous: '上一个',
   showMore: '显示更多',
   fullMeanings: '完整释义',
   languageZh: '中文',
@@ -43,7 +45,7 @@ export const zh = {
   pronunciationGame: '听声辨字',
   wordGameDesc: '寻找搭配的汉字组成词语',
   pronunciationGameDesc: '听声音找出对应的汉字',
-  level: '第 {{level}} 关',
+  levelTitle: '第{{current}}/{{total}}关',
   score: '得分: {{score}}',
   gameComplete: '游戏完成',
   gameCompleteMessage: '恭喜你完成了所有关卡！',
@@ -138,9 +140,11 @@ export const zh = {
   daysRemaining: '剩余 {{days}} 天',
 
   // Learning Statistics
-  totalLearningTime: '学习时长',
-  hours: '小时',
-  minutes: '分钟',
+  totalLearningTime: '时长',
+  learned: '已学',
+  mastered: '已掌握',
+  hours: 'h',
+  minutes: 'm',
   
   // Game Statistics
   gameHighScores: '游戏统计',
@@ -150,14 +154,43 @@ export const zh = {
   // Learned Characters
   learnedCharacters: '已学习的汉字',
   noLearnedChars: '还没有学习过任何汉字',
-  masteryLevel5: '完全掌握',
-  masteryLevel4: '熟练',
-  masteryLevel3: '一般',
-  masteryLevel2: '需要练习',
-  masteryLevel1: '刚学习',
+  masteryLevel2: '已掌握',
+  masteryLevel1: '已学习',
 
   // Menu Sections
   menuAccount: '账户',
   menuStats: '统计',
   menuLearning: '学习',
+
+  // Premium Features
+  premiumFeature: '会员功能',
+  characterLimitReached: '已达到免费用户上限',
+  characterLimitDesc: '免费用户最多可以学习10个汉字。升级到会员可以解锁无限学习。',
+  searchPremiumDesc: '搜索功能仅对会员用户开放。升级到会员即可使用所有功能。',
+  reviewPremiumDesc: '复习功能仅对会员用户开放。升级到会员即可使用所有功能。',
+  levelLocked: '关卡未解锁',
+  levelLockedDesc: '免费用户只能体验前2个关卡。升级到会员可以解锁所有关卡。',
+  noStrokesData: '暂无笔画数据',
+
+  // Loading States
+  loading: '正在加载...',
+  loadingCharacter: '正在加载汉字...',
+  loadingError: '加载失败',
+  retryLoading: '重试',
+  loadingStrokeData: '正在加载笔画数据...',
+  strokeDataError: '无法加载笔画数据',
+
+  // Reset Progress
+  resetProgress: '重置进度',
+  resetConfirm: '确认重置',
+  resetConfirmMessage: '确定要重置所有学习进度吗？这将清除所有已学习的汉字记录。',
+
+  // Game
+  exitGame: '退出游戏',
+  exitGameMessage: '当前得分: {{score}}分\n当前关卡: 第{{level}}关/共{{total}}关',
+  currentProgress: '当前进度',
+  resetGame: '重新开始游戏',
+  resetGameConfirm: '重置游戏',
+  resetGameConfirmMessage: '确定要重置游戏进度吗？这将清除当前的得分和关卡进度，从第一关重新开始。',
+  points: '分',
 };

@@ -5,6 +5,7 @@ export const en = {
   search: 'Search',
   games: 'Games',
   settings: 'Settings',
+  profileTab: 'Profile',
 
   // Search Screen
   searchPlaceholder: 'Enter character or pinyin',
@@ -24,6 +25,7 @@ export const en = {
   needReview: 'Need Review',
   characters: 'Characters',
   next: 'Next',
+  previous: 'Previous',
   showMore: 'Show More',
   fullMeanings: 'Full Meanings',
   languageZh: 'Chinese',
@@ -44,6 +46,7 @@ export const en = {
   wordGameDesc: 'Find characters to form words',
   pronunciationGameDesc: 'Listen and find the matching character',
   level: 'Level {{level}}',
+  levelTitle: 'Level {{current}}/{{total}}',
   score: 'Score: {{score}}',
   gameComplete: 'Game Complete',
   gameCompleteMessage: 'Congratulations! You have completed all levels!',
@@ -136,7 +139,9 @@ export const en = {
   daysRemaining: '{{days}} days remaining',
 
   // Learning Statistics
-  totalLearningTime: 'Learning Time',
+  totalLearningTime: 'Time',
+  learned: 'Learned',
+  mastered: 'Mastered',
   hours: 'h',
   minutes: 'm',
   
@@ -148,14 +153,46 @@ export const en = {
   // Learned Characters
   learnedCharacters: 'Learned Characters',
   noLearnedChars: 'No characters learned yet',
-  masteryLevel5: 'Mastered',
-  masteryLevel4: 'Proficient',
-  masteryLevel3: 'Intermediate',
-  masteryLevel2: 'Needs Practice',
-  masteryLevel1: 'Just Started',
+  masteryLevel2: 'Mastered',
+  masteryLevel1: 'Learning',
 
   // Menu Sections
   menuAccount: 'Account',
   menuStats: 'Statistics',
   menuLearning: 'Learning',
+
+  // Premium Features
+  premiumFeature: 'Premium Feature',
+  characterLimitReached: 'Free User Limit Reached',
+  characterLimitDesc: 'Free users can learn up to 10 characters. Upgrade to premium for unlimited learning.',
+  searchPremiumDesc: 'Search feature is only available for premium users. Upgrade to unlock all features.',
+  reviewPremiumDesc: 'Review feature is only available for premium users. Upgrade to unlock all features.',
+  levelLocked: 'Level Locked',
+  levelLockedDesc: 'Free users can only access the first 2 levels. Upgrade to premium to unlock all levels.',
+  noStrokesData: 'Stroke data not available',
+
+  // Loading States
+  loading: 'Loading...',
+  loadingCharacter: 'Loading character...',
+  loadingError: 'Failed to load',
+  retryLoading: 'Retry',
+  loadingStrokeData: 'Loading stroke data...',
+  strokeDataError: 'Unable to load stroke data',
+
+  // Reset Progress
+  resetProgress: 'Reset Progress',
+  resetConfirm: 'Confirm Reset',
+  resetConfirmMessage: 'Are you sure you want to reset all learning progress? This will clear all learned character records.',
+
+  levelNumber: 'Level {{level}}',
+  levelTitle: 'Level {{current}}',
+
+  // Game
+  exitGame: 'Exit Game',
+  exitGameMessage: 'Current Score: {{score}} points\nCurrent Level: {{level}}/{{total}}',
+  currentProgress: 'Current Progress',
+  resetGame: 'Reset Game',
+  resetGameConfirm: 'Reset Game',
+  resetGameConfirmMessage: 'Are you sure you want to reset the game progress? This will clear your current score and level progress, and start from level 1.',
+  points: 'points',
 }; 

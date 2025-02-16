@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal, Alert, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import cnchar from 'cnchar';
@@ -46,11 +46,26 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
   const [isReady, setIsReady] = useState(false);
   const [showStrokeOrder, setShowStrokeOrder] = useState(false);
   const [strokeCount, setStrokeCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [hasStrokeData, setHasStrokeData] = useState(true);
 
   useEffect(() => {
+    // Reset states when character changes
+    setIsLoading(true);
+    setLoadError(false);
+    setIsReady(false);
+    setHasStrokeData(true);
+    
     // 获取汉字的笔画数
     const strokes = cnchar.stroke(character);
-    setStrokeCount(typeof strokes === 'number' ? strokes : Array.isArray(strokes) ? strokes[0] : 0);
+    const strokeCount = typeof strokes === 'number' ? strokes : Array.isArray(strokes) ? strokes[0] : 0;
+    setStrokeCount(strokeCount);
+    
+    // 检查是否有笔画数据
+    if (strokeCount === 0) {
+      setHasStrokeData(false);
+    }
   }, [character]);
 
   // 获取汉字信息
@@ -229,37 +244,57 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
 
   return (
     <View style={styles.container}>
+      {!hasStrokeData && (
+        <View style={styles.noStrokeDataContainer}>
+          <Text style={styles.noStrokeDataText}>{i18n.t('noStrokesData')}</Text>
+        </View>
+      )}
       <View style={styles.displayContainer}>
         <WebView
           ref={webViewRef}
           source={{ html: htmlContent }}
-          style={styles.canvas}
+          style={[styles.canvas, isLoading && styles.hidden]}
           originWhitelist={['*']}
           javaScriptEnabled={true}
           domStorageEnabled={true}
           allowFileAccess={true}
           allowUniversalAccessFromFileURLs={true}
           mixedContentMode="always"
+          onLoadEnd={() => {
+            setTimeout(() => {
+              setIsLoading(false);
+            }, 500);
+          }}
+          onError={(syntheticEvent) => {
+            const { nativeEvent } = syntheticEvent;
+            console.error('WebView error:', nativeEvent);
+            setLoadError(true);
+            setIsLoading(false);
+          }}
           onMessage={(event) => {
             try {
               const data = JSON.parse(event.nativeEvent.data);
               if (data.type === 'ready') {
                 setIsReady(true);
+                setLoadError(false);
               } else if (data.type === 'quizComplete') {
                 onComplete?.(true);
               } else if (data.type === 'hanziInfo') {
                 onHanziInfo?.(data.data);
-              } else if (data.type === 'debug') {
-                // 在 React Native 控制台打印调试信息
-                console.log('=== WebView Debug Info ===');
-                console.log(data.data);
-                console.log('========================');
               }
             } catch (error) {
-              console.error('Error:', error);
+              console.error('WebView message error:', error);
+              setLoadError(true);
+              setIsLoading(false);
             }
           }}
         />
+        {isLoading && (
+          <View style={[styles.loadingContainer, styles.overlayContainer]}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+            <Text style={styles.loadingText}>{i18n.t('loading')}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.buttonContainer}>
@@ -364,9 +399,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: -25,
     marginBottom: -5,
+    position: 'relative',
   },
   canvas: {
-    flex: 1,
+    width: width - 90,
+    height: width - 90,
     backgroundColor: 'transparent',
   },
   buttonContainer: {
@@ -459,5 +496,63 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
-  }
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -(width - 150) / 2 }, { translateY: -(width - 150) / 2 }],
+    width: width - 150,
+    height: width - 150,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    zIndex: 2,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#666',
+  },
+  errorText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#FF3B30',
+    textAlign: 'center',
+    paddingHorizontal: 15,
+  },
+  overlayContainer: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -(width - 150) / 2 }, { translateY: -(width - 150) / 2 }],
+    width: width - 150,
+    height: width - 150,
+    zIndex: 1,
+    borderRadius: 12,
+  },
+  hidden: {
+    opacity: 0,
+  },
+  noStrokeDataContainer: {
+    backgroundColor: '#FFF3CD',
+    padding: 8,
+    borderRadius: 4,
+    marginBottom: 10,
+    width: '100%',
+  },
+  noStrokeDataText: {
+    color: '#856404',
+    fontSize: 14,
+    textAlign: 'center',
+  },
 }); 

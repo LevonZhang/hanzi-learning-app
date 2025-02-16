@@ -53,7 +53,14 @@ class StatisticsService {
   // 记录新学习的汉字
   async recordLearnedCharacter(character: string, isMastered: boolean = false) {
     const stats = await this.getLearningStats();
-    stats.totalCharacters += 1;
+    const progress = await AsyncStorage.getItem('learningProgress');
+    const learningProgress = progress ? JSON.parse(progress) : {};
+    
+    // 只有在字符是第一次学习时才增加总数
+    if (!learningProgress[character]) {
+      stats.totalCharacters += 1;
+    }
+    
     if (isMastered) {
       stats.masteredCharacters += 1;
     }

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, FlatList, Dimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -147,46 +147,40 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
     </html>
   `;
 
-  const renderGrids = () => {
-    const grids = [];
-    for (let i = 0; i < strokeCount; i++) {
-      grids.push(
-        <View key={i} style={styles.gridContainer}>
-          <View style={styles.grid}>
-            <WebView
-              ref={ref => {
-                if (ref) {
-                  webViewRefs.current[i] = ref;
-                }
-              }}
-              source={{ 
-                html: getHtmlContent(i),
-                baseUrl: '' 
-              }}
-              style={styles.webview}
-              scrollEnabled={false}
-              bounces={false}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              originWhitelist={['*']}
-              mixedContentMode="always"
-              onError={(syntheticEvent) => {
-                const { nativeEvent } = syntheticEvent;
-                console.warn('WebView error:', nativeEvent);
-              }}
-              onHttpError={(syntheticEvent) => {
-                const { nativeEvent } = syntheticEvent;
-                console.warn('WebView HTTP error:', nativeEvent);
-              }}
-              onShouldStartLoadWithRequest={() => true}
-            />
-          </View>
-          <Text style={styles.gridLabel}>{i18n.t('stroke', { number: i + 1 })}</Text>
-        </View>
-      );
-    }
-    return grids;
-  };
+  const renderGridItem = ({ item: index }: { item: number }) => (
+    <View key={index} style={styles.gridContainer}>
+      <View style={styles.grid}>
+        <WebView
+          ref={ref => {
+            if (ref) {
+              webViewRefs.current[index] = ref;
+            }
+          }}
+          source={{ 
+            html: getHtmlContent(index),
+            baseUrl: '' 
+          }}
+          style={styles.webview}
+          scrollEnabled={false}
+          bounces={false}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          originWhitelist={['*']}
+          mixedContentMode="always"
+          onError={(syntheticEvent) => {
+            const { nativeEvent } = syntheticEvent;
+            console.warn('WebView error:', nativeEvent);
+          }}
+          onHttpError={(syntheticEvent) => {
+            const { nativeEvent } = syntheticEvent;
+            console.warn('WebView HTTP error:', nativeEvent);
+          }}
+          onShouldStartLoadWithRequest={() => true}
+        />
+      </View>
+      <Text style={styles.gridLabel}>{i18n.t('stroke', { number: index + 1 })}</Text>
+    </View>
+  );
 
   const handleCapture = async () => {
     try {
@@ -271,20 +265,22 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
       </View>
       
       <View style={styles.contentContainer}>
-        <ScrollView 
-          style={[styles.scrollView, { maxHeight: windowHeight * 0.6 }]}
-          contentContainerStyle={styles.scrollViewContent}
+        <ViewShot 
+          ref={viewShotRef} 
+          style={styles.gridsContainer}
+          onLayout={(event) => {
+            setModalHeight(event.nativeEvent.layout.height);
+          }}
         >
-          <ViewShot 
-            ref={viewShotRef} 
-            style={styles.gridsContainer}
-            onLayout={(event) => {
-              setModalHeight(event.nativeEvent.layout.height);
-            }}
-          >
-            {renderGrids()}
-          </ViewShot>
-        </ScrollView>
+          <FlatList
+            data={Array.from({ length: strokeCount }, (_, i) => i)}
+            renderItem={renderGridItem}
+            keyExtractor={(item) => item.toString()}
+            numColumns={4}
+            contentContainerStyle={styles.scrollViewContent}
+            showsVerticalScrollIndicator={true}
+          />
+        </ViewShot>
 
         <View style={styles.actionButtons}>
           <TouchableOpacity 
@@ -346,10 +342,7 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
   },
   gridsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    gap: 4,
+    flex: 1,
     backgroundColor: '#fff',
     padding: 4,
   },

@@ -4,7 +4,7 @@ export const ja = {
   review: '復習',
   search: '検索',
   games: 'ゲーム',
-  settings: '設定',
+  settings: 'プロフィール',
 
   // Search Screen
   searchPlaceholder: '漢字またはピンインを入力',
@@ -24,6 +24,7 @@ export const ja = {
   needReview: '要復習',
   characters: '文字',
   next: '次へ',
+  previous: '前へ',
   showMore: 'もっと見る',
   fullMeanings: '全ての意味',
   languageZh: '中国語',
@@ -43,7 +44,9 @@ export const ja = {
   pronunciationGame: '音声漢字',
   wordGameDesc: '漢字を組み合わせて単語を作ろう',
   pronunciationGameDesc: '音声を聞いて漢字を見つけよう',
-  level: 'レベル {{level}}',
+  level: 'レベル{{level}}',
+  levelNumber: 'レベル{{level}}',
+  levelTitle: 'レベル{{current}}/{{total}}',
   score: 'スコア: {{score}}',
   gameComplete: 'ゲーム完了',
   gameCompleteMessage: 'おめでとう！全レベルをクリアしました！',
@@ -136,9 +139,41 @@ export const ja = {
   daysRemaining: '残り {{days}} 日',
 
   // Learning Statistics
+  totalLearningTime: '時間',
+  learned: '学習済',
+  mastered: '習得済',
+  hours: 'h',
+  minutes: 'm',
 
   // Menu Sections
   menuAccount: 'アカウント',
   menuStats: '統計',
   menuLearning: '学習',
+
+  // Premium Features
+  premiumFeature: 'プレミアム機能',
+  characterLimitReached: '無料ユーザー制限に達しました',
+  characterLimitDesc: '無料ユーザーは10文字まで学習できます。プレミアムにアップグレードして制限なく学習できます。',
+  searchPremiumDesc: '検索機能はプレミアムユーザーのみ利用可能です。アップグレードして全機能を利用できます。',
+  reviewPremiumDesc: '復習機能はプレミアムユーザーのみ利用可能です。アップグレードして全機能を利用できます。',
+  levelLocked: 'レベルがロックされています',
+  levelLockedDesc: '無料ユーザーは最初の2レベルまでプレイできます。プレミアムにアップグレードして全レベルを解放できます。',
+  noStrokesData: '筆順データがありません',
+
+  // Loading States
+  loading: '読み込み中...',
+  loadingCharacter: '漢字を読み込み中...',
+  loadingError: '読み込みに失敗しました',
+  retryLoading: '再試行',
+  loadingStrokeData: '筆順データを読み込み中...',
+  strokeDataError: '筆順データを読み込めません',
+
+  // Game
+  exitGame: 'ゲーム終了',
+  exitGameMessage: '現在のスコア: {{score}}点\n現在のレベル: {{level}}/{{total}}',
+  currentProgress: '現在の進捗',
+  resetGame: 'ゲームをリセット',
+  resetGameConfirm: 'ゲームリセット',
+  resetGameConfirmMessage: 'ゲームの進捗をリセットしますか？現在のスコアとレベルの進捗が消去され、レベル1から始まります。',
+  points: '点',
 }; 

@@ -11,6 +11,7 @@ import {
 } from 'react-native-iap';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SubscriptionValidationService from './SubscriptionValidationService';
+import { LearningManager } from './LearningManager';
 
 // 订阅产品 ID
 const IOS_SKUS = {
@@ -20,6 +21,9 @@ const IOS_SKUS = {
   lifetime: 'com.itlongbow.hanzilearning.lifetime',
 } as const;
 
+// 开发环境变量：是否检查真实会员状态
+const CHECK_REAL_SUBSCRIPTION = false; // 设置为 true 时检查真实会员状态，false 时直接返回会员状态为 true
+
 export const subscriptionSkus = Platform.OS === 'ios' ? IOS_SKUS : null;
 
 class SubscriptionService {
@@ -27,6 +31,10 @@ class SubscriptionService {
   private purchaseUpdateSubscription: any;
   private purchaseErrorSubscription: any;
   
+  // 添加非会员限制常量
+  private static readonly FREE_CHAR_LIMIT = 10;
+  private static readonly FREE_GAME_LEVEL_LIMIT = 2;
+
   private constructor() {}
 
   static getInstance(): SubscriptionService {
@@ -98,6 +106,11 @@ class SubscriptionService {
   }
 
   async checkSubscriptionStatus(): Promise<boolean> {
+    // 如果不检查真实会员状态，直接返回 true
+    if (!CHECK_REAL_SUBSCRIPTION) {
+      return true;
+    }
+
     try {
       if (Platform.OS !== 'ios') {
         return false;  // 非 iOS 平台暂时返回 false
@@ -167,6 +180,61 @@ class SubscriptionService {
     if (this.purchaseErrorSubscription) {
       this.purchaseErrorSubscription.remove();
     }
+  }
+
+  // 检查是否达到免费用户字数限制
+  async checkFreeCharacterLimit(): Promise<boolean> {
+    // 如果不检查真实会员状态，直接返回 false（表示未达到限制）
+    if (!CHECK_REAL_SUBSCRIPTION) {
+      return false;
+    }
+
+    try {
+      const isPremium = await this.checkSubscriptionStatus();
+      if (isPremium) return false;
+
+      const learningManager = LearningManager.getInstance();
+      const stats = await learningManager.getStatistics();
+      return stats.totalLearned >= SubscriptionService.FREE_CHAR_LIMIT;
+    } catch (err) {
+      console.error('Failed to check character limit:', err);
+      return false;
+    }
+  }
+
+  // 检查游戏关卡限制
+  async checkGameLevelLimit(level: number): Promise<boolean> {
+    // 如果不检查真实会员状态，直接返回 false（表示未达到限制）
+    if (!CHECK_REAL_SUBSCRIPTION) {
+      return false;
+    }
+
+    try {
+      const isPremium = await this.checkSubscriptionStatus();
+      if (isPremium) return false;
+      return level > SubscriptionService.FREE_GAME_LEVEL_LIMIT;
+    } catch (err) {
+      console.error('Failed to check game level limit:', err);
+      return false;
+    }
+  }
+
+  // 检查是否可以使用搜索功能
+  async canUseSearch(): Promise<boolean> {
+    // 如果不检查真实会员状态，直接返回 true
+    if (!CHECK_REAL_SUBSCRIPTION) {
+      return true;
+    }
+    return this.checkSubscriptionStatus();
+  }
+
+  // 检查是否可以使用复习功能
+  async canUseReview(): Promise<boolean> {
+    // 如果不检查真实会员状态，直接返回 true
+    if (!CHECK_REAL_SUBSCRIPTION) {
+      return true;
+    }
+    return this.checkSubscriptionStatus();
   }
 }
 

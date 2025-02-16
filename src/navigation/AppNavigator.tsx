@@ -20,7 +20,7 @@ type RootTabParamList = {
   Review: undefined;
   Search: undefined;
   Games: undefined;
-  Settings: undefined;
+  Settings: { screen?: string } | undefined;
 };
 
 type GameStackParamList = {
@@ -109,7 +109,7 @@ export const AppNavigator = () => {
       marginBottom: Platform.OS === 'ios' ? 0 : 5,
     },
     headerShown: false,
-    tabBarLabel: i18n.t(route.name.toLowerCase())
+    tabBarLabel: route.name === 'Settings' ? i18n.t('profileTab') : i18n.t(route.name.toLowerCase())
   });
 
   return (
@@ -153,7 +153,7 @@ export const AppNavigator = () => {
         <Tab.Screen
           name="Settings"
           component={SettingsScreen}
-          options={{ title: i18n.t('settings') }}
+          options={{ title: i18n.t('profileTab') }}
         />
       </Tab.Navigator>
     </NavigationContainer>

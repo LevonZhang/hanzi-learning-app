@@ -14,7 +14,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
 import { i18n } from '../i18n/i18n';
-import { gameService, PronunciationChar } from '../services/GameService';
+import gameService, { PronunciationChar } from '../services/GameService';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { storageService } from '../services/StorageService';
 import StatisticsService from '../services/StatisticsService';
@@ -81,6 +81,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   const [maxScore, setMaxScore] = useState(0);
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [showLevelComplete, setShowLevelComplete] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   
   // 所有的 Animated.Value 都使用 useRef
   const progressWidth = useRef(new Animated.Value(0)).current;
@@ -268,6 +269,22 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     });
   }, [bubbles]);
 
+  // 在组件加载时加载游戏进度
+  useEffect(() => {
+    const loadProgress = async () => {
+      try {
+        const progress = await gameService.loadGameProgress('pronunciation');
+        if (progress) {
+          setLevel(progress.currentLevel as GameLevel);
+          setScore(progress.score);
+        }
+      } catch (error) {
+        console.error('加载游戏进度失败:', error);
+      }
+    };
+    loadProgress();
+  }, []);
+
   const initializeLevel = async () => {
     setIsGameStarted(false);
     gameStartAnim.setValue(0);
@@ -326,14 +343,20 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       // 设置剩余的字符和当前要匹配的字
       const shuffledChars = shuffleArray(validChars);
       setRemainingChars(shuffledChars);
-      if (shuffledChars.length > 0) {
-        updateCurrentChar(shuffledChars[0]);
-      }
-
+      
       // 启动游戏开始动画
       setTimeout(() => {
         setIsGameStarted(true);
         playGameStartAnimation();
+        // 设置第一个字并播放其声音
+        if (shuffledChars.length > 0) {
+          const firstChar = shuffledChars[0];
+          updateCurrentChar(firstChar);
+          // 确保在设置完当前字符后再播放声音
+          setTimeout(() => {
+            gameService.playCharacterSound(firstChar.char);
+          }, 500);
+        }
       }, 500);
     } catch (error) {
       Alert.alert('错误', '初始化关卡时出错');
@@ -438,97 +461,90 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     });
   };
 
-  const handleBubblePress = async (bubble: Bubble) => {
-    if (!currentChar || !isGameStarted) return;
+  const playCorrectSound = async () => {
+    if (successSound) {
+      try {
+        await successSound.setPositionAsync(0);
+        await successSound.playAsync();
+      } catch (error) {
+        console.error('播放成功音效失败:', error);
+      }
+    }
+  };
 
-    const isMatch = currentChar.char === bubble.char;
+  const playWrongSound = async () => {
+    if (failureSound) {
+      try {
+        await failureSound.setPositionAsync(0);
+        await failureSound.playAsync();
+      } catch (error) {
+        console.error('播放失败音效失败:', error);
+      }
+    }
+  };
+
+  const handleBubblePress = async (bubble: Bubble) => {
+    if (isAnimating || !currentChar) return;
+
+    const isMatch = bubble.char === currentChar.char;
+    setIsAnimating(true);
 
     if (isMatch) {
-      if (successSound) {
-        try {
-          await successSound.setPositionAsync(0);
-          await successSound.playAsync();
-        } catch (error) {
-          console.error('Error playing success sound:', error);
-        }
-      }
+      await playCorrectSound();
       
+      const newScore = score + 10;
+      setScore(newScore);
+      updateProgressBar(newScore);
+
+      // 移除匹配的气球，但保持其他气球位置不变
+      setBubbles(prevBubbles => prevBubbles.filter(b => b.id !== bubble.id));
+
+      // 更新剩余的字符
+      const newRemainingChars = remainingChars.filter(char => char.char !== currentChar.char);
+      setRemainingChars(newRemainingChars);
+
+      // 检查是否完成当前关卡
+      if (newRemainingChars.length === 0) {
+        const totalLevels = gameService.getTotalLevels();
+        if (level >= totalLevels) {
+          handleGameComplete(newScore);
+        } else {
+          setLevel((prev: GameLevel) => (prev + 1 as GameLevel));
+        }
+      } else if (newRemainingChars.length > 0) {
+        // 如果还有剩余字符，设置下一个当前字符并播放其声音
+        const nextChar = newRemainingChars[0];
+        updateCurrentChar(nextChar);
+        // 等待气泡破裂动画完成后播放下一个字的声音
+        setTimeout(async () => {
+          await gameService.playCharacterSound(nextChar.char);
+        }, 800);
+      }
+
       playBubblePopAnimation(bubble);
-
-      setScore(prev => {
-        const newScore = prev + 10;
-        updateProgressBar(newScore);
-        return newScore;
-      });
-      
       setTimeout(() => {
-        setBubbles(prev => {
-          const remainingBubbles = prev.filter(b => b.id !== bubble.id);
-          // 为剩余的肥皂泡重新生成位置
-          const newPositions = generateLayeredPositions(remainingBubbles.length);
-          
-          // 为每个剩余的肥皂泡分配新位置
-          return remainingBubbles.map((b, index) => {
-            const newPosition = newPositions[index] || { x: 0, y: 0 };
-            
-            // 创建位置动画
-            Animated.spring(b.floatingAnim, {
-              toValue: 0,
-              useNativeDriver: true,
-              tension: 50,
-              friction: 7,
-            }).start();
-            
-            // 使用动画移动到新位置
-            Animated.spring(new Animated.ValueXY({ x: b.position.x, y: b.position.y }), {
-              toValue: newPosition,
-              useNativeDriver: true,
-              tension: 50,
-              friction: 7,
-            }).start();
-            
-            return {
-              ...b,
-              position: newPosition,
-            };
-          });
-        });
-        
-        const handleGameEnd = async () => {
-          if (level === 5) {
-            const isNewRecord = await storageService.saveGameScore('pronunciation', score);
-            await handleGameComplete(score);
-          } else {
-            setLevel(prev => (prev + 1) as GameLevel);
-          }
-        };
-
-        setRemainingChars(prev => {
-          const newChars = prev.filter(char => char.char !== currentChar.char);
-          if (newChars.length > 0) {
-            const nextChar = newChars[0];
-            updateCurrentChar(nextChar);
-          } else {
-            handleGameEnd();
-          }
-          return newChars;
-        });
-      }, 300);
+        setIsAnimating(false);
+      }, 1000);
     } else {
-      if (failureSound) {
-        try {
-          await failureSound.setPositionAsync(0);
-          await failureSound.playAsync();
-        } catch (error) {
-          console.error('Error playing failure sound:', error);
-        }
-      }
+      await playWrongSound();
       
-      // 更新分数（错误匹配扣5分）
-      setScore(prev => {
-        const newScore = Math.max(0, prev - 5);
-        updateProgressBar(newScore);
-        return newScore;
+      const newScore = Math.max(0, score - 5);
+      setScore(newScore);
+      updateProgressBar(newScore);
+
+      Animated.sequence([
+        Animated.timing(bubble.scale, {
+          toValue: 1.2,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bubble.scale, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setIsAnimating(false);
       });
     }
   };
@@ -673,6 +689,46 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     }
   };
 
+  const handleExit = async () => {
+    Alert.alert(
+      i18n.t('exitGame'),
+      i18n.t('exitGameMessage', {
+        score,
+        level,
+        total: gameService.getTotalLevels()
+      }),
+      [
+        {
+          text: i18n.t('cancel'),
+          style: 'cancel'
+        },
+        {
+          text: i18n.t('confirm'),
+          onPress: async () => {
+            try {
+              // 保存游戏进度
+              await gameService.saveGameProgress({
+                currentLevel: level,
+                score,
+                completedWords: [], // 不需要记录已完成的字符
+                isCompleted: false
+              }, 'pronunciation');
+              
+              // 更新游戏统计
+              await gameService.updateGameStats(score, false, 'pronunciation');
+              
+              // 退出游戏
+              navigation.goBack();
+            } catch (error) {
+              console.error('保存游戏进度失败:', error);
+              navigation.goBack();
+            }
+          }
+        }
+      ]
+    );
+  };
+
   useEffect(() => {
     initializeLevel();
   }, [level]);
@@ -764,13 +820,9 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
         <View style={styles.levelInfo}>
           <TouchableOpacity
             style={styles.exitButton}
-            onPress={() => navigation.goBack()}
+            onPress={handleExit}
           >
-            <MaterialCommunityIcons 
-              name="arrow-left-circle" 
-              size={28} 
-              color="#4CAF50" 
-            />
+            <MaterialCommunityIcons name="exit-to-app" size={24} color="#666" />
           </TouchableOpacity>
 
           <Animated.View style={{ transform: [{ scale: levelTransition }] }}>
@@ -898,7 +950,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
           <View style={styles.instructionsBox}>
             <MaterialCommunityIcons name="information" size={16} color="#4CAF50" />
             <Text style={styles.instructionsText}>
-              {i18n.t('correctMatch')} +{i18n.t('points', { points: 10 })} | {i18n.t('incorrectMatch')} {i18n.t('points', { points: -5 })} | {i18n.t('useHint')} {i18n.t('points', { points: -2 })}
+              {i18n.t('correctMatch')} +10 {i18n.t('points')} | {i18n.t('incorrectMatch')} -5 {i18n.t('points')} | {i18n.t('useHint')} -2 {i18n.t('points')}
             </Text>
           </View>
         </View>
@@ -1074,15 +1126,20 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   instructionsContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 100 : 70,
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
+    width: '100%',
   },
   instructionsBox: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     paddingVertical: 8,
-    paddingHorizontal: 15,
+    paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(76, 175, 80, 0.3)',
@@ -1095,7 +1152,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
     gap: 8,
-    maxWidth: '95%',
+    width: '98%',
   },
   instructionsText: {
     color: '#444',
@@ -1103,6 +1160,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
     lineHeight: 18,
+    flexWrap: 'nowrap',
   },
   levelCompleteContainer: {
     position: 'absolute',

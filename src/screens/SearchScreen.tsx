@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   FlatList,
   SafeAreaView,
   Platform,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import HanziService from '../services/HanziService';
+import SubscriptionService from '../services/SubscriptionService';
 
 interface SearchResult {
   character: string;
@@ -21,17 +23,70 @@ interface SearchResult {
 export const SearchScreen = ({ navigation }: any) => {
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [canSearch, setCanSearch] = useState(false);
+  const isAlertShowing = useRef(false);
+
+  useEffect(() => {
+    checkSearchPermission();
+  }, []);
+
+  const checkSearchPermission = async () => {
+    try {
+      const hasPermission = await SubscriptionService.canUseSearch();
+      setCanSearch(hasPermission);
+    } catch (error) {
+      console.error('Failed to check search permission:', error);
+      setCanSearch(false);
+    }
+  };
 
   const handleSearch = async (text: string) => {
     setSearchText(text);
+    
     if (!text.trim()) {
       setSearchResults([]);
       return;
     }
 
-    const hanziService = HanziService.getInstance();
-    const results = await hanziService.searchCharacter(text);
-    setSearchResults(results);
+    if (!canSearch && !isAlertShowing.current) {
+      isAlertShowing.current = true;
+      Alert.alert(
+        i18n.t('premiumFeature'),
+        i18n.t('searchPremiumDesc'),
+        [
+          { 
+            text: i18n.t('cancel'), 
+            style: 'cancel',
+            onPress: () => {
+              setSearchText('');
+              isAlertShowing.current = false;
+            }
+          },
+          { 
+            text: i18n.t('getPremium'),
+            onPress: () => {
+              setSearchText('');
+              isAlertShowing.current = false;
+              navigation.navigate('Settings', { screen: 'premium' });
+            }
+          }
+        ],
+        { 
+          cancelable: true,
+          onDismiss: () => {
+            setSearchText('');
+            isAlertShowing.current = false;
+          }
+        }
+      );
+      return;
+    }
+
+    if (canSearch) {
+      const hanziService = HanziService.getInstance();
+      const results = await hanziService.searchCharacter(text);
+      setSearchResults(results);
+    }
   };
 
   const handleCharacterPress = (character: string) => {

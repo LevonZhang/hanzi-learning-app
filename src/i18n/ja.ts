@@ -2,8 +2,13 @@ export const ja = {
   // Navigation
   learning: '学習',
   review: '復習',
+  search: '検索',
   games: 'ゲーム',
   settings: '設定',
+
+  // Search Screen
+  searchPlaceholder: '漢字またはピンインを入力',
+  displayMode: '表示モード',
 
   // Learning Screen
   learningMode: '学習モード',
@@ -66,34 +71,74 @@ export const ja = {
 
   // Common
   success: '成功',
-  confirm: 'OK',
+  confirm: '確認',
   close: '閉じる',
-  addedToReview: '復習に追加しました',
+  addedToReview: '復習リストに追加しました',
   addToReviewFailed: '追加に失敗しました',
   removedFromReview: '復習リストから削除しました',
   removeFromReviewFailed: '削除に失敗しました',
 
-  // Profile
-  profile: 'プロフィール',
-  gameHighScores: 'ゲームハイスコア',
-  studyProgress: '学習進捗',
-  thisWeek: '今週',
-  thisMonth: '今月',
-  thisYear: '今年',
-  total: '合計',
-  newRecord: '新記録！',
-
   // Settings
   learningSettings: '学習設定',
-  dailyWords: '1日の学習文字数',
-  language: '言語設定',
+  dailyWords: '一日の漢字数',
+  language: '言語',
   premium: 'プレミアム',
-  getPremium: 'プレミアム会員になる',
-  premiumActive: 'プレミアム会員',
-  alreadyPremium: 'すでにプレミアム会員です',
-  premiumFeatures: 'プレミアム会員になって、より多くの機能を利用しましょう',
-  subscribe: '登録する',
+  getPremium: 'プレミアムを取得',
+  premiumActive: 'プレミアム有効',
+  alreadyPremium: 'すでにプレミアムユーザーです',
+  premiumFeatures: 'プレミアムで更なる機能を解除',
+  subscribe: '購読',
   cancel: 'キャンセル',
   comingSoon: '近日公開',
-  featureInDevelopment: 'この機能は開発中です'
+  featureInDevelopment: 'この機能は開発中です',
+
+  // Subscription Plans
+  monthlyPlan: '月額プラン',
+  quarterlyPlan: '3ヶ月プラン',
+  yearlyPlan: '年間プラン',
+  lifetimePlan: '永久プラン',
+  
+  perMonth: '/月',
+  perQuarter: '/3ヶ月',
+  perYear: '/年',
+  oneTime: '一括',
+  
+  monthlyDesc: '柔軟な月額プラン、いつでもキャンセル可能',
+  quarterlyDesc: '3ヶ月プラン、月額よりもお得',
+  yearlyDesc: '年間プラン、最もお得な定期プラン',
+  lifetimeDesc: '一括払いで、全ての機能に永久アクセス',
+  
+  monthlyName: 'ベーシック',
+  quarterlyName: 'アドバンス',
+  yearlyName: 'プレミアム',
+  lifetimeName: 'アルティメット',
+  
+  monthlyDuration: '月額サブスクリプション',
+  quarterlyDuration: '3ヶ月サブスクリプション',
+  yearlyDuration: '年間サブスクリプション',
+  lifetimeDuration: '永久アクセス',
+  
+  // Subscription Dialog
+  subscriptionConfirm: 'サブスクリプション確認',
+  subscriptionConfirmDesc: 'このプランに登録しますか？料金は${price}${period}です',
+  subscribeButton: '登録する',
+  cancelButton: 'キャンセル',
+  
+  // Purchase Status
+  purchaseSuccess: '購入完了',
+  enjoyPremium: 'ご支援ありがとうございます！全ての機能をお楽しみください',
+  purchaseError: '購入に失敗しました。後でもう一度お試しください',
+  errorTitle: 'エラー',
+  
+  // Premium Status
+  premiumActiveStatus: 'プレミアム有効',
+  getPremiumButton: 'プレミアムにアップグレード',
+  daysRemaining: '残り {{days}} 日',
+
+  // Learning Statistics
+
+  // Menu Sections
+  menuAccount: 'アカウント',
+  menuStats: '統計',
+  menuLearning: '学習',
 }; 

@@ -2,8 +2,13 @@ export const zh = {
   // Navigation
   learning: '学习',
   review: '复习',
+  search: '搜索',
   games: '游戏',
   settings: '设置',
+
+  // Search Screen
+  searchPlaceholder: '输入汉字或拼音',
+  displayMode: '查看模式',
 
   // Learning Screen
   learningMode: '学习模式',
@@ -68,26 +73,18 @@ export const zh = {
   success: '成功',
   confirm: '确定',
   close: '关闭',
-  addedToReview: '已添加到复习',
+  addedToReview: '已添加到复习列表',
   addToReviewFailed: '添加失败',
-  removedFromReview: '已从错字本中移除',
+  removedFromReview: '已从复习列表移除',
   removeFromReviewFailed: '移除失败',
 
-  // Profile
-  profile: '我的',
-  gameHighScores: '游戏最高分',
-  studyProgress: '学习进度',
-  thisWeek: '本周',
-  thisMonth: '本月',
-  thisYear: '本年',
-  total: '总计',
-  newRecord: '新纪录！',
-
   // Settings
-  learningSettings: '学习设置',
+  learningSettings: '基本设置',
   dailyWords: '每日学习字数',
   language: '语言设置',
-  premium: '高级会员',
+
+  // Premium
+  premium: '会员中心',
   getPremium: '开通会员',
   premiumActive: '会员已激活',
   alreadyPremium: '您已经是会员用户',
@@ -95,5 +92,72 @@ export const zh = {
   subscribe: '立即订阅',
   cancel: '取消',
   comingSoon: '即将推出',
-  featureInDevelopment: '该功能正在开发中'
+  featureInDevelopment: '该功能正在开发中',
+
+  // Subscription Plans
+  monthlyPlan: '月度会员',
+  quarterlyPlan: '季度会员',
+  yearlyPlan: '年度会员',
+  lifetimePlan: '终身会员',
+  
+  perMonth: '/月',
+  perQuarter: '/季',
+  perYear: '/年',
+  oneTime: '一次性付费',
+  
+  monthlyDesc: '灵活的月付方案，随时可以取消',
+  quarterlyDesc: '季度订阅，比月付更优惠',
+  yearlyDesc: '年度订阅，享受最优惠的常规会员价格',
+  lifetimeDesc: '一次付费，永久使用所有高级功能',
+  
+  monthlyName: '基础会员',
+  quarterlyName: '进阶会员',
+  yearlyName: '高级会员',
+  lifetimeName: '至尊会员',
+  
+  monthlyDuration: '按月订阅',
+  quarterlyDuration: '按季订阅',
+  yearlyDuration: '按年订阅',
+  lifetimeDuration: '永久有效',
+  
+  // Subscription Dialog
+  subscriptionConfirm: '确认订阅',
+  subscriptionConfirmDesc: '您确定要订阅此方案吗？费用为 ${price}${period}',
+  subscribeButton: '订阅',
+  cancelButton: '取消',
+  
+  // Purchase Status
+  purchaseSuccess: '购买成功',
+  enjoyPremium: '感谢您的支持！请享受所有高级功能',
+  purchaseError: '购买失败，请稍后重试',
+  errorTitle: '错误',
+  
+  // Premium Status
+  premiumActiveStatus: '会员已激活',
+  getPremiumButton: '升级会员',
+  daysRemaining: '剩余 {{days}} 天',
+
+  // Learning Statistics
+  totalLearningTime: '学习时长',
+  hours: '小时',
+  minutes: '分钟',
+  
+  // Game Statistics
+  gameHighScores: '游戏统计',
+  highScore: '最高分',
+  gamesPlayed: '游戏次数',
+
+  // Learned Characters
+  learnedCharacters: '已学习的汉字',
+  noLearnedChars: '还没有学习过任何汉字',
+  masteryLevel5: '完全掌握',
+  masteryLevel4: '熟练',
+  masteryLevel3: '一般',
+  masteryLevel2: '需要练习',
+  masteryLevel1: '刚学习',
+
+  // Menu Sections
+  menuAccount: '账户',
+  menuStats: '统计',
+  menuLearning: '学习',
 };

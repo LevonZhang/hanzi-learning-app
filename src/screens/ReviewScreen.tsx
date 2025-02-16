@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, FlatList, Alert
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import { LearningManager } from '../services/LearningManager';
+import StatisticsService from '../services/StatisticsService';
 
 interface ReviewScreenProps {
   navigation: any;
@@ -43,6 +44,10 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
     try {
       const learningManager = LearningManager.getInstance();
       await learningManager.removeFromReview(character);
+      
+      // 标记为已掌握
+      await StatisticsService.recordLearnedCharacter(character, true);
+      
       // 重新加载列表
       loadReviewItems();
     } catch (error) {

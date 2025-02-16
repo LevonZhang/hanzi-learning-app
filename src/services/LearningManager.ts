@@ -42,6 +42,29 @@ export class LearningManager {
     return LearningManager.instance;
   }
 
+  // 重置今天的学习列表
+  async resetTodayLearning() {
+    try {
+      // 清除今天的学习记录
+      await AsyncStorage.removeItem('todayLearningList');
+      // 重置当前学习进度
+      const progress = await this.getAllProgress();
+      const today = new Date().toISOString().split('T')[0];
+      
+      // 只保留需要复习的字的进度
+      const updatedProgress = Object.entries(progress).reduce((acc, [char, data]) => {
+        if (data.nextReviewDate === today) {
+          acc[char] = data;
+        }
+        return acc;
+      }, {} as Record<string, LearningProgress>);
+      
+      await this.saveProgress(updatedProgress);
+    } catch (error) {
+      console.error('Error resetting today learning:', error);
+    }
+  }
+
   // 获取今天的学习列表
   async getTodayLearningList() {
     const date = new Date().toISOString().split('T')[0];
@@ -53,12 +76,15 @@ export class LearningManager {
     const reviewList = Object.values(progress)
       .filter(item => item.nextReviewDate === date)
       .map(item => allCharacters.find(c => c.character === item.character))
-      .filter(Boolean) as Character[];  // 过滤掉可能的 undefined 并断言类型
+      .filter(Boolean) as Character[];
 
+    // 获取已学习的字符集
     const learnedChars = new Set(Object.keys(progress));
-    const newChars = allCharacters
-      .filter(char => !learnedChars.has(char.character))
-      .slice(0, this.settings.dailyNewWords);
+    
+    // 从未学习的字符中随机选择新的字符
+    const availableChars = allCharacters.filter(char => !learnedChars.has(char.character));
+    const shuffledChars = [...availableChars].sort(() => Math.random() - 0.5);
+    const newChars = shuffledChars.slice(0, this.settings.dailyNewWords);
 
     return {
       newWords: newChars,

@@ -1,9 +1,16 @@
-import cnchar from 'cnchar';
-import 'cnchar-poly';    // 多音字
-import 'cnchar-order';   // 笔顺
-import 'cnchar-draw';    // 绘制
-import 'cnchar-words';   // 词组功能
 import { hanziDict } from '../data/hanziDict';
+import cnchar from 'cnchar';
+
+interface HanziDetails {
+  character: string;
+  pinyin: string[];
+  strokes: number;
+  meanings: {
+    zh: string[];
+    en: string[];
+    ja: string[];
+  };
+}
 
 interface HanziData {
   character: string;
@@ -17,19 +24,9 @@ interface HanziData {
   words: string[];
 }
 
-interface Character {
-  character: string;
-  pinyin: string[];
-  meanings: {
-    zh: string[];
-    en: string[];
-    ja: string[];
-  };
-}
-
 class HanziService {
   private static instance: HanziService;
-  private hanziList: HanziData[] = [];
+  private hanziList: HanziDetails[] = [];
   
   // HSK 1级常用汉字
   private static HSK1_CHARS = [
@@ -67,7 +64,7 @@ class HanziService {
     this.initializeHanziList();
   }
 
-  public static getInstance(): HanziService {
+  static getInstance(): HanziService {
     if (!HanziService.instance) {
       HanziService.instance = new HanziService();
     }
@@ -75,86 +72,121 @@ class HanziService {
   }
 
   private initializeHanziList() {
-    this.hanziList = HanziService.HSK1_CHARS.map(char => {
-      const pinyinResult = cnchar.spell(char, 'array', 'poly', 'low');
-      const pinyinArray: string[] = Array.isArray(pinyinResult) 
-        ? pinyinResult 
-        : [pinyinResult.toString()];
-      
-      const strokeResult = cnchar.stroke(char);
-      const strokeCount: number = typeof strokeResult === 'number' 
-        ? strokeResult 
-        : Array.isArray(strokeResult) 
-          ? strokeResult[0] 
-          : 0;
-
-      return {
-        character: char,
-        pinyin: pinyinArray,
-        strokes: strokeCount,
-        meanings: {
-          zh: [],
-          en: [],
-          ja: []
-        },
-        words: []
-      } as HanziData;
-    });
+    // 初始化汉字列表，只包含 HSK1 常用字
+    this.hanziList = Object.entries(hanziDict)
+      .filter(([char]) => HanziService.HSK1_CHARS.includes(char))
+      .map(([char, details]) => {
+        const normalizedChar = char.normalize('NFKC');
+        // 使用 cnchar 获取笔画数，确保是单个数字
+        const strokeResult = cnchar.stroke(normalizedChar);
+        const strokes = Array.isArray(strokeResult) ? strokeResult[0] : strokeResult;
+        return {
+          character: normalizedChar,
+          pinyin: details.pinyin,
+          strokes,
+          meanings: {
+            zh: details.chinese || [],
+            en: details.english || [],
+            ja: [],
+          },
+        };
+      });
   }
 
   public getHanziList(): HanziData[] {
-    return this.hanziList;
-  }
-
-  public getHanziByPinyin(pinyin: string): HanziData[] {
-    return this.hanziList.filter(hanzi => 
-      hanzi.pinyin.some(p => p.startsWith(pinyin.toLowerCase()))
-    );
-  }
-
-  public getHanziByStrokes(strokes: number): HanziData[] {
-    return this.hanziList.filter(hanzi => hanzi.strokes === strokes);
-  }
-
-  public async getHanziListWithDetails(): Promise<Character[]> {
-    return Promise.all(this.hanziList.map(async char => {
-      const details = await this.getHanziDetails(char.character);
-      return {
-        character: char.character,
-        pinyin: details.pinyin,
-        meanings: details.meanings
-      };
+    return this.hanziList.map(details => ({
+      character: details.character,
+      pinyin: details.pinyin,
+      strokes: details.strokes,
+      meanings: details.meanings,
+      words: cnchar.words(details.character) || []
     }));
   }
 
-  async getHanziDetails(character: string): Promise<HanziData> {
-    const data = hanziDict[character];
-    // 使用 cnchar.words 获取词组，如果方法不存在则返回空数组
-    const wordsResult = typeof (cnchar as any).words === 'function' 
-      ? (cnchar as any).words(character)
-      : [];
-    const words: string[] = Array.isArray(wordsResult) 
-      ? wordsResult.slice(0, 4) 
-      : [];
-    
-    const strokeResult = cnchar.stroke(character);
-    const strokeCount: number = typeof strokeResult === 'number' 
-      ? strokeResult 
-      : Array.isArray(strokeResult) 
-        ? strokeResult[0] 
-        : 0;
+  public getHanziByPinyin(pinyin: string): HanziData[] {
+    return this.hanziList
+      .filter(hanzi => hanzi.pinyin.some(p => p.startsWith(pinyin.toLowerCase())))
+      .map(details => ({
+        character: details.character,
+        pinyin: details.pinyin,
+        strokes: details.strokes,
+        meanings: details.meanings,
+        words: cnchar.words(details.character) || []
+      }));
+  }
 
-    return {
-      character,
-      pinyin: data?.pinyin || [],
-      strokes: strokeCount,
-      meanings: {
-        zh: data?.chinese || [],
-        en: data?.english || [],
-        ja: []
-      },
-      words: words
-    };
+  public getHanziByStrokes(strokes: number): HanziData[] {
+    return this.hanziList
+      .filter(hanzi => hanzi.strokes === strokes)
+      .map(details => ({
+        character: details.character,
+        pinyin: details.pinyin,
+        strokes: details.strokes,
+        meanings: details.meanings,
+        words: cnchar.words(details.character) || []
+      }));
+  }
+
+  public async getHanziListWithDetails(): Promise<HanziDetails[]> {
+    return this.hanziList;
+  }
+
+  async getHanziDetails(character: string): Promise<HanziDetails> {
+    // 规范化输入的字符
+    const normalizedChar = character.normalize('NFKC');
+    const details = this.hanziList.find(h => h.character === normalizedChar);
+    if (!details) {
+      throw new Error(`Character ${character} not found`);
+    }
+    return details;
+  }
+
+  // 添加拼音排序辅助函数
+  private comparePinyin(a: string, b: string, query: string): number {
+    // 获取第一个匹配的拼音
+    const aPinyin = a.toLowerCase();
+    const bPinyin = b.toLowerCase();
+    
+    // 如果两个拼音的开头部分不同，按字母顺序排序
+    if (aPinyin.startsWith(query) !== bPinyin.startsWith(query)) {
+      return bPinyin.startsWith(query) ? 1 : -1;
+    }
+    
+    // 提取音调数字
+    const aNum = parseInt(aPinyin.match(/\d/)?.[0] || '5');
+    const bNum = parseInt(bPinyin.match(/\d/)?.[0] || '5');
+    
+    // 按音调数字排序
+    if (aNum !== bNum) {
+      return aNum - bNum;
+    }
+    
+    // 如果音调数字相同，按字母顺序排序
+    return aPinyin.localeCompare(bPinyin);
+  }
+
+  // 添加搜索功能
+  async searchCharacter(query: string): Promise<HanziDetails[]> {
+    query = query.trim().toLowerCase();
+    
+    // 如果查询是汉字
+    if (/[\u4e00-\u9fa5]/.test(query)) {
+      return this.hanziList.filter(h => h.character.includes(query));
+    }
+    
+    // 如果查询是拼音
+    const matchingChars = this.hanziList.filter(h => 
+      h.pinyin.some(p => p.toLowerCase().startsWith(query))
+    );
+
+    // 按拼音排序
+    return matchingChars.sort((a, b) => {
+      // 获取最匹配的拼音
+      const aPinyin = a.pinyin.find(p => p.toLowerCase().startsWith(query)) || a.pinyin[0];
+      const bPinyin = b.pinyin.find(p => p.toLowerCase().startsWith(query)) || b.pinyin[0];
+      
+      return this.comparePinyin(aPinyin, bPinyin, query);
+    });
   }
 }
 

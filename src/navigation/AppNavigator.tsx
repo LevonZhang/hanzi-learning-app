@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
@@ -8,18 +8,18 @@ import { LearningScreen } from '../screens/LearningScreen';
 import { ReviewScreen } from '../screens/ReviewScreen';
 import { GamesScreen } from '../screens/GamesScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
 import { BubbleMatchingScreen } from '../screens/BubbleMatchingScreen';
 import { PronunciationMatchingScreen } from '../screens/PronunciationMatchingScreen';
 import { i18n } from '../i18n/i18n';
 import { RouteProp } from '@react-navigation/native';
 import { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
+import { SearchScreen } from '../screens/SearchScreen';
 
 type RootTabParamList = {
-  Learning: { mode: 'learning' | 'review' } | undefined;
+  Learning: { mode: 'learning' | 'review' | 'display', character?: string } | undefined;
   Review: undefined;
+  Search: undefined;
   Games: undefined;
-  Profile: undefined;
   Settings: undefined;
 };
 
@@ -43,6 +43,21 @@ const GameStackNavigator = () => {
 };
 
 export const AppNavigator = () => {
+  const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
+
+  useEffect(() => {
+    // 监听语言变化
+    const handleLanguageChange = () => {
+      setCurrentLanguage(i18n.language);
+    };
+
+    i18n.on('languageChanged', handleLanguageChange);
+
+    return () => {
+      i18n.off('languageChanged', handleLanguageChange);
+    };
+  }, []);
+
   const getTabScreenOptions = ({ route }: { route: RouteProp<RootTabParamList, keyof RootTabParamList> }): BottomTabNavigationOptions => ({
     tabBarIcon: ({ focused, color, size }: { focused: boolean; color: string; size: number }) => {
       let iconName: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -53,14 +68,14 @@ export const AppNavigator = () => {
         case 'Review':
           iconName = focused ? 'refresh' : 'refresh-circle';
           break;
+        case 'Search':
+          iconName = focused ? 'magnify' : 'magnify';
+          break;
         case 'Games':
           iconName = focused ? 'gamepad-variant' : 'gamepad-variant-outline';
           break;
-        case 'Profile':
-          iconName = focused ? 'account' : 'account-outline';
-          break;
         case 'Settings':
-          iconName = focused ? 'cog' : 'cog-outline';
+          iconName = focused ? 'account' : 'account-outline';
           break;
         default:
           iconName = 'help';
@@ -99,7 +114,7 @@ export const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      <Tab.Navigator screenOptions={getTabScreenOptions}>
+      <Tab.Navigator screenOptions={getTabScreenOptions} key={currentLanguage}>
         <Tab.Screen
           name="Learning"
           component={LearningScreen}
@@ -126,14 +141,14 @@ export const AppNavigator = () => {
           options={{ title: i18n.t('review') }}
         />
         <Tab.Screen
+          name="Search"
+          component={SearchScreen}
+          options={{ title: i18n.t('search') }}
+        />
+        <Tab.Screen
           name="Games"
           component={GameStackNavigator}
           options={{ title: i18n.t('games') }}
-        />
-        <Tab.Screen
-          name="Profile"
-          component={ProfileScreen}
-          options={{ title: i18n.t('profile') }}
         />
         <Tab.Screen
           name="Settings"

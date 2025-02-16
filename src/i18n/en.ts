@@ -2,8 +2,13 @@ export const en = {
   // Navigation
   learning: 'Learning',
   review: 'Review',
+  search: 'Search',
   games: 'Games',
   settings: 'Settings',
+
+  // Search Screen
+  searchPlaceholder: 'Enter character or pinyin',
+  displayMode: 'Display Mode',
 
   // Learning Screen
   learningMode: 'Learning Mode',
@@ -73,16 +78,6 @@ export const en = {
   removedFromReview: 'Removed from review list',
   removeFromReviewFailed: 'Failed to remove',
 
-  // Profile
-  profile: 'Profile',
-  gameHighScores: 'Game High Scores',
-  studyProgress: 'Learning Progress',
-  thisWeek: 'This Week',
-  thisMonth: 'This Month',
-  thisYear: 'This Year',
-  total: 'Total',
-  newRecord: 'New Record!',
-
   // Settings
   learningSettings: 'Learning Settings',
   dailyWords: 'Daily Characters',
@@ -95,5 +90,72 @@ export const en = {
   subscribe: 'Subscribe',
   cancel: 'Cancel',
   comingSoon: 'Coming Soon',
-  featureInDevelopment: 'This feature is under development'
+  featureInDevelopment: 'This feature is under development',
+
+  // Subscription Plans
+  monthlyPlan: 'Monthly Plan',
+  quarterlyPlan: 'Quarterly Plan',
+  yearlyPlan: 'Yearly Plan',
+  lifetimePlan: 'Lifetime Plan',
+  
+  perMonth: '/month',
+  perQuarter: '/quarter',
+  perYear: '/year',
+  oneTime: 'one-time',
+  
+  monthlyDesc: 'Flexible monthly plan, cancel anytime',
+  quarterlyDesc: 'Quarterly subscription, better value than monthly',
+  yearlyDesc: 'Annual subscription, best regular price',
+  lifetimeDesc: 'One-time payment, lifetime access to all premium features',
+  
+  monthlyName: 'Basic',
+  quarterlyName: 'Advanced',
+  yearlyName: 'Premium',
+  lifetimeName: 'Ultimate',
+  
+  monthlyDuration: 'Monthly subscription',
+  quarterlyDuration: 'Quarterly subscription',
+  yearlyDuration: 'Annual subscription',
+  lifetimeDuration: 'Lifetime access',
+  
+  // Subscription Dialog
+  subscriptionConfirm: 'Confirm Subscription',
+  subscriptionConfirmDesc: 'Would you like to subscribe to this plan? The cost is ${price}${period}',
+  subscribeButton: 'Subscribe',
+  cancelButton: 'Cancel',
+  
+  // Purchase Status
+  purchaseSuccess: 'Purchase Successful',
+  enjoyPremium: 'Thank you for your support! Enjoy all premium features',
+  purchaseError: 'Purchase failed, please try again later',
+  errorTitle: 'Error',
+  
+  // Premium Status
+  premiumActiveStatus: 'Premium Active',
+  getPremiumButton: 'Upgrade to Premium',
+  daysRemaining: '{{days}} days remaining',
+
+  // Learning Statistics
+  totalLearningTime: 'Learning Time',
+  hours: 'h',
+  minutes: 'm',
+  
+  // Game Statistics
+  gameHighScores: 'Game Statistics',
+  highScore: 'High Score',
+  gamesPlayed: 'Games Played',
+
+  // Learned Characters
+  learnedCharacters: 'Learned Characters',
+  noLearnedChars: 'No characters learned yet',
+  masteryLevel5: 'Mastered',
+  masteryLevel4: 'Proficient',
+  masteryLevel3: 'Intermediate',
+  masteryLevel2: 'Needs Practice',
+  masteryLevel1: 'Just Started',
+
+  // Menu Sections
+  menuAccount: 'Account',
+  menuStats: 'Statistics',
+  menuLearning: 'Learning',
 }; 

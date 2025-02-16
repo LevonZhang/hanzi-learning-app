@@ -17,6 +17,7 @@ import { i18n } from '../i18n/i18n';
 import { gameService, WordPair, PronunciationChar } from '../services/GameService';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { storageService } from '../services/StorageService';
+import StatisticsService from '../services/StatisticsService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
@@ -368,11 +369,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
         const handleGameEnd = async () => {
           if (level === 5) {
             const isNewRecord = await storageService.saveGameScore('word', score);
-            Alert.alert(
-              i18n.t('gameComplete'),
-              isNewRecord ? i18n.t('gameCompleteWithRecord') : i18n.t('gameCompleteMessage')
-            );
-            navigation.goBack();
+            await handleGameComplete(score);
           } else {
             setLevel(prev => (prev + 1) as GameLevel);
           }
@@ -447,6 +444,26 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     setTimeout(() => {
       setIsShowingHint(false);
     }, 3000);
+  };
+
+  const handleGameComplete = async (finalScore: number) => {
+    try {
+      // 更新游戏统计
+      await StatisticsService.updateGameScore('wordGame', finalScore);
+      
+      Alert.alert(
+        i18n.t('gameComplete'),
+        i18n.t('gameCompleteMessage'),
+        [
+          {
+            text: i18n.t('confirm'),
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Failed to update game score:', error);
+    }
   };
 
   useEffect(() => {

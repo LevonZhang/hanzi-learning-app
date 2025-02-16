@@ -11,6 +11,7 @@ import { useState as useTabState } from 'react'; // 为tab状态添加一个新�
 import { hanziDict } from '../data/hanziDict';  // 导入汉字字典数据
 import { i18n } from '../i18n/i18n';
 import HanziService from '../services/HanziService';
+import StatisticsService from '../services/StatisticsService';
 
 interface Character {
   character: string;
@@ -48,8 +49,9 @@ interface HanziInfo {
 interface LearningScreenProps {
   route?: {
     params?: {
-      mode?: 'review' | 'learning';
+      mode?: 'learning' | 'review' | 'display';
       reviewWords?: string[];
+      character?: string;
     };
   };
   navigation: any;
@@ -79,13 +81,22 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   const [showFullMeaning, setShowFullMeaning] = useState(false);
 
   useEffect(() => {
-    if (route?.params?.mode === 'review' && route?.params?.reviewWords) {
-      // 如果是从复习页面进入，使用传入的复习字列表
+    if (route?.params?.mode === 'display' && route?.params?.character) {
+      // 显示模式：直接显示指定的汉字
+      loadSingleCharacter(route.params.character);
+    } else if (route?.params?.mode === 'review' && route?.params?.reviewWords) {
+      // 复习模式：加载复习字列表
       loadReviewWords(route.params.reviewWords);
     } else {
-      // 否则加载今天的学习列表
+      // 学习模式：加载今天的学习列表
       loadTodayLearning();
     }
+    loadTodayProgress();
+    StatisticsService.startLearningSession();
+
+    return () => {
+      StatisticsService.endLearningSession();
+    };
   }, [route?.params]);
 
   const loadTodayLearning = async () => {
@@ -100,6 +111,11 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       currentWord: newWords[0] || reviewWords[0],
       statistics
     }));
+
+    // 如果是新字（非复习模式），记录为已学习
+    if (newWords[0] && !route?.params?.mode) {
+      handleCharacterLearned(newWords[0].character);
+    }
   };
 
   const loadReviewWords = async (reviewWords: string[]) => {
@@ -129,6 +145,11 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     const learningManager = LearningManager.getInstance();
     await learningManager.recordProgress(state.currentWord.character, isCorrect);
 
+    // 如果练习正确且不是复习模式，记录为已掌握
+    if (isCorrect && !state.isReviewMode) {
+      await handleCharacterMastered(state.currentWord.character);
+    }
+
     // 更新当前字列表
     const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
     const nextIndex = currentList.findIndex(w => w.character === state.currentWord!.character) + 1;
@@ -139,6 +160,11 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
         ...prev,
         currentWord: currentList[nextIndex]
       }));
+      
+      // 如果是新字（非复习模式），记录下一个字为已学习
+      if (!state.isReviewMode && currentList[nextIndex]) {
+        await handleCharacterLearned(currentList[nextIndex].character);
+      }
     } else if (!state.isReviewMode && state.reviewWords.length > 0) {
       // 新字学完了，开始复习
       setState(prev => ({
@@ -185,6 +211,48 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     }
   };
 
+  const handleCharacterLearned = async (character: string) => {
+    try {
+      // 记录学习的汉字
+      await StatisticsService.recordLearnedCharacter(character);
+      // ... existing character learned logic ...
+    } catch (error) {
+      console.error('Failed to record learned character:', error);
+    }
+  };
+
+  const handleCharacterMastered = async (character: string) => {
+    try {
+      // 记录掌握的汉字
+      await StatisticsService.recordLearnedCharacter(character, true);
+      // ... existing character mastered logic ...
+    } catch (error) {
+      console.error('Failed to record mastered character:', error);
+    }
+  };
+
+  const loadTodayProgress = async () => {
+    // Implementation of loadTodayProgress
+  };
+
+  const loadSingleCharacter = async (character: string) => {
+    try {
+      const hanziService = HanziService.getInstance();
+      const charDetails = await hanziService.getHanziDetails(character);
+      setState(prev => ({
+        ...prev,
+        currentWord: {
+          character: charDetails.character,
+          pinyin: charDetails.pinyin,
+          meanings: charDetails.meanings,
+        },
+        isReviewMode: false,
+      }));
+    } catch (error) {
+      console.error('Failed to load character:', error);
+    }
+  };
+
   if (!state.currentWord) {
     return (
       <SafeAreaView style={styles.container}>
@@ -220,7 +288,21 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
           <View style={styles.buttonGroup}>
             <TouchableOpacity 
               style={[styles.button, styles.buttonHalf]}
-              onPress={loadTodayLearning}
+              onPress={async () => {
+                const learningManager = LearningManager.getInstance();
+                // 重置今天的学习列表
+                await learningManager.resetTodayLearning();
+                // 重置状态
+                setState(prev => ({
+                  ...prev,
+                  newWords: [],
+                  reviewWords: [],
+                  currentWord: null,
+                  isReviewMode: false
+                }));
+                // 重新加载今天的学习列表
+                await loadTodayLearning();
+              }}
             >
               <Text style={styles.buttonText}>{i18n.t('continueLearning')}</Text>
             </TouchableOpacity>
@@ -241,14 +323,18 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.mode}>
-            {state.isReviewMode ? i18n.t('reviewMode') : i18n.t('learningMode')}
+            {state.isReviewMode ? i18n.t('reviewMode') : 
+             route?.params?.mode === 'display' ? i18n.t('displayMode') :
+             i18n.t('learningMode')}
           </Text>
-          <Text style={styles.progress}>
-            {state.isReviewMode 
-              ? `${i18n.t('reviewProgress')}: ${state.reviewWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.reviewWords.length}`
-              : `${i18n.t('studyProgress')}: ${state.newWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.newWords.length}`
-            }
-          </Text>
+          {route?.params?.mode !== 'display' && (
+            <Text style={styles.progress}>
+              {state.isReviewMode 
+                ? `${i18n.t('reviewProgress')}: ${state.reviewWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.reviewWords.length}`
+                : `${i18n.t('learningProgress')}: ${state.newWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.newWords.length}`
+              }
+            </Text>
+          )}
         </View>
 
         <View style={styles.characterInfo}>
@@ -396,7 +482,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
           isReviewMode={state.isReviewMode}
         />
 
-        {state.currentWord && (
+        {state.currentWord && route?.params?.mode !== 'display' && (
           <TouchableOpacity 
             style={styles.nextButton}
             onPress={() => {

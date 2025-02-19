@@ -123,7 +123,7 @@ export const en = {
   
   // Subscription Dialog
   subscriptionConfirm: 'Confirm Subscription',
-  subscriptionConfirmDesc: 'Would you like to subscribe to this plan? The cost is ${price}${period}',
+  subscriptionConfirmDesc: 'Would you like to subscribe to this plan? The cost is {{price}}{{period}}',
   subscribeButton: 'Subscribe',
   cancelButton: 'Cancel',
   

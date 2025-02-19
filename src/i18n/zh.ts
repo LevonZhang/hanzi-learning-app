@@ -124,7 +124,7 @@ export const zh = {
   
   // Subscription Dialog
   subscriptionConfirm: '确认订阅',
-  subscriptionConfirmDesc: '您确定要订阅此方案吗？费用为 ${price}${period}',
+  subscriptionConfirmDesc: '您确定要订阅此方案吗？费用为 {{price}}{{period}}',
   subscribeButton: '订阅',
   cancelButton: '取消',
   

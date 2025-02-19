@@ -1,2 +1,32 @@
-node_modules
-.expo/metro
+node_modules/
+.expo/
+.expo/web/
+dist/
+ios/
+android/
+scripts/
+screenshots/original/
+screenshots/processed/
+screenshots/README.md
+screenshots/process_screenshots.sh
+screenshots/process_screenshots.sh.log
+
+# OSX
+.DS_Store
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.*
+
+# Build files
+build/
+web-build/
+
+# Environment variables
+.env
+.env.*

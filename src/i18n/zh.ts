@@ -193,4 +193,53 @@ export const zh = {
   resetGameConfirm: '重置游戏',
   resetGameConfirmMessage: '确定要重置游戏进度吗？这将清除当前的得分和关卡进度，从第一关重新开始。',
   points: '分',
+
+  // Subscription Messages
+  subscription: {
+    // 订阅状态
+    active: '订阅已激活',
+    expired: '订阅已过期',
+    canceled: '订阅已取消',
+    restored: '订阅已恢复',
+    
+    // 订阅操作
+    subscribe: '订阅',
+    unsubscribe: '取消订阅',
+    restore: '恢复订阅',
+    manage: '管理订阅',
+    
+    // 订阅提示
+    confirmCancel: '确认取消订阅',
+    confirmCancelMessage: '取消订阅后，您仍可以使用当前订阅期的所有功能，直到订阅到期。',
+    cancelSuccess: '订阅已成功取消',
+    cancelError: '取消订阅失败，请稍后重试',
+    
+    restoreSuccess: '订阅已成功恢复',
+    restoreError: '恢复订阅失败，请确认您之前是否有订阅记录',
+    noSubscriptionToRestore: '未找到可恢复的订阅',
+    
+    expiringSoon: '您的订阅即将到期',
+    expiringSoonMessage: '您的订阅将在 {{days}} 天后到期，请及时续订以继续使用所有功能。',
+    
+    expired: '您的订阅已过期',
+    expiredMessage: '您的订阅已过期，请重新订阅以继续使用所有功能。',
+    
+    // 订阅管理
+    manageSubscription: '管理订阅',
+    manageInstructions: '要管理或取消您的订阅，请前往：\n设置 > Apple ID > 订阅',
+    
+    // 订阅状态变更
+    statusChanged: '订阅状态已更新',
+    willExpireOn: '您的订阅将于 {{date}} 到期',
+    renewedUntil: '您的订阅已续期至 {{date}}',
+    
+    // 功能限制
+    featureRestricted: '功能已受限',
+    subscriptionRequired: '需要订阅才能使用此功能',
+    
+    // 其他提示
+    processingPurchase: '正在处理订阅请求...',
+    verifyingReceipt: '正在验证订阅状态...',
+    contactSupport: '如有问题，请联系客服',
+  },
 };

@@ -45,7 +45,6 @@ export const ja = {
   wordGameDesc: '漢字を組み合わせて単語を作ろう',
   pronunciationGameDesc: '音声を聞いて漢字を見つけよう',
   level: 'レベル{{level}}',
-  levelNumber: 'レベル{{level}}',
   levelTitle: 'レベル{{current}}/{{total}}',
   score: 'スコア: {{score}}',
   gameComplete: 'ゲーム完了',
@@ -85,6 +84,8 @@ export const ja = {
   learningSettings: '学習設定',
   dailyWords: '一日の漢字数',
   language: '言語',
+
+  // Premium
   premium: 'プレミアム',
   getPremium: 'プレミアムを取得',
   premiumActive: 'プレミアム有効',
@@ -120,19 +121,24 @@ export const ja = {
   quarterlyDuration: '3ヶ月サブスクリプション',
   yearlyDuration: '年間サブスクリプション',
   lifetimeDuration: '永久アクセス',
-  
+
+  // Game Statistics
+  gameHighScores: 'ゲーム統計',
+  highScore: 'ハイスコア',
+  gamesPlayed: 'プレイ回数',
+
   // Subscription Dialog
-  subscriptionConfirm: 'サブスクリプション確認',
-  subscriptionConfirmDesc: 'このプランに登録しますか？料金は${price}${period}です',
-  subscribeButton: '登録する',
+  subscriptionConfirm: '購読の確認',
+  subscriptionConfirmDesc: 'このプランを購読しますか？料金は{{price}}{{period}}です',
+  subscribeButton: '購読する',
   cancelButton: 'キャンセル',
-  
+
   // Purchase Status
   purchaseSuccess: '購入完了',
   enjoyPremium: 'ご支援ありがとうございます！全ての機能をお楽しみください',
   purchaseError: '購入に失敗しました。後でもう一度お試しください',
   errorTitle: 'エラー',
-  
+
   // Premium Status
   premiumActiveStatus: 'プレミアム有効',
   getPremiumButton: 'プレミアムにアップグレード',
@@ -141,9 +147,14 @@ export const ja = {
   // Learning Statistics
   totalLearningTime: '時間',
   learned: '学習済',
-  mastered: '習得済',
   hours: 'h',
   minutes: 'm',
+
+  // Learned Characters
+  learnedCharacters: '学習済み漢字',
+  noLearnedChars: 'まだ学習した漢字がありません',
+  masteryLevel2: '習得済み',
+  masteryLevel1: '学習中',
 
   // Menu Sections
   menuAccount: 'アカウント',
@@ -168,6 +179,11 @@ export const ja = {
   loadingStrokeData: '筆順データを読み込み中...',
   strokeDataError: '筆順データを読み込めません',
 
+  // Reset Progress
+  resetProgress: '進捗をリセット',
+  resetConfirm: 'リセット確認',
+  resetConfirmMessage: '全ての学習進捗をリセットしますか？これまでの学習記録が全て消去されます。',
+
   // Game
   exitGame: 'ゲーム終了',
   exitGameMessage: '現在のスコア: {{score}}点\n現在のレベル: {{level}}/{{total}}',
@@ -175,5 +191,43 @@ export const ja = {
   resetGame: 'ゲームをリセット',
   resetGameConfirm: 'ゲームリセット',
   resetGameConfirmMessage: 'ゲームの進捗をリセットしますか？現在のスコアとレベルの進捗が消去され、レベル1から始まります。',
-  points: '点',
+
+  // Subscription Messages
+  subscription: {
+    active: '購読中',
+    expired: '購読期限切れ',
+    canceled: '購読キャンセル済み',
+    restored: '購読を復元しました',
+    
+    subscribe: '購読する',
+    unsubscribe: '購読をキャンセル',
+    restore: '購読を復元',
+    manage: '購読を管理',
+    
+    confirmCancel: '購読キャンセルの確認',
+    confirmCancelMessage: '購読をキャンセルしても、現在の購読期間中は全ての機能を使用できます。',
+    cancelSuccess: '購読のキャンセルが完了しました',
+    cancelError: '購読のキャンセルに失敗しました。後でもう一度お試しください',
+    
+    restoreSuccess: '購読の復元が完了しました',
+    restoreError: '購読の復元に失敗しました。以前の購読記録を確認してください',
+    noSubscriptionToRestore: '復元可能な購読が見つかりません',
+    
+    expiringSoon: '購読の期限が近づいています',
+    expiringSoonMessage: '購読は{{days}}日後に期限切れとなります。継続して全ての機能を使用するには更新してください。',
+    
+    manageSubscription: '購読管理',
+    manageInstructions: '購読の管理やキャンセルは以下から行えます：\n設定 > Apple ID > 購読',
+    
+    statusChanged: '購読状態が更新されました',
+    willExpireOn: '購読は{{date}}に期限切れとなります',
+    renewedUntil: '購読は{{date}}まで更新されました',
+    
+    featureRestricted: '機能が制限されています',
+    subscriptionRequired: 'この機能を使用するには購読が必要です',
+    
+    processingPurchase: '購読リクエストを処理中...',
+    verifyingReceipt: '購読状態を確認中...',
+    contactSupport: '問題がある場合はサポートにお問い合わせください',
+  },
 }; 

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "汉字学习",
+    "name": "字学堂",
     "slug": "hanzi-learning-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -18,13 +18,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.itlongbow.hanzilearningapp"
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "package": "com.itlongbow.hanzilearningapp"
-    },
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -33,6 +26,9 @@
     ],
     "experiments": {
       "newArchEnabled": true
+    },
+    "android": {
+      "package": "com.itlongbow.hanzilearningapp"
     }
   }
 }

@@ -29,7 +29,7 @@ class GameService {
   private initialized: boolean = false;
   private totalWordPairs: WordPair[] = [];
   private gameProgress: GameProgress | null = null;
-  private commonChars: string = '的一是了我不人在他有这个上们来到时大地为子中你说生国年着就那和要她出也得里后自以会家可下而过天去能对小多然于心学么之都好看起发当没成只如事把还用第样道想作种开美总从无情己面最女但现前些所同日手又行意动方期它头经长儿回位分爱老因很给名法间斯知世什两次使身者被高已亲其进此话常与活正感见明问力理尔点文几定本公特做外孩相西果走将月十实向声车全信重三机工物气每并别真打太新比才便夫再书部水像眼等体却加电主界门利海受听表德少克代员许稜先口由死安写性马光白或住难望教命花结乐色更拉东神记处让母父应直字场平报友关放至张认接告入笑内英军候民岁往何度山觉路带万男边风解叫任金快原吃妈变通师立象数四失满战远格士音轻目条呢病始达深完今提求清王化空业思切怎非找片罗钱紶吗语元喜整荣波判属近层片维律改群众必始则总感察环决投达持换区乐够存究程运待青续连速争术';
+  private commonChars: string = '一二三十大木人口日月水火山王田目白云立刀分八小土子女又力手工心上下中长门方见日开天明时车金风雨来去年生中国人会行家见说事能地得作对着过没';
   
   constructor() {
     this.wordFrequencyService = WordFrequencyService.getInstance();
@@ -77,7 +77,7 @@ class GameService {
   }
 
   public getTotalLevels(): number {
-    const wordsPerLevel = 15; // 第4关之后每关15个词
+    const wordsPerLevel = 12; // 每关12个字
     const firstThreeLevelsWords = 3 + 5 + 10; // 前三关的词组总数
     const remainingWords = this.totalWordPairs.length - firstThreeLevelsWords;
     const remainingLevels = Math.ceil(remainingWords / wordsPerLevel);
@@ -210,18 +210,13 @@ class GameService {
 
     try {
       const count = this.getLevelCount(level);
-      console.log(`Initializing level ${level} with count: ${count}`);
-      
       const chars = this.commonChars.split('').sort(() => Math.random() - 0.5).slice(0, count * 2);
-      console.log(`Selected ${chars.length} random characters for processing`);
-      
       const usedPronunciations = new Set<string>();
       const result: PronunciationChar[] = [];
       
       for (const char of chars) {
         try {
           const pronunciation = pinyin(char, { toneType: 'none' });
-          console.log(`Processing character: ${char}, pronunciation: ${pronunciation}`);
           
           if (!pronunciation || typeof pronunciation !== 'string') {
             console.error(`Invalid pronunciation for character: ${char}`);
@@ -229,16 +224,13 @@ class GameService {
           }
           
           if (usedPronunciations.has(pronunciation)) {
-            console.log(`Skipping duplicate pronunciation: ${pronunciation} for character: ${char}`);
             continue;
           }
           
           usedPronunciations.add(pronunciation);
           result.push({ char });
-          console.log(`Added character: ${char} with pronunciation: ${pronunciation}`);
           
           if (result.length >= count) {
-            console.log(`Reached target count: ${count}, breaking loop`);
             break;
           }
         } catch (error) {
@@ -251,7 +243,6 @@ class GameService {
         throw new Error('No valid characters found for level');
       }
       
-      console.log(`Successfully initialized level ${level} with ${result.length} characters`);
       return result;
       
     } catch (error) {

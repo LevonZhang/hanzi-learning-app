@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, SafeAreaView, Alert, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, SafeAreaView, Alert, FlatList, Platform, Dimensions, useWindowDimensions } from 'react-native';
 import { CharacterLearning } from '../components/CharacterLearning';
 import { LearningManager } from '../services/LearningManager';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,6 +13,8 @@ import { i18n } from '../i18n/i18n';
 import HanziService from '../services/HanziService';
 import StatisticsService from '../services/StatisticsService';
 import SubscriptionService from '../services/SubscriptionService';
+import { ResponsiveContainer } from '../components/ResponsiveContainer';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface Character {
   character: string;
@@ -60,6 +62,9 @@ interface LearningScreenProps {
 }
 
 export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
+  const { theme, isDesktop } = useResponsive();
+  const { width: windowWidth } = useWindowDimensions();
+
   const [state, setState] = useState<LearningState>({
     newWords: [],
     reviewWords: [],
@@ -284,635 +289,249 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     }
   };
 
-  if (!state.currentWord) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.completionContainer}>
-          <MaterialCommunityIcons name="check-circle" size={64} color="#4CAF50" />
-          <Text style={styles.title}>
-            {state.isReviewMode 
-              ? i18n.t('reviewCompleted') 
-              : i18n.t('learningCompleted')
-            }
-          </Text>
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="book-open-variant" size={24} color="#007AFF" />
-              <Text style={styles.statsText}>
-                {i18n.t('totalLearned')}: {state.statistics.totalLearned} {i18n.t('characters')}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="star" size={24} color="#007AFF" />
-              <Text style={styles.statsText}>
-                {i18n.t('mastered')}: {state.statistics.mastered} {i18n.t('characters')}
-              </Text>
-            </View>
-          </View>
-          {state.isReviewMode ? (
-            <TouchableOpacity 
-              style={styles.button}
-              onPress={() => {
-                navigation.reset({
-                  index: 0,
-                  routes: [
-                    {
-                      name: 'Learning',
-                      params: { mode: 'learning', reviewWords: undefined }
-                    },
-                  ],
-                });
-              }}
-            >
-              <MaterialCommunityIcons name="book-plus" size={24} color="#fff" />
-              <Text style={styles.buttonText}>{i18n.t('continueNewLearning')}</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.buttonGroup}>
-              <TouchableOpacity 
-                style={styles.button}
-                onPress={async () => {
-                  const learningManager = LearningManager.getInstance();
-                  await learningManager.resetTodayLearning();
-                  setState(prev => ({
-                    ...prev,
-                    newWords: [],
-                    reviewWords: [],
-                    currentWord: null,
-                    isReviewMode: false
-                  }));
-                  await loadTodayLearning();
-                }}
-              >
-                <MaterialCommunityIcons name="book-plus" size={24} color="#fff" />
-                <Text style={styles.buttonText}>{i18n.t('continueLearning')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.button, styles.reviewButton]}
-                onPress={() => navigation.navigate('Review')}
-              >
-                <MaterialCommunityIcons name="refresh" size={24} color="#fff" />
-                <Text style={styles.buttonText}>{i18n.t('review')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.mode}>
-            {state.isReviewMode ? i18n.t('reviewMode') : 
-             route?.params?.mode === 'display' ? i18n.t('displayMode') :
-             i18n.t('learningMode')}
-          </Text>
-          {route?.params?.mode !== 'display' && (
-            <Text style={styles.progress}>
-              {state.isReviewMode 
-                ? `${i18n.t('reviewProgress')}: ${state.reviewWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.reviewWords.length}`
-                : `${i18n.t('learningProgress')}: ${state.newWords.findIndex(w => w.character === state.currentWord!.character) + 1}/${state.newWords.length}`
-              }
-            </Text>
-          )}
-        </View>
-
-        <View style={styles.characterInfo}>
-          <View style={styles.characterHeader}>
-            <Text style={styles.characterText}>{state.currentWord!.character}</Text>
-            <TouchableOpacity 
-              onPress={() => playSound(state.currentWord!.character)}
-              style={styles.soundButton}
-            >
-              <MaterialCommunityIcons name="volume-high" size={24} color="#5B7B9E" />
-            </TouchableOpacity>
-            <View style={styles.pinyinAndWordsContainer}>
-              <View style={styles.pinyinContainer}>
-                {state.currentWord?.pinyin?.map((pin, index) => (
-                  <View key={index} style={styles.pinyinItem}>
-                    <Text style={styles.pinyinText}>{pin}</Text>
-                  </View>
-                ))}
+    <ResponsiveContainer useSafeArea withPadding>
+      <View style={[styles.container, isDesktop && styles.desktopContainer]}>
+        {state.currentWord ? (
+          <>
+            <View style={[styles.displayContainer, isDesktop && styles.desktopDisplayContainer]}>
+              <View style={[styles.canvas, isDesktop && styles.desktopCanvas]}>
+                <CharacterLearning
+                  character={state.currentWord.character}
+                  onComplete={handleComplete}
+                  onHanziInfo={handleHanziInfo}
+                  isReviewMode={state.isReviewMode}
+                />
               </View>
-            </View>
-          </View>
-
-          <View style={styles.meaningsContainer}>
-            <View style={styles.tabButtons}>
-              <TouchableOpacity 
-                style={[styles.tabButton, activeTab === 'zh' && styles.activeTab]}
-                onPress={() => setActiveTab('zh')}
-              >
-                <Text style={[styles.tabText, activeTab === 'zh' && styles.activeTabText]}>{i18n.t('languageZh')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.tabButton, activeTab === 'en' && styles.activeTab]}
-                onPress={() => setActiveTab('en')}
-              >
-                <Text style={[styles.tabText, activeTab === 'en' && styles.activeTabText]}>{i18n.t('languageEn')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.tabButton, activeTab === 'words' && styles.activeTab]}
-                onPress={() => setActiveTab('words')}
-              >
-                <Text style={[styles.tabText, activeTab === 'words' && styles.activeTabText]}>{i18n.t('commonWords')}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.meaningContent}>
-              {activeTab === 'zh' && (
-                <>
-                  {state.currentWord?.meanings?.zh.slice(0, 3).map((meaning, index) => (
-                    <Text key={index} style={styles.meaningText} numberOfLines={1}>
-                      • {meaning}
+              
+              <View style={[styles.meaningContainer, isDesktop && styles.desktopMeaningContainer]}>
+                <View style={styles.tabContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.tab,
+                      activeTab === 'zh' && { backgroundColor: theme.colors.primary }
+                    ]}
+                    onPress={() => setActiveTab('zh')}
+                  >
+                    <Text style={[
+                      styles.tabText,
+                      activeTab === 'zh' && { color: theme.colors.textLight },
+                      isDesktop && styles.desktopTabText
+                    ]}>
+                      {i18n.t('chinese')}
                     </Text>
-                  ))}
-                  {state.currentWord?.meanings?.zh.length > 3 && (
-                    <TouchableOpacity 
-                      style={styles.showMoreButton}
-                      onPress={() => setShowFullMeaning(true)}
-                    >
-                      <Text style={styles.showMoreText}>{i18n.t('showMore')}</Text>
-                    </TouchableOpacity>
-                  )}
-                </>
-              )}
-              {activeTab === 'en' && (
-                <>
-                  {state.currentWord?.meanings?.en.slice(0, 3).map((meaning, index) => (
-                    <Text key={index} style={styles.meaningText} numberOfLines={1}>
-                      • {meaning}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.tab,
+                      activeTab === 'en' && { backgroundColor: theme.colors.primary }
+                    ]}
+                    onPress={() => setActiveTab('en')}
+                  >
+                    <Text style={[
+                      styles.tabText,
+                      activeTab === 'en' && { color: theme.colors.textLight },
+                      isDesktop && styles.desktopTabText
+                    ]}>
+                      {i18n.t('english')}
                     </Text>
-                  ))}
-                  {state.currentWord?.meanings?.en.length > 3 && (
-                    <TouchableOpacity 
-                      style={styles.showMoreButton}
-                      onPress={() => setShowFullMeaning(true)}
-                    >
-                      <Text style={styles.showMoreText}>{i18n.t('showMore')}</Text>
-                    </TouchableOpacity>
-                  )}
-                </>
-              )}
-              {activeTab === 'words' && (
-                <View style={styles.wordsTabContent}>
-                  {state.currentWord?.words?.slice(0, 4).map((word, index) => (
-                    <View key={index} style={styles.wordItemInTab}>
-                      <Text style={styles.wordText}>{word}</Text>
-                    </View>
-                  ))}
-                  {(!state.currentWord?.words || state.currentWord.words.length === 0) && (
-                    <Text style={styles.noWordsText}>{i18n.t('noCommonWords')}</Text>
-                  )}
+                  </TouchableOpacity>
                 </View>
-              )}
-            </View>
-          </View>
-        </View>
 
-        <Modal
-          visible={showFullMeaning}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowFullMeaning(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {activeTab === 'zh' ? i18n.t('fullMeanings') : i18n.t('fullMeanings')}
-                </Text>
-                <TouchableOpacity 
-                  onPress={() => setShowFullMeaning(false)}
-                  style={styles.closeButton}
+                <ScrollView style={styles.meaningScroll}>
+                  {state.currentWord && (
+                    <>
+                      <Text style={[
+                        styles.meaningText,
+                        isDesktop && styles.desktopMeaningText
+                      ]}>
+                        {activeTab === 'zh'
+                          ? state.currentWord.meanings.zh.join('；')
+                          : state.currentWord.meanings.en.join('; ')}
+                      </Text>
+                      {state.currentWord.words && (
+                        <Text style={[
+                          styles.wordsText,
+                          isDesktop && styles.desktopWordsText
+                        ]}>
+                          {state.currentWord.words.join('、')}
+                        </Text>
+                      )}
+                    </>
+                  )}
+                </ScrollView>
+
+                <TouchableOpacity
+                  style={[styles.soundButton, isDesktop && styles.desktopSoundButton]}
+                  onPress={() => state.currentWord && playSound(state.currentWord.character)}
                 >
-                  <Text style={styles.closeButtonText}>×</Text>
+                  <MaterialCommunityIcons
+                    name="volume-high"
+                    size={isDesktop ? 28 : 24}
+                    color={theme.colors.primary}
+                  />
                 </TouchableOpacity>
               </View>
-              <FlatList
-                data={activeTab === 'zh' ? state.currentWord?.meanings?.zh : state.currentWord?.meanings?.en}
-                renderItem={({ item }) => (
-                  <Text style={styles.modalMeaningText}>• {item}</Text>
-                )}
-                keyExtractor={(item, index) => index.toString()}
-                contentContainerStyle={styles.modalScrollContent}
-                showsVerticalScrollIndicator={true}
-              />
             </View>
-          </View>
-        </Modal>
 
-        {state.currentWord?.strokes === 0 && (
-          <View style={styles.noStrokesContainer}>
-            <MaterialCommunityIcons name="information" size={20} color="#666" />
-            <Text style={styles.noStrokesText}>{i18n.t('noStrokesData')}</Text>
-          </View>
-        )}
-
-        <CharacterLearning
-          character={state.currentWord.character}
-          onComplete={handleComplete}
-          onHanziInfo={handleHanziInfo}
-          isReviewMode={state.isReviewMode}
-        />
-
-        {state.currentWord && route?.params?.mode !== 'display' && (
-          <View style={styles.navigationButtons}>
-            <TouchableOpacity 
-              style={[
-                styles.navigationButton,
-                styles.prevButton,
-                {
-                  opacity: (() => {
-                    const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
-                    const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
-                    return currentIndex === 0 ? 0.5 : 1;
-                  })()
-                }
-              ]}
-              onPress={() => {
-                const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
-                const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
-                
-                if (currentIndex > 0) {
-                  setState(prev => ({
-                    ...prev,
-                    currentWord: currentList[currentIndex - 1]
-                  }));
-                }
-              }}
-              disabled={(() => {
-                const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
-                const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
-                return currentIndex === 0;
-              })()}
-            >
-              <View style={styles.navigationButtonContent}>
-                <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
-                <Text style={styles.navigationButtonText}>{i18n.t('previous')}</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.navigationButton]}
-              onPress={async () => {
-                const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
-                const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
-                
-                if (currentIndex < currentList.length - 1) {
-                  // 如果不是复习模式，记录当前字为已学习
-                  if (!state.isReviewMode) {
-                    await handleCharacterLearned(state.currentWord!.character);
-                  }
-                  
-                  // 更新到下一个字
-                  setState(prev => ({
-                    ...prev,
-                    currentWord: currentList[currentIndex + 1]
-                  }));
-                } else {
-                  // 如果是最后一个字，更新统计并结束学习
-                  const learningManager = LearningManager.getInstance();
-                  const statistics = await learningManager.getStatistics();
-                  setState(prev => ({
-                    ...prev,
-                    currentWord: null,
-                    statistics
-                  }));
-                }
-              }}
-            >
-              <View style={styles.navigationButtonContent}>
-                <Text style={styles.navigationButtonText}>{i18n.t('next')}</Text>
-                <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
-              </View>
-            </TouchableOpacity>
+            <View style={[styles.buttonContainer, isDesktop && styles.desktopButtonContainer]}>
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: theme.colors.success }]}
+                onPress={() => handleComplete(true)}
+              >
+                <Text style={[styles.buttonText, { color: theme.colors.textLight }]}>
+                  {i18n.t('next')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <View style={styles.completedContainer}>
+            <Text style={[styles.completedText, { color: theme.colors.textPrimary }]}>
+              {i18n.t('learningCompleted')}
+            </Text>
+            <Text style={[styles.statsText, { color: theme.colors.textSecondary }]}>
+              {`${i18n.t('totalLearned')}: ${state.statistics.totalLearned}\n`}
+              {`${i18n.t('mastered')}: ${state.statistics.mastered}\n`}
+              {`${i18n.t('needReview')}: ${state.statistics.needReview}`}
+            </Text>
           </View>
         )}
       </View>
-    </SafeAreaView>
+    </ResponsiveContainer>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
-  content: {
+  desktopContainer: {
+    maxWidth: 1200,
+    alignSelf: 'center',
+  },
+  displayContainer: {
     flex: 1,
-    padding: 15,
+    alignItems: 'center',
   },
-  header: {
+  desktopDisplayContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    alignItems: 'flex-start',
+    paddingHorizontal: 32,
   },
-  mode: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  progress: {
-    fontSize: 16,
-    color: '#666',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#333',
-  },
-  statsContainer: {
-    backgroundColor: '#f8f8f8',
-    padding: 20,
-    borderRadius: 12,
+  canvas: {
     width: '100%',
-    marginBottom: 30,
+    aspectRatio: 1,
+    marginBottom: 16,
   },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    gap: 12,
+  desktopCanvas: {
+    width: '60%',
+    marginBottom: 0,
   },
-  statsText: {
-    fontSize: 16,
-    color: '#333',
-    flex: 1,
-  },
-  buttonGroup: {
+  meaningContainer: {
     width: '100%',
-    gap: 15,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  reviewButton: {
-    backgroundColor: '#5856D6',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  navigationButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    position: 'absolute',
-    bottom: 75,
-    left: 20,
-    right: 20,
-    zIndex: 1,
-  },
-  navigationButton: {
-    backgroundColor: '#007AFF',
-    padding: 10,
+    padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    width: 100,
+    backgroundColor: '#fff',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
-  prevButton: {
-    backgroundColor: '#5856D6',
+  desktopMeaningContainer: {
+    width: '35%',
+    marginLeft: 32,
   },
-  navigationButtonContent: {
+  tabContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
+    marginBottom: 16,
   },
-  navigationButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  characterInfo: {
-    marginVertical: 5,
-    padding: 10,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 10,
-    minHeight: 160,
-  },
-  characterHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 12,
-  },
-  characterText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  pinyinAndWordsContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  pinyinContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pinyinItem: {
-    backgroundColor: '#5B7B9E',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  pinyinText: {
-    color: 'white',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  meaningsContainer: {
-    gap: 8,
-  },
-  meaningSection: {
-    gap: 5,
-  },
-  meaningTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  meaningText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 18,
-    paddingVertical: 2,
-    marginBottom: 2,
-  },
-  soundButton: {
-    padding: 8,
-  },
-  tabButtons: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    marginBottom: 10,
-  },
-  tabButton: {
+  tab: {
     flex: 1,
     paddingVertical: 8,
+    marginHorizontal: 4,
+    borderRadius: 4,
     alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#5B7B9E',
   },
   tabText: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '500',
   },
-  activeTabText: {
-    color: '#5B7B9E',
-    fontWeight: '600',
-  },
-  meaningContent: {
-    paddingVertical: 2,
-    minHeight: 70,
-  },
-  showMoreButton: {
-    paddingVertical: 4,
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  showMoreText: {
-    color: '#5B7B9E',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    width: '90%',
-    maxHeight: '70%',
-    paddingTop: 15,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  closeButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-  },
-  closeButtonText: {
-    fontSize: 20,
-    color: '#666',
-    fontWeight: '600',
-    textAlign: 'center',
-    width: 24,
-    height: 24,
-    lineHeight: 24,
-  },
-  modalScrollContent: {
-    flexGrow: 1,
-  },
-  modalMeaningText: {
+  desktopTabText: {
     fontSize: 16,
-    color: '#333',
+  },
+  meaningScroll: {
+    maxHeight: 200,
+  },
+  meaningText: {
+    fontSize: 16,
     lineHeight: 24,
     marginBottom: 8,
   },
-  wordsTabContent: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    paddingVertical: 5,
+  desktopMeaningText: {
+    fontSize: 18,
+    lineHeight: 28,
   },
-  wordItemInTab: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  wordText: {
+  wordsText: {
     fontSize: 14,
-    color: '#333',
-  },
-  noWordsText: {
+    lineHeight: 20,
     color: '#666',
-    fontSize: 14,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    width: '100%',
-    paddingVertical: 10,
   },
-  completionContainer: {
+  desktopWordsText: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  soundButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 8,
+  },
+  desktopSoundButton: {
+    padding: 12,
+  },
+  buttonContainer: {
+    padding: 16,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 24, // 增加底部间距，避免被导航栏遮挡
+  },
+  desktopButtonContainer: {
+    maxWidth: 200, // 减小按钮容器的最大宽度
+    alignSelf: 'center',
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  completedContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    padding: 32,
   },
-  noStrokesContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 8,
-    marginVertical: 10,
-    gap: 8,
+  completedText: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  noStrokesText: {
-    fontSize: 14,
-    color: '#666',
+  statsText: {
+    fontSize: 16,
+    textAlign: 'center',
   },
 }); 

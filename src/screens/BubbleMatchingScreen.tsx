@@ -11,6 +11,7 @@ import {
   Easing,
   ActivityIndicator,
   SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +23,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { storageService } from '../services/StorageService';
 import StatisticsService from '../services/StatisticsService';
 import SubscriptionService from '../services/SubscriptionService';
+import { ResponsiveContainer } from '../components/ResponsiveContainer';
+import { useResponsive } from '../hooks/useResponsive';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
@@ -31,21 +34,14 @@ const HORIZONTAL_GAP = 5; // 减小水平间距
 const VERTICAL_OVERLAP = -8; // 增加垂直重叠
 const TOP_MARGIN = 10; // 使用常量作为起始边距
 
-// 修改颜色系统，每个色系使用相同基色的不同深浅和透明度
-const BUBBLE_COLORS = [
-  // 粉色系
-  ['rgba(255, 182, 193, 0.9)', 'rgba(255, 192, 203, 0.6)', 'rgba(255, 228, 235, 0.4)'],
-  // 蓝色系
-  ['rgba(135, 206, 235, 0.9)', 'rgba(176, 224, 230, 0.6)', 'rgba(240, 248, 255, 0.4)'],
-  // 紫色系
-  ['rgba(216, 191, 216, 0.9)', 'rgba(221, 160, 221, 0.6)', 'rgba(245, 230, 245, 0.4)'],
-  // 绿色系
-  ['rgba(144, 238, 144, 0.9)', 'rgba(152, 251, 152, 0.6)', 'rgba(240, 255, 240, 0.4)'],
-  // 黄色系
-  ['rgba(255, 218, 185, 0.9)', 'rgba(255, 228, 196, 0.6)', 'rgba(255, 245, 238, 0.4)'],
-  // 青色系
-  ['rgba(175, 238, 238, 0.9)', 'rgba(224, 255, 255, 0.6)', 'rgba(240, 255, 255, 0.4)']
-];
+const BUBBLE_COLORS: readonly [string, string, string][] = [
+  ['#FF6B6B', '#FF8787', '#FFA5A5'],
+  ['#4ECDC4', '#45B7AF', '#3CA29A'],
+  ['#FFD93D', '#FFE066', '#FFE88F'],
+  ['#95E1D3', '#A8E6DA', '#BBE9E2'],
+  ['#A8E6CF', '#BDEBD7', '#D1F0E0'],
+  ['#FF8B94', '#FFA3AA', '#FFBBC1'],
+] as const;
 
 type GameMode = 'word' | 'pronunciation';
 type GameLevel = 1 | 2 | 3 | 4 | 5;
@@ -68,12 +64,15 @@ interface Bubble {
   char: string;
   scale: Animated.Value;
   opacity: Animated.Value;
-  matches: string[];
-  colors: string[];
-  position: { x: number; y: number };
-  isSecondChar: boolean;
-  word: string;
+  colors: readonly [string, string, string];
+  position: {
+    x: number;
+    y: number;
+  };
   floatingAnim: Animated.Value;
+  matches: string[];
+  word: string;
+  isSecondChar: boolean;
 }
 
 // 添加洗牌函数
@@ -87,6 +86,14 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreenProps) => {
+  const { theme, isDesktop } = useResponsive();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  
+  // Calculate bubble size based on screen dimensions
+  const BUBBLE_SIZE = isDesktop
+    ? Math.min(windowWidth / 8, windowHeight / 6)
+    : Math.min(windowWidth / 4, windowHeight / 6);
+
   const [level, setLevel] = useState<number>(1);
   const [score, setScore] = useState(0);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
@@ -150,38 +157,22 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
   const generateLayeredPositions = (totalBubbles: number) => {
     const positions: { x: number; y: number }[] = [];
-    const bubblesPerRow = 4; // 每行固定4个气球
-    const effectiveBubbleSize = BUBBLE_SIZE + 10; // 减小气球之间的间距
+    const bubblesPerRow = isDesktop ? 6 : 4;
+    const effectiveBubbleSize = BUBBLE_SIZE + 10;
     const rows = Math.ceil(totalBubbles / bubblesPerRow);
     
-    // 计算总宽度和起始x坐标，使每行气球居中
     const totalWidth = bubblesPerRow * effectiveBubbleSize;
-    const startX = (SCREEN_WIDTH - totalWidth) / 2;  // 移除 effectiveBubbleSize / 2，让整体布局向左移动半个气球宽度
-    
-    // 设置起始y坐标靠近顶部，只留一点边距
-    const startY = 20; // 距离顶部20像素
-    const verticalGap = BUBBLE_SIZE - 10; // 垂直方向上气球间距略小于气球大小
+    const startX = (windowWidth - totalWidth) / 2;
+    const startY = 20;
+    const verticalGap = BUBBLE_SIZE - 10;
 
     for (let row = 0; row < rows; row++) {
+      const y = startY + row * verticalGap;
       const bubblesInThisRow = Math.min(bubblesPerRow, totalBubbles - row * bubblesPerRow);
-      // 计算这一行的总宽度
-      const rowWidth = bubblesInThisRow * effectiveBubbleSize;
-      // 计算这一行的起始x坐标，使这一行居中
-      const rowStartX = (SCREEN_WIDTH - rowWidth) / 2;  // 同样移除 effectiveBubbleSize / 2
-
+      
       for (let col = 0; col < bubblesInThisRow; col++) {
-        // 基础位置
-        const x = rowStartX + col * effectiveBubbleSize;
-        const y = startY + row * verticalGap;
-        
-        // 添加较小的随机偏移
-        const randomOffsetX = (Math.random() - 0.5) * 6; // 减小水平随机偏移
-        const randomOffsetY = (Math.random() - 0.5) * 6; // 减小垂直随机偏移
-        
-        positions.push({
-          x: x + randomOffsetX,
-          y: y + randomOffsetY
-        });
+        const x = startX + col * effectiveBubbleSize;
+        positions.push({ x, y });
       }
     }
 
@@ -623,7 +614,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
           style={styles.bubbleContent}
         >
           <LinearGradient
-            colors={bubble.colors as unknown as readonly [string, string, string]}
+            colors={bubble.colors}
             style={styles.bubbleGradient}
             start={{ x: 0.2, y: 0.2 }}
             end={{ x: 0.8, y: 0.8 }}
@@ -724,116 +715,122 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.headerButton} 
-          onPress={handleExit}
-        >
-          <MaterialCommunityIcons name="exit-to-app" size={24} color="#666" />
-        </TouchableOpacity>
+    <ResponsiveContainer>
+      <View style={styles.container}>
+        <View style={[styles.header, isDesktop && styles.desktopHeader]}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={isDesktop ? 28 : 24}
+              color={theme.colors.textPrimary}
+            />
+          </TouchableOpacity>
+          
+          <View style={styles.levelTitleContainer}>
+            <Text style={[styles.levelTitle, isDesktop && styles.desktopLevelTitle]}>
+              {i18n.t('levelTitle', { current: level, total: totalLevels })}
+            </Text>
+          </View>
 
-        <View style={styles.levelTitleContainer}>
-          <Text style={styles.levelTitle}>
-            {i18n.t('levelTitle', { current: level, total: totalLevels })}
-          </Text>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={showHintAnimation}
+            disabled={isShowingHint}
+          >
+            <MaterialCommunityIcons
+              name="lightbulb"
+              size={isDesktop ? 28 : 24}
+              color={isShowingHint ? theme.colors.textSecondary : theme.colors.primary}
+            />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity 
-          style={styles.headerButton} 
-          onPress={showHintAnimation}
-        >
-          <MaterialCommunityIcons name="lightbulb-outline" size={24} color="#666" />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.progressSection}>
+          <View style={styles.scoreContainer}>
+            <Text style={styles.scoreText}>{i18n.t('score', { score })}</Text>
+          </View>
 
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBarContainer}>
-          <Animated.View 
-            style={[
-              styles.progressBar,
-              { width: progressWidth.interpolate({
-                inputRange: [0, 100],
-                outputRange: ['0%', '100%']
-              })}
-            ]}
-          />
+          <View style={styles.progressBarContainer}>
+            <Animated.View 
+              style={[
+                styles.progressBar,
+                {
+                  width: progressWidth.interpolate({
+                    inputRange: [0, 100],
+                    outputRange: ['0%', '100%']
+                  })
+                }
+              ]} 
+            />
+          </View>
         </View>
-        <Text style={styles.scoreText}>{score}</Text>
-      </View>
 
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.loadingText}>{i18n.t('loading')}</Text>
-        </View>
-      ) : (
-        <>
-          <View style={styles.gameArea}>
-            <View style={styles.bubblesContainer}>
-              {bubbles.map(renderBubble)}
-            </View>
+        <View style={[styles.gameArea, isDesktop && styles.desktopGameArea]}>
+          <View style={styles.bubblesContainer}>
+            {bubbles.map(renderBubble)}
+          </View>
 
-            <View style={styles.targetArea}>
-              <View style={styles.targetControls}>
-                <Animated.View style={{
-                  transform: [{
-                    translateY: floatingAnimation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, -10]
-                    })
-                  }]
-                }}>
+          <View style={[styles.targetArea, isDesktop && styles.desktopTargetArea]}>
+            <View style={styles.targetControls}>
+              <Animated.View style={{
+                transform: [{
+                  translateY: floatingAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, -10]
+                  })
+                }]
+              }}>
+                <LinearGradient
+                  colors={BUBBLE_COLORS[0]}
+                  style={[
+                    styles.currentCharContainer,
+                    isDesktop && styles.desktopCurrentCharContainer
+                  ]}
+                  start={{ x: 0.2, y: 0.2 }}
+                  end={{ x: 0.8, y: 0.8 }}
+                >
+                  {/* 主反光效果 - 右上角 */}
                   <LinearGradient
-                    colors={BUBBLE_COLORS[0] as unknown as readonly [string, string, string]}
-                    style={styles.currentCharContainer}
+                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0)']}
+                    style={[styles.reflection, styles.mainReflection]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                  {/* 次要反光效果 - 左下角 */}
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
+                    style={[styles.reflection, styles.secondaryReflection]}
+                    start={{ x: 1, y: 1 }}
+                    end={{ x: 0, y: 0 }}
+                  />
+                  {/* 彩虹光晕效果 */}
+                  <LinearGradient
+                    colors={[
+                      'rgba(255, 255, 255, 0.4)',
+                      'rgba(255, 182, 193, 0.2)',
+                      'rgba(173, 216, 230, 0.2)',
+                      'rgba(255, 255, 255, 0.1)'
+                    ]}
+                    style={styles.iridescence}
                     start={{ x: 0.2, y: 0.2 }}
                     end={{ x: 0.8, y: 0.8 }}
-                  >
-                    {/* 主反光效果 - 右上角 */}
-                    <LinearGradient
-                      colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0)']}
-                      style={[styles.reflection, styles.mainReflection]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    />
-                    {/* 次要反光效果 - 左下角 */}
-                    <LinearGradient
-                      colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
-                      style={[styles.reflection, styles.secondaryReflection]}
-                      start={{ x: 1, y: 1 }}
-                      end={{ x: 0, y: 0 }}
-                    />
-                    {/* 彩虹光晕效果 */}
-                    <LinearGradient
-                      colors={[
-                        'rgba(255, 255, 255, 0.4)',
-                        'rgba(255, 182, 193, 0.2)',
-                        'rgba(173, 216, 230, 0.2)',
-                        'rgba(255, 255, 255, 0.1)'
-                      ]}
-                      style={styles.iridescence}
-                      start={{ x: 0.2, y: 0.2 }}
-                      end={{ x: 0.8, y: 0.8 }}
-                    />
-                    <Text style={styles.currentCharText}>{currentChar}</Text>
-                  </LinearGradient>
-                </Animated.View>
-              </View>
+                  />
+                  <Text style={[
+                    styles.currentCharText,
+                    isDesktop && styles.desktopCurrentCharText
+                  ]}>
+                    {currentChar}
+                  </Text>
+                </LinearGradient>
+              </Animated.View>
             </View>
           </View>
-
-          <View style={styles.instructionsContainer}>
-            <View style={styles.instructionsBox}>
-              <MaterialCommunityIcons name="information" size={16} color="#4CAF50" />
-              <Text style={styles.instructionsText}>
-                {i18n.t('correctMatch')} +10 {i18n.t('points')} | {i18n.t('incorrectMatch')} -5 {i18n.t('points')} | {i18n.t('useHint')} -2 {i18n.t('points')}
-              </Text>
-            </View>
-          </View>
-        </>
-      )}
-    </SafeAreaView>
+        </View>
+      </View>
+    </ResponsiveContainer>
   );
 };
 
@@ -852,6 +849,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  desktopHeader: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
   headerButton: {
     padding: 8,
     borderRadius: 8,
@@ -866,16 +867,103 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
+  desktopLevelTitle: {
+    fontSize: 24,
+  },
+  progressSection: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  scoreContainer: {
+    marginBottom: 8,
+  },
+  scoreText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+  },
   gameArea: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingBottom: Platform.OS === 'ios' ? 120 : 90, // 增加底部间距，iOS 需要更多空间
+    paddingBottom: Platform.OS === 'ios' ? 120 : 90,
+  },
+  desktopGameArea: {
+    paddingBottom: 140,
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
   },
   bubblesContainer: {
-    width: GAME_AREA_WIDTH,
-    height: GAME_AREA_HEIGHT,
-    marginHorizontal: 10,
-    position: 'relative', // 改为相对定位，作为气球的容器
+    flex: 1,
+    position: 'relative',
+  },
+  targetArea: {
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 140 : 110,
+    left: 0,
+    right: 0,
+  },
+  desktopTargetArea: {
+    height: 120,
+    bottom: 160,
+  },
+  targetControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  currentCharContainer: {
+    width: BUBBLE_SIZE - 20,
+    height: BUBBLE_SIZE - 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: (BUBBLE_SIZE - 20) / 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 2,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
+    backgroundColor: 'transparent',
+  },
+  desktopCurrentCharContainer: {
+    width: BUBBLE_SIZE - 16,
+    height: BUBBLE_SIZE - 16,
+    borderRadius: (BUBBLE_SIZE - 16) / 2,
+  },
+  currentCharText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    textShadowColor: 'rgba(255, 255, 255, 0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    zIndex: 2,
+  },
+  desktopCurrentCharText: {
+    fontSize: 36,
   },
   bubble: {
     width: BUBBLE_SIZE,
@@ -953,49 +1041,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
     zIndex: 2,
   },
-  targetArea: {
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 140 : 110, // 增加底部距离，将目标区域往上移
-    left: 0,
-    right: 0,
-  },
-  targetControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-  },
-  currentCharContainer: {
-    width: BUBBLE_SIZE - 20, // 稍微小一点的尺寸
-    height: BUBBLE_SIZE - 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: (BUBBLE_SIZE - 20) / 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 2,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    backgroundColor: 'transparent',
-  },
-  currentCharText: {
-    fontSize: 28, // 稍微小一点的字号
-    fontWeight: 'bold',
-    color: '#333',
-    textShadowColor: 'rgba(255, 255, 255, 0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    zIndex: 2,
-  },
   instructionsContainer: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 100 : 70,
@@ -1042,34 +1087,5 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#333',
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  progressBarContainer: {
-    flex: 1,
-    height: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginRight: 10,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 3,
-  },
-  scoreText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-    minWidth: 40,
-    textAlign: 'right',
   },
 }); 

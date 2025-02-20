@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Switch, Alert, ScrollView, Dimensions, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, FlatList } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { i18n } from '../i18n/i18n';
-import SubscriptionService from '../services/SubscriptionService';
 import { LearningManager } from '../services/LearningManager';
-import HanziService from '../services/HanziService';
-import StatisticsService from '../services/StatisticsService';
+import SubscriptionService from '../services/SubscriptionService';
 import GameService from '../services/GameService';
+import { ResponsiveContainer } from '../components/ResponsiveContainer';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -32,6 +32,13 @@ interface LearningStats {
   totalLearningTime: number; // 以分钟为单位
   weeklyProgress: number[];
   monthlyProgress: number[];
+}
+
+interface GameProgress {
+  currentLevel: number;
+  completedWords: string[];
+  score: number;
+  isCompleted: boolean;
 }
 
 interface GameStats {
@@ -60,11 +67,8 @@ interface LearnedCharacter {
   lastReviewDate: string;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const MENU_WIDTH = 100;
-const CONTENT_WIDTH = SCREEN_WIDTH - MENU_WIDTH;
-
 export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
+  const { theme, isDesktop, isTablet } = useResponsive();
   const [dailyWords, setDailyWords] = useState(5);
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language || 'zh');
   const [isPremium, setIsPremium] = useState(false);
@@ -88,9 +92,9 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   const [learnedCharacters, setLearnedCharacters] = useState<LearnedCharacter[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const ITEMS_PER_PAGE = 18;
-  const [gameProgress, setGameProgress] = useState<any>(null);
-  const [pronunciationGameProgress, setPronunciationGameProgress] = useState<any>(null);
+  const [gameProgress, setGameProgress] = useState<GameProgress | null>(null);
+  const [pronunciationGameProgress, setPronunciationGameProgress] = useState<GameProgress | null>(null);
+  const ITEMS_PER_PAGE = isDesktop ? 24 : 18;
 
   useEffect(() => {
     loadSettings();
@@ -404,19 +408,29 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   };
 
   const renderMenuItem = (section: MenuSection, icon: keyof typeof MaterialCommunityIcons.glyphMap, title: string) => (
-        <TouchableOpacity 
-      style={[styles.menuItem, activeSection === section && styles.activeMenuItem]}
+    <TouchableOpacity
+      style={[
+        styles.menuItem,
+        activeSection === section && { backgroundColor: theme.colors.primary },
+        isDesktop && styles.desktopMenuItem
+      ]}
       onPress={() => setActiveSection(section)}
     >
-      <MaterialCommunityIcons 
-        name={icon} 
-        size={24} 
-        color={activeSection === section ? '#007AFF' : '#666'} 
+      <MaterialCommunityIcons
+        name={icon}
+        size={isDesktop ? 28 : 24}
+        color={activeSection === section ? theme.colors.textLight : theme.colors.textPrimary}
       />
-      <Text style={[styles.menuItemText, activeSection === section && styles.activeMenuItemText]}>
+      <Text
+        style={[
+          styles.menuText,
+          activeSection === section && { color: theme.colors.textLight },
+          isDesktop && styles.desktopMenuText
+        ]}
+      >
         {title}
       </Text>
-        </TouchableOpacity>
+    </TouchableOpacity>
   );
 
   const renderContent = () => {
@@ -445,7 +459,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                   {i18n.t('daysRemaining', { days: formatRemainingDays(subscriptionStatus.expirationDate) })}
                 </Text>
               )}
-      </View>
+            </View>
 
             {!subscriptionStatus.isLifetime && (
               <View style={styles.subscriptionPlans}>
@@ -482,54 +496,54 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           <View style={styles.sectionContent}>
             <View style={styles.settingGroup}>
               <Text style={styles.settingGroupTitle}>{i18n.t('learningSettings')}</Text>
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>{i18n.t('dailyWords')}</Text>
-            <View style={styles.numberSelector}>
-              <TouchableOpacity 
-                onPress={() => dailyWords > 1 && saveDailyWords(dailyWords - 1)}
-                style={styles.numberButton}
-              >
-                <Text style={styles.numberButtonText}>-</Text>
-              </TouchableOpacity>
-              <Text style={styles.numberValue}>{dailyWords}</Text>
-              <TouchableOpacity 
-                onPress={() => dailyWords < 20 && saveDailyWords(dailyWords + 1)}
-                style={styles.numberButton}
-              >
-                <Text style={styles.numberButtonText}>+</Text>
-              </TouchableOpacity>
+              <View style={styles.settingItem}>
+                <Text style={styles.settingLabel}>{i18n.t('dailyWords')}</Text>
+                <View style={styles.numberSelector}>
+                  <TouchableOpacity 
+                    onPress={() => dailyWords > 1 && saveDailyWords(dailyWords - 1)}
+                    style={styles.numberButton}
+                  >
+                    <Text style={styles.numberButtonText}>-</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.numberValue}>{dailyWords}</Text>
+                  <TouchableOpacity 
+                    onPress={() => dailyWords < 20 && saveDailyWords(dailyWords + 1)}
+                    style={styles.numberButton}
+                  >
+                    <Text style={styles.numberButtonText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
             <View style={styles.settingGroup}>
               <Text style={styles.settingGroupTitle}>{i18n.t('language')}</Text>
-          <View style={styles.languageButtons}>
-            <TouchableOpacity 
-              style={[styles.languageButton, currentLanguage === 'zh' && styles.activeLanguage]}
-              onPress={() => changeLanguage('zh')}
-            >
-              <Text style={[styles.languageButtonText, currentLanguage === 'zh' && styles.activeLanguageText]}>
-                中文
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.languageButton, currentLanguage === 'en' && styles.activeLanguage]}
-              onPress={() => changeLanguage('en')}
-            >
-              <Text style={[styles.languageButtonText, currentLanguage === 'en' && styles.activeLanguageText]}>
-                English
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.languageButton, currentLanguage === 'ja' && styles.activeLanguage]}
-              onPress={() => changeLanguage('ja')}
-            >
-              <Text style={[styles.languageButtonText, currentLanguage === 'ja' && styles.activeLanguageText]}>
-                日本語
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+              <View style={styles.languageButtons}>
+                <TouchableOpacity 
+                  style={[styles.languageButton, currentLanguage === 'zh' && styles.activeLanguage]}
+                  onPress={() => changeLanguage('zh')}
+                >
+                  <Text style={[styles.languageButtonText, currentLanguage === 'zh' && styles.activeLanguageText]}>
+                    中文
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.languageButton, currentLanguage === 'en' && styles.activeLanguage]}
+                  onPress={() => changeLanguage('en')}
+                >
+                  <Text style={[styles.languageButtonText, currentLanguage === 'en' && styles.activeLanguageText]}>
+                    English
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.languageButton, currentLanguage === 'ja' && styles.activeLanguage]}
+                  onPress={() => changeLanguage('ja')}
+                >
+                  <Text style={[styles.languageButtonText, currentLanguage === 'ja' && styles.activeLanguageText]}>
+                    日本語
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         );
       case 'gameStats':
@@ -692,24 +706,37 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.menuContainer}>
-          {renderMenuItem('premium', 'crown', i18n.t('premium'))}
-          {renderMenuItem('settings', 'cog', i18n.t('settings'))}
-          {renderMenuItem('gameStats', 'gamepad-variant', i18n.t('gameHighScores'))}
-          {renderMenuItem('learningStats', 'chart-bar', i18n.t('learningProgress'))}
-        </View>
-        <View style={styles.mainContentWrapper}>
-          <FlatList
-            data={[{ key: 'content' }]}
-            renderItem={() => renderContent()}
-            style={styles.mainContent}
-            showsVerticalScrollIndicator={true}
-          />
-        </View>
+    <ResponsiveContainer>
+      <View style={[styles.container, isDesktop && styles.desktopContainer]}>
+        {isDesktop || isTablet ? (
+          // Desktop/Tablet Layout
+          <View style={styles.splitView}>
+            <View style={styles.sidebar}>
+              {renderMenuItem('premium', 'crown', i18n.t('premium'))}
+              {renderMenuItem('settings', 'cog', i18n.t('learningSettings'))}
+              {renderMenuItem('learningStats', 'chart-bar', i18n.t('menuStats'))}
+              {renderMenuItem('gameStats', 'gamepad-variant', i18n.t('gameHighScores'))}
+            </View>
+            <View style={styles.mainContent}>
+              {renderContent()}
+            </View>
+          </View>
+        ) : (
+          // Mobile Layout
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.menuScroll}>
+              {renderMenuItem('premium', 'crown', i18n.t('premium'))}
+              {renderMenuItem('settings', 'cog', i18n.t('learningSettings'))}
+              {renderMenuItem('learningStats', 'chart-bar', i18n.t('menuStats'))}
+              {renderMenuItem('gameStats', 'gamepad-variant', i18n.t('gameHighScores'))}
+            </ScrollView>
+            <ScrollView style={styles.contentScroll}>
+              {renderContent()}
+            </ScrollView>
+          </>
+        )}
       </View>
-    </SafeAreaView>
+    </ResponsiveContainer>
   );
 };
 
@@ -718,42 +745,55 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  content: {
+  desktopContainer: {
+    paddingHorizontal: 0,
+  },
+  splitView: {
     flex: 1,
     flexDirection: 'row',
   },
-  menuContainer: {
-    width: MENU_WIDTH,
-    backgroundColor: '#f8f8f8',
-    paddingTop: 20,
+  sidebar: {
+    width: 240,
+    backgroundColor: '#f8f9fa',
     borderRightWidth: 1,
     borderRightColor: '#e0e0e0',
-  },
-  menuItem: {
-    padding: 15,
-    alignItems: 'center',
-    borderLeftWidth: 3,
-    borderLeftColor: 'transparent',
-  },
-  activeMenuItem: {
-    backgroundColor: '#fff',
-    borderLeftColor: '#007AFF',
-  },
-  menuItemText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 5,
-    textAlign: 'center',
-  },
-  activeMenuItemText: {
-    color: '#007AFF',
-  },
-  mainContentWrapper: {
-    width: CONTENT_WIDTH,
-    flex: 1,
+    padding: 16,
   },
   mainContent: {
     flex: 1,
+    padding: 24,
+  },
+  menuScroll: {
+    flexGrow: 0,
+    height: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#f8f9fa',
+  },
+  contentScroll: {
+    flex: 1,
+    padding: 16,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+  },
+  desktopMenuItem: {
+    padding: 16,
+    marginBottom: 12,
+  },
+  menuText: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  desktopMenuText: {
+    fontSize: 18,
   },
   sectionContent: {
     flex: 1,
@@ -1058,4 +1098,4 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
   },
-}); 
+});

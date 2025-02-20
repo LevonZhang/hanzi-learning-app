@@ -38,10 +38,11 @@ interface Props {
   character: string;
   onComplete: (isCorrect: boolean) => void;
   onHanziInfo: (info: HanziInfo) => void;
-  isReviewMode?: boolean;
+  isReviewMode: boolean;
+  isDesktop?: boolean;
 }
 
-export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHanziInfo, isReviewMode = false }) => {
+export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHanziInfo, isReviewMode = false, isDesktop }) => {
   const webViewRef = useRef<WebView>(null);
   const [isReady, setIsReady] = useState(false);
   const [showStrokeOrder, setShowStrokeOrder] = useState(false);
@@ -49,6 +50,10 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [hasStrokeData, setHasStrokeData] = useState(true);
+
+  const { width, height } = Dimensions.get('window');
+  const isWideScreen = width >= 800;
+  const shouldUseDesktopLayout = isDesktop || isWideScreen;
 
   useEffect(() => {
     // Reset states when character changes
@@ -242,6 +247,187 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     }
   }, [character, isReady]);
 
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      alignItems: 'center',
+      backgroundColor: '#fff',
+      paddingBottom: 20,
+    },
+    displayContainer: {
+      width: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 90,
+      height: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 90,
+      backgroundColor: 'transparent',
+      overflow: 'hidden',
+      marginTop: -25,
+      marginBottom: -5,
+      position: 'relative',
+    },
+    canvas: {
+      width: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 90,
+      height: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 90,
+      backgroundColor: 'transparent',
+    },
+    buttonContainer: {
+      width: shouldUseDesktopLayout ? '80%' : '100%',
+      maxWidth: 800,
+      paddingHorizontal: 20,
+      gap: 8,
+    },
+    buttonRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    button: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: shouldUseDesktopLayout ? 12 : 10,
+      borderRadius: 8,
+      gap: 4,
+      minWidth: shouldUseDesktopLayout ? 150 : 120,
+      backgroundColor: '#5B7B9E',
+    },
+    buttonText: {
+      color: '#fff',
+      fontSize: shouldUseDesktopLayout ? 14 : 13,
+      fontWeight: '600',
+      textAlign: 'center',
+      flexShrink: 1,
+    },
+    demonstrateButton: {},
+    practiceButton: {},
+    wrongBookButton: {},
+    generateButton: {},
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContent: {
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      width: shouldUseDesktopLayout ? '60%' : '90%',
+      maxWidth: 800,
+      maxHeight: '80%',
+      padding: 15,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 15,
+    },
+    modalTitle: {
+      fontSize: shouldUseDesktopLayout ? 20 : 18,
+      fontWeight: '600',
+      color: '#333',
+    },
+    closeButton: {
+      padding: 5,
+    },
+    closeButtonText: {
+      fontSize: 24,
+      color: '#666',
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginTop: 15,
+    },
+    modalButton: {
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      borderRadius: 8,
+      minWidth: shouldUseDesktopLayout ? 150 : 120,
+      alignItems: 'center',
+    },
+    saveButton: {
+      backgroundColor: '#5B7B9E',
+    },
+    shareButton: {
+      backgroundColor: '#4CAF50',
+    },
+    saveButtonText: {
+      color: '#fff',
+      fontSize: shouldUseDesktopLayout ? 16 : 14,
+      fontWeight: '500',
+    },
+    shareButtonText: {
+      color: '#fff',
+      fontSize: shouldUseDesktopLayout ? 16 : 14,
+      fontWeight: '500',
+    },
+    loadingContainer: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: [
+        { translateX: -(shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 150) / 2 },
+        { translateY: -(shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 150) / 2 }
+      ],
+      width: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 150,
+      height: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 150,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#fff',
+      zIndex: 2,
+      borderRadius: 12,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    loadingText: {
+      marginTop: 10,
+      fontSize: shouldUseDesktopLayout ? 16 : 14,
+      color: '#666',
+    },
+    errorText: {
+      marginTop: 10,
+      fontSize: shouldUseDesktopLayout ? 16 : 14,
+      color: '#FF3B30',
+      textAlign: 'center',
+      paddingHorizontal: 15,
+    },
+    overlayContainer: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: [
+        { translateX: -(shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 150) / 2 },
+        { translateY: -(shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 150) / 2 }
+      ],
+      width: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 150,
+      height: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 150,
+      zIndex: 1,
+      borderRadius: 12,
+    },
+    hidden: {
+      opacity: 0,
+    },
+    noStrokeDataContainer: {
+      backgroundColor: '#FFF3CD',
+      padding: 8,
+      borderRadius: 4,
+      marginBottom: 10,
+      width: shouldUseDesktopLayout ? '80%' : '100%',
+      maxWidth: 800,
+    },
+    noStrokeDataText: {
+      color: '#856404',
+      fontSize: shouldUseDesktopLayout ? 16 : 14,
+      textAlign: 'center',
+    },
+  });
+
   return (
     <View style={styles.container}>
       {!hasStrokeData && (
@@ -382,177 +568,4 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       </Modal>
     </View>
   );
-};
-
-const { width } = Dimensions.get('window');
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingBottom: 20,
-  },
-  displayContainer: {
-    width: width - 90,
-    height: width - 90,
-    backgroundColor: 'transparent',
-    overflow: 'hidden',
-    marginTop: -25,
-    marginBottom: -5,
-    position: 'relative',
-  },
-  canvas: {
-    width: width - 90,
-    height: width - 90,
-    backgroundColor: 'transparent',
-  },
-  buttonContainer: {
-    width: '100%',
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  button: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    borderRadius: 8,
-    gap: 4,
-    minWidth: 120,
-    backgroundColor: '#5B7B9E',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
-    flexShrink: 1,
-  },
-  demonstrateButton: {},
-  practiceButton: {},
-  wrongBookButton: {},
-  generateButton: {},
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    width: '90%',
-    maxHeight: '80%',
-    padding: 15,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  closeButton: {
-    padding: 5,
-  },
-  closeButtonText: {
-    fontSize: 24,
-    color: '#666',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 15,
-  },
-  modalButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    minWidth: 120,
-    alignItems: 'center',
-  },
-  saveButton: {
-    backgroundColor: '#5B7B9E',
-  },
-  shareButton: {
-    backgroundColor: '#4CAF50',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  shareButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  loadingContainer: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -(width - 150) / 2 }, { translateY: -(width - 150) / 2 }],
-    width: width - 150,
-    height: width - 150,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    zIndex: 2,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: '#666',
-  },
-  errorText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: '#FF3B30',
-    textAlign: 'center',
-    paddingHorizontal: 15,
-  },
-  overlayContainer: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -(width - 150) / 2 }, { translateY: -(width - 150) / 2 }],
-    width: width - 150,
-    height: width - 150,
-    zIndex: 1,
-    borderRadius: 12,
-  },
-  hidden: {
-    opacity: 0,
-  },
-  noStrokeDataContainer: {
-    backgroundColor: '#FFF3CD',
-    padding: 8,
-    borderRadius: 4,
-    marginBottom: 10,
-    width: '100%',
-  },
-  noStrokeDataText: {
-    color: '#856404',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-}); 
+}; 

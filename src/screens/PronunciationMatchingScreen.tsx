@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
   Easing,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,11 +19,14 @@ import gameService, { PronunciationChar } from '../services/GameService';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { storageService } from '../services/StorageService';
 import StatisticsService from '../services/StatisticsService';
+import { ResponsiveContainer } from '../components/ResponsiveContainer';
+import { useResponsive } from '../hooks/useResponsive';
+import SubscriptionService from '../services/SubscriptionService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
 const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.6;
-const BUBBLE_SIZE = 80;
+const BUBBLE_SIZE = Math.min(SCREEN_WIDTH / 6, SCREEN_HEIGHT / 5);
 const HORIZONTAL_GAP = 5;
 const VERTICAL_OVERLAP = -8;
 const TOP_MARGIN = 20;
@@ -30,11 +34,13 @@ const MAX_HEIGHT = GAME_AREA_HEIGHT * 0.4;
 
 // 修改颜色系统，每个色系使用相同基色的不同深浅和透明度
 const BUBBLE_COLORS: readonly [string, string, string][] = [
-  ['#FF9AA2', '#FFB7B2', '#FFDAC1'],
-  ['#E2F0CB', '#B5EAD7', '#C7CEEA'],
-  ['#FF9AA2', '#FFB7B2', '#FFDAC1'],
-  ['#E2F0CB', '#B5EAD7', '#C7CEEA'],
-];
+  ['#FF6B6B', '#FF8787', '#FFA5A5'],
+  ['#4ECDC4', '#45B7AF', '#3CA29A'],
+  ['#FFD93D', '#FFE066', '#FFE88F'],
+  ['#95E1D3', '#A8E6DA', '#BBE9E2'],
+  ['#A8E6CF', '#BDEBD7', '#D1F0E0'],
+  ['#FF8B94', '#FFA3AA', '#FFBBC1'],
+] as const;
 
 type GameLevel = 1 | 2 | 3 | 4 | 5;
 
@@ -42,6 +48,7 @@ type GameStackParamList = {
   GamesList: undefined;
   WordGame: { mode: 'word' };
   PronunciationGame: { mode: 'pronunciation' };
+  Settings: { initialTab: string };
 };
 
 type PronunciationMatchingScreenProps = NativeStackScreenProps<GameStackParamList, 'PronunciationGame'>;
@@ -70,6 +77,9 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchingScreenProps) => {
+  const { theme, isDesktop } = useResponsive();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  
   const [level, setLevel] = useState<GameLevel>(1);
   const [score, setScore] = useState(0);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
@@ -161,29 +171,26 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
 
   // 生成分层的气球位置
   const generateLayeredPositions = (totalBubbles: number) => {
-    const positions: Array<{ x: number; y: number }> = [];
-    const bubblesPerRow = Math.floor(GAME_AREA_WIDTH / (BUBBLE_SIZE + HORIZONTAL_GAP));
-    let currentY = TOP_MARGIN;
-    let remainingBubbles = totalBubbles;
+    const positions: { x: number; y: number }[] = [];
+    const bubblesPerRow = isDesktop ? 6 : 4;
+    const effectiveBubbleSize = BUBBLE_SIZE + 10;
+    const rows = Math.ceil(totalBubbles / bubblesPerRow);
     
-    while (remainingBubbles > 0 && currentY < MAX_HEIGHT) {
-      const bubblesInThisRow = Math.min(remainingBubbles, bubblesPerRow);
-      const rowWidth = bubblesInThisRow * (BUBBLE_SIZE + HORIZONTAL_GAP) - HORIZONTAL_GAP;
-      const startX = (GAME_AREA_WIDTH - rowWidth) / 2;
+    const totalWidth = bubblesPerRow * effectiveBubbleSize;
+    const startX = (windowWidth - totalWidth) / 2;
+    const startY = 20;
+    const verticalGap = BUBBLE_SIZE - 10;
+
+    for (let row = 0; row < rows; row++) {
+      const y = startY + row * verticalGap;
+      const bubblesInThisRow = Math.min(bubblesPerRow, totalBubbles - row * bubblesPerRow);
       
-      for (let i = 0; i < bubblesInThisRow; i++) {
-        const x = startX + i * (BUBBLE_SIZE + HORIZONTAL_GAP);
-        const randomOffset = Math.random() * 10 - 5;
-        positions.push({
-          x: x + randomOffset,
-          y: currentY + (Math.random() * 10 - 5)
-        });
+      for (let col = 0; col < bubblesInThisRow; col++) {
+        const x = startX + col * effectiveBubbleSize;
+        positions.push({ x, y });
       }
-      
-      remainingBubbles -= bubblesInThisRow;
-      currentY += BUBBLE_SIZE + VERTICAL_OVERLAP;
     }
-    
+
     return positions;
   };
 
@@ -288,6 +295,27 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   const initializeLevel = async () => {
     setIsGameStarted(false);
     gameStartAnim.setValue(0);
+    
+    // Add subscription check
+    const isLevelLocked = await SubscriptionService.checkGameLevelLimit(level);
+    if (isLevelLocked) {
+      Alert.alert(
+        i18n.t('premiumFeature'),
+        i18n.t('levelLockedDesc'),
+        [
+          {
+            text: i18n.t('cancel'),
+            style: 'cancel',
+            onPress: () => navigation.goBack()
+          },
+          {
+            text: i18n.t('subscribe'),
+            onPress: () => navigation.navigate('Settings', { initialTab: 'subscription' })
+          }
+        ]
+      );
+      return;
+    }
     
     const bubbleCount = getLevelBubbleCount(level);
     
@@ -815,33 +843,44 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.levelInfo}>
+    <ResponsiveContainer>
+      <View style={styles.container}>
+        <View style={[styles.header, isDesktop && styles.desktopHeader]}>
           <TouchableOpacity
-            style={styles.exitButton}
-            onPress={handleExit}
+            style={styles.headerButton}
+            onPress={() => navigation.goBack()}
           >
-            <MaterialCommunityIcons name="exit-to-app" size={24} color="#666" />
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={isDesktop ? 28 : 24}
+              color={theme.colors.textPrimary}
+            />
           </TouchableOpacity>
-
-          <Animated.View style={{ transform: [{ scale: levelTransition }] }}>
-            <Text style={styles.levelText}>{i18n.t('level', { level })}</Text>
-          </Animated.View>
           
+          <View style={styles.levelTitleContainer}>
+            <Text style={[styles.levelTitle, isDesktop && styles.desktopLevelTitle]}>
+              {i18n.t('levelTitle', { current: level, total: gameService.getTotalLevels() })}
+            </Text>
+          </View>
+
           <TouchableOpacity
-            style={[styles.hintButton, isShowingHint && styles.hintButtonDisabled]}
+            style={styles.headerButton}
             onPress={showHintAnimation}
             disabled={isShowingHint}
           >
-            <MaterialCommunityIcons 
-              name="lightbulb" 
-              size={24} 
-              color={isShowingHint ? '#999' : '#FFD700'} 
+            <MaterialCommunityIcons
+              name="lightbulb"
+              size={isDesktop ? 28 : 24}
+              color={isShowingHint ? theme.colors.textSecondary : theme.colors.primary}
             />
           </TouchableOpacity>
         </View>
-        <View style={styles.progressContainer}>
+
+        <View style={styles.progressSection}>
+          <View style={styles.scoreContainer}>
+            <Text style={styles.scoreText}>{i18n.t('score', { score })}</Text>
+          </View>
+
           <View style={styles.progressBarContainer}>
             <Animated.View 
               style={[
@@ -855,107 +894,30 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
               ]} 
             />
           </View>
-          <Animated.View style={{ transform: [{ scale: scoreTransition }] }}>
-            <Text style={styles.smallScoreText}>{score}</Text>
-          </Animated.View>
         </View>
-      </View>
 
-      <Animated.View 
-        style={[
-          styles.gameArea,
-          {
-            opacity: gameStartAnim,
-            transform: [
-              {
-                translateY: gameStartAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [50, 0]
-                })
-              }
-            ]
-          }
-        ]}
-      >
-        <View style={styles.bubblesContainer}>
-          {bubbles.map(renderBubble)}
-        </View>
-      </Animated.View>
+        <View style={[styles.gameArea, isDesktop && styles.desktopGameArea]}>
+          <View style={styles.bubblesContainer}>
+            {bubbles.map(renderBubble)}
+          </View>
 
-      {showLevelComplete && (
-        <Animated.View 
-          style={[
-            styles.levelCompleteContainer,
-            {
-              opacity: levelCompleteAnim,
-              transform: [
-                {
-                  scale: levelCompleteAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.5, 1]
-                  })
-                }
-              ]
-            }
-          ]}
-        >
-          <LinearGradient
-            colors={['#4CAF50', '#45a049']}
-            style={styles.levelCompleteGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <MaterialCommunityIcons name="star" size={40} color="#FFD700" />
-            <Text style={styles.levelCompleteText}>
-              {i18n.t('levelComplete', { level })}
-            </Text>
-            <Text style={styles.levelCompleteScore}>
-              {i18n.t('score', { score })}
-            </Text>
-          </LinearGradient>
-        </Animated.View>
-      )}
-
-      <View style={styles.bottomContainer}>
-        {currentChar && (
-          <TouchableOpacity
-            style={styles.currentCharButton}
-            onPress={() => {
-              playCurrentCharSound();
-              playCurrentCharAnimation();
-            }}
-            activeOpacity={0.7}
-          >
-            <Animated.View style={{
-              transform: [
-                { translateY: speakerAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, -5]
-                })}
-              ]
-            }}>
-              <LinearGradient
-                colors={['#4CAF50', '#45a049']}
-                style={styles.speakerButton}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+          <View style={[styles.targetArea, isDesktop && styles.desktopTargetArea]}>
+            <View style={styles.targetControls}>
+              <TouchableOpacity
+                style={[styles.soundButton, isDesktop && styles.desktopSoundButton]}
+                onPress={playCurrentCharSound}
               >
-                <MaterialCommunityIcons name="volume-high" size={28} color="#fff" />
-              </LinearGradient>
-            </Animated.View>
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.instructionsContainer}>
-          <View style={styles.instructionsBox}>
-            <MaterialCommunityIcons name="information" size={16} color="#4CAF50" />
-            <Text style={styles.instructionsText}>
-              {i18n.t('correctMatch')} +10 {i18n.t('points')} | {i18n.t('incorrectMatch')} -5 {i18n.t('points')} | {i18n.t('useHint')} -2 {i18n.t('points')}
-            </Text>
+                <MaterialCommunityIcons
+                  name="volume-high"
+                  size={isDesktop ? 32 : 28}
+                  color={theme.colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
-    </View>
+    </ResponsiveContainer>
   );
 };
 
@@ -965,67 +927,147 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f8ff',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingHorizontal: 20,
-    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  desktopHeader: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  headerButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  levelTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  levelTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  desktopLevelTitle: {
+    fontSize: 24,
+  },
+  gameArea: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingBottom: Platform.OS === 'ios' ? 120 : 90,
+  },
+  desktopGameArea: {
+    paddingBottom: 140,
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  bubblesContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  targetArea: {
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 140 : 110,
+    left: 0,
+    right: 0,
+  },
+  desktopTargetArea: {
+    height: 120,
+    bottom: 160,
+  },
+  targetControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  currentCharContainer: {
+    width: BUBBLE_SIZE - 20,
+    height: BUBBLE_SIZE - 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: (BUBBLE_SIZE - 20) / 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 2,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
     backgroundColor: 'transparent',
   },
-  levelInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+  desktopCurrentCharContainer: {
+    width: BUBBLE_SIZE - 16,
+    height: BUBBLE_SIZE - 16,
+    borderRadius: (BUBBLE_SIZE - 16) / 2,
   },
-  levelText: {
-    fontSize: 18,
+  currentCharText: {
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowColor: 'rgba(255, 255, 255, 0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    zIndex: 2,
+  },
+  desktopCurrentCharText: {
+    fontSize: 36,
+  },
+  soundButton: {
+    padding: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  desktopSoundButton: {
+    padding: 16,
+    borderRadius: 32,
+  },
+  progressSection: {
     paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    overflow: 'hidden',
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  scoreContainer: {
+    marginBottom: 8,
   },
   scoreText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
   progressBarContainer: {
-    flex: 1,
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 3,
+    height: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 2,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.3)',
-    marginRight: 10,
   },
   progressBar: {
     height: '100%',
     backgroundColor: '#4CAF50',
-    borderRadius: 3,
-  },
-  gameArea: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  bubblesContainer: {
-    width: GAME_AREA_WIDTH,
-    height: GAME_AREA_HEIGHT,
-    position: 'relative',
   },
   bubble: {
     width: BUBBLE_SIZE,
@@ -1041,8 +1083,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bubbleGradient: {
-    width: BUBBLE_SIZE - 8,
-    height: BUBBLE_SIZE - 8,
+    width: BUBBLE_SIZE - 4,
+    height: BUBBLE_SIZE - 4,
     borderRadius: BUBBLE_SIZE / 2,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1095,7 +1137,7 @@ const styles = StyleSheet.create({
     ],
   },
   bubbleText: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#333',
     textShadowColor: 'rgba(255, 255, 255, 0.9)',

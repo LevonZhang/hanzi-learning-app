@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, FlatList } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import { LearningManager } from '../services/LearningManager';
-import StatisticsService from '../services/StatisticsService';
 import SubscriptionService from '../services/SubscriptionService';
+import StatisticsService from '../services/StatisticsService';
+import { ResponsiveContainer } from '../components/ResponsiveContainer';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface ReviewScreenProps {
   navigation: any;
@@ -17,6 +19,7 @@ interface ReviewItem {
 }
 
 export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
+  const { theme, isDesktop } = useResponsive();
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [canReview, setCanReview] = useState(false);
 
@@ -80,54 +83,61 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
     }
   };
 
-  const renderReviewItem = ({ item }: { item: ReviewItem }) => (
-    <View style={styles.reviewItem}>
-      <TouchableOpacity 
-        style={styles.itemContent}
+  const renderItem = ({ item }: { item: ReviewItem }) => (
+    <View style={[styles.itemContainer, isDesktop && styles.desktopItemContainer]}>
+      <TouchableOpacity
+        style={[styles.characterContainer, isDesktop && styles.desktopCharacterContainer]}
         onPress={() => startReviewForChar(item)}
       >
-        <Text style={styles.character}>{item.character}</Text>
-        <View style={styles.itemInfo}>
-          <Text style={styles.date}>{new Date(item.lastReviewDate).toLocaleDateString()}</Text>
-        </View>
+        <Text style={[styles.characterText, isDesktop && styles.desktopCharacterText]}>
+          {item.character}
+        </Text>
+        <Text style={[styles.mistakesText, isDesktop && styles.desktopMistakesText]}>
+          {i18n.t('mistakeCount', { count: item.mistakes })}
+        </Text>
       </TouchableOpacity>
-      <TouchableOpacity 
-        style={styles.deleteButton}
+      <TouchableOpacity
+        style={[styles.removeButton, { backgroundColor: theme.colors.error }]}
         onPress={() => removeFromReview(item.character)}
       >
-        <MaterialCommunityIcons name="trash-can-outline" size={22} color="#FF3B30" />
+        <MaterialCommunityIcons
+          name="close"
+          size={isDesktop ? 24 : 20}
+          color={theme.colors.textLight}
+        />
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#666" />
-        </TouchableOpacity>
-        <Text style={styles.title}>{i18n.t('review')}</Text>
-      </View>
-
-      <View style={styles.content}>
+    <ResponsiveContainer>
+      <View style={styles.container}>
         {reviewItems.length > 0 ? (
           <FlatList
             data={reviewItems}
-            renderItem={renderReviewItem}
-            keyExtractor={(item) => item.character}
-            contentContainerStyle={styles.listContent}
+            renderItem={renderItem}
+            keyExtractor={item => item.character}
+            numColumns={isDesktop ? 3 : 2}
+            columnWrapperStyle={styles.columnWrapper}
+            contentContainerStyle={[
+              styles.listContent,
+              isDesktop && styles.desktopListContent
+            ]}
           />
         ) : (
-          <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="check-circle" size={64} color="#34C759" />
-            <Text style={styles.emptyStateText}>{i18n.t('noReviewNeeded')}</Text>
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons
+              name="check-circle"
+              size={isDesktop ? 80 : 60}
+              color={theme.colors.success}
+            />
+            <Text style={[styles.emptyText, isDesktop && styles.desktopEmptyText]}>
+              {i18n.t('noReviewItems')}
+            </Text>
           </View>
         )}
       </View>
-    </SafeAreaView>
+    </ResponsiveContainer>
   );
 };
 
@@ -136,69 +146,73 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  header: {
+  listContent: {
+    padding: 16,
+  },
+  desktopListContent: {
+    padding: 24,
+    maxWidth: 1200,
+    alignSelf: 'center',
+  },
+  columnWrapper: {
+    justifyContent: 'flex-start',
+    gap: 16,
+  },
+  itemContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    marginBottom: 16,
+    maxWidth: '48%',
   },
-  backButton: {
-    padding: 8,
+  desktopItemContainer: {
+    maxWidth: '31%',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginLeft: 10,
-  },
-  content: {
+  characterContainer: {
     flex: 1,
+    padding: 16,
   },
-  listContent: {
+  desktopCharacterContainer: {
     padding: 20,
   },
-  reviewItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 10,
-    marginBottom: 10,
+  characterText: {
+    fontSize: 32,
+    fontWeight: '600',
+    marginBottom: 8,
   },
-  itemContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+  desktopCharacterText: {
+    fontSize: 40,
   },
-  character: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    width: 50,
-    textAlign: 'center',
-  },
-  itemInfo: {
-    flex: 1,
-    marginLeft: 15,
-  },
-  date: {
+  mistakesText: {
     fontSize: 14,
     color: '#666',
   },
-  deleteButton: {
-    padding: 8,
+  desktopMistakesText: {
+    fontSize: 16,
   },
-  emptyState: {
+  removeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 32,
   },
-  emptyStateText: {
+  emptyText: {
     fontSize: 18,
     color: '#666',
+    marginTop: 16,
     textAlign: 'center',
-    marginTop: 20,
+  },
+  desktopEmptyText: {
+    fontSize: 24,
   },
 }); 

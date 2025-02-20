@@ -4,19 +4,21 @@
     "slug": "hanzi-learning-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/AppIcons/Icon-AppStore.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "resizeMode": "cover",
+      "backgroundColor": "#FF7B6B"
     },
     "assetBundlePatterns": [
-      "assets/**/*"
+      "assets/**/*",
+      "assets/js/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.itlongbow.hanzilearningapp"
+      "bundleIdentifier": "com.itlongbow.hanzilearningapp",
+      "buildNumber": "2"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,6 +31,15 @@
     },
     "android": {
       "package": "com.itlongbow.hanzilearningapp"
+    },
+    "mac": {
+      "bundleIdentifier": "com.itlongbow.hanzilearningapp",
+      "backgroundColor": "#ffffff",
+      "minWidth": 800,
+      "minHeight": 600,
+      "windowStyle": "tabbed",
+      "windowEffects": ["titlebar", "selection"],
+      "windowPosition": "center"
     }
   }
 }

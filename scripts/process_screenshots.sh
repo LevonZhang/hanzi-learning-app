@@ -15,15 +15,15 @@ then
 fi
 
 # 创建目录结构
-mkdir -p screenshots/processed/{iphone_14_pro_max,iphone_8_plus,ipad_pro}
+mkdir -p screenshots/processed/{iphone_15_pro_max_portrait,iphone_15_pro_max_landscape,iphone_14_pro_portrait,iphone_14_pro_landscape,ipad_pro_portrait,ipad_pro_landscape,ipad_portrait,ipad_landscape}
 mkdir -p screenshots/original
 
 echo -e "${BLUE}=== App Store Screenshot Processor ===${NC}"
 echo -e "${BLUE}This script will process screenshots for different devices${NC}"
 
 # 定义设备和尺寸
-DEVICES=("iphone_14_pro_max" "iphone_8_plus" "ipad_pro")
-SIZES=("1284x2778" "1242x2208" "2048x2732")
+DEVICES=("iphone_15_pro_max_portrait" "iphone_15_pro_max_landscape" "iphone_14_pro_portrait" "iphone_14_pro_landscape" "ipad_pro_portrait" "ipad_pro_landscape" "ipad_portrait" "ipad_landscape")
+SIZES=("1290x2796" "2796x1290" "1320x2868" "2868x1320" "2048x2732" "2732x2048" "2048x2732" "2732x2048")
 
 # 处理函数
 process_image() {
@@ -134,9 +134,14 @@ create_readme() {
 ## Directory Structure
 - original/: Place your original screenshots here
 - processed/: Contains processed screenshots for different devices
-  - iphone_14_pro_max/: 1284x2778 pixels
-  - iphone_8_plus/: 1242x2208 pixels
-  - ipad_pro/: 2048x2732 pixels
+  - iphone_15_pro_max_portrait/: 1290 × 2796px
+  - iphone_15_pro_max_landscape/: 2796 × 1290px
+  - iphone_14_pro_portrait/: 1320 × 2868px
+  - iphone_14_pro_landscape/: 2868 × 1320px
+  - ipad_pro_portrait/: 2048 × 2732px
+  - ipad_pro_landscape/: 2732 × 2048px
+  - ipad_portrait/: 2048 × 2732px
+  - ipad_landscape/: 2732 × 2048px
 
 ## Usage
 1. Place your original screenshots in the 'original' directory
@@ -144,8 +149,17 @@ create_readme() {
 3. Find processed images in the respective device directories
 
 ## Requirements
-- ImageMagick must be installed
-- Original screenshots should be high resolution
+- ImageMagick must be installed (will be automatically installed if missing)
+- Original screenshots should be high resolution (at least 2868px in the longest dimension)
+- Supported formats: .png, .jpg, .jpeg
+
+## App Store Requirements
+These dimensions are specifically chosen to meet App Store requirements for:
+- iPhone 14 Pro/iPhone 15 Pro screenshots (1320 × 2868px)
+- iPhone 14 Pro Max/iPhone 15 Pro Max screenshots (1290 × 2796px)
+- iPad Pro (12.9-inch) screenshots (2048 × 2732px)
+- iPad (13-inch) screenshots (2048 × 2732px)
+Both portrait and landscape orientations are supported.
 EOF
 }
 

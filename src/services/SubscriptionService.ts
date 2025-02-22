@@ -21,10 +21,10 @@ import { i18n } from '../i18n/i18n';
 
 // iOS 订阅产品 ID
 const IOS_SKUS = {
-  monthly: 'com.itlongbow.hanzilearning.monthly',
-  quarterly: 'com.itlongbow.hanzilearning.quarterly',
-  yearly: 'com.itlongbow.hanzilearning.yearly',
-  lifetime: 'com.itlongbow.hanzilearning.lifetime',
+  monthly: 'com.itlongbow.hanzilearningapp.sub.monthly',
+  quarterly: 'com.itlongbow.hanzilearningapp.sub.quarterly',
+  yearly: 'com.itlongbow.hanzilearningapp.sub.yearly',
+  lifetime: 'com.itlongbow.hanzilearningapp.sub.lifetime',
 } as const;
 
 export const subscriptionSkus = IOS_SKUS;
@@ -173,17 +173,59 @@ class SubscriptionService {
     try {
       const sku = subscriptionSkus[planId as keyof typeof IOS_SKUS];
       if (!sku) {
+        logger.error('Invalid subscription plan:', { 
+          planId,
+          availableSkus: Object.keys(subscriptionSkus)
+        });
         throw new Error('Invalid subscription plan');
       }
 
-      logger.subscription('Initiating subscription purchase', { planId, sku });
-      
-      await requestSubscription({
-        sku: sku,
-        andDangerouslyFinishTransactionAutomaticallyIOS: false,
+      logger.subscription('Initiating subscription purchase', { 
+        planId, 
+        sku,
+        allSkus: subscriptionSkus,
+        environment: ENV.IS_SANDBOX ? 'sandbox' : 'production'
       });
-    } catch (err) {
-      logger.error('Purchase failed:', err);
+
+      // 检查初始化状态
+      try {
+        await initConnection();
+        logger.subscription('IAP connection re-initialized');
+      } catch (initError: any) {
+        logger.error('Failed to re-initialize IAP:', {
+          error: initError,
+          errorCode: initError?.code,
+          errorMessage: initError?.message
+        });
+      }
+      
+      // 添加额外的错误处理
+      try {
+        logger.subscription('Requesting subscription with SKU:', { sku });
+        await requestSubscription({
+          sku: sku,
+          andDangerouslyFinishTransactionAutomaticallyIOS: false,
+        });
+        logger.subscription('Subscription request sent successfully');
+      } catch (subscriptionError: any) {
+        logger.error('Subscription request failed:', {
+          error: subscriptionError,
+          errorCode: subscriptionError?.code,
+          errorMessage: subscriptionError?.message,
+          requestedSku: sku,
+          planId: planId
+        });
+        throw subscriptionError;
+      }
+    } catch (err: any) {
+      logger.error('Purchase failed:', {
+        error: err,
+        errorCode: err?.code,
+        errorMessage: err?.message,
+        stackTrace: err?.stack,
+        planId: planId,
+        requestedSku: subscriptionSkus[planId as keyof typeof IOS_SKUS]
+      });
       this.handlePurchaseError(err as PurchaseError);
     }
   }

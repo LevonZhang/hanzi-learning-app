@@ -413,28 +413,10 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     hidden: {
       opacity: 0,
     },
-    noStrokeDataContainer: {
-      backgroundColor: '#FFF3CD',
-      padding: 8,
-      borderRadius: 4,
-      marginBottom: 10,
-      width: shouldUseDesktopLayout ? '80%' : '100%',
-      maxWidth: 800,
-    },
-    noStrokeDataText: {
-      color: '#856404',
-      fontSize: shouldUseDesktopLayout ? 16 : 14,
-      textAlign: 'center',
-    },
   });
 
   return (
     <View style={styles.container}>
-      {!hasStrokeData && (
-        <View style={styles.noStrokeDataContainer}>
-          <Text style={styles.noStrokeDataText}>{i18n.t('noStrokesData')}</Text>
-        </View>
-      )}
       <View style={styles.displayContainer}>
         <WebView
           ref={webViewRef}

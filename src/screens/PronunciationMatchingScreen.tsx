@@ -77,7 +77,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchingScreenProps) => {
-  const { theme, isDesktop } = useResponsive();
+  const { theme, isDesktop, isTablet } = useResponsive();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   
   const [level, setLevel] = useState<GameLevel>(1);
@@ -172,12 +172,14 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   // 生成分层的气球位置
   const generateLayeredPositions = (totalBubbles: number) => {
     const positions: { x: number; y: number }[] = [];
-    const bubblesPerRow = isDesktop ? 6 : 4;
+    const bubblesPerRow = isDesktop ? 6 : isTablet ? 4 : 3;
     const effectiveBubbleSize = BUBBLE_SIZE + 10;
     const rows = Math.ceil(totalBubbles / bubblesPerRow);
     
-    const totalWidth = bubblesPerRow * effectiveBubbleSize;
-    const startX = (windowWidth - totalWidth) / 2;
+    // 计算游戏区域的宽度和起始位置
+    const gameAreaWidth = isDesktop ? 1200 : windowWidth - (isTablet ? 48 : 20);
+    const bubbleAreaWidth = Math.min(bubblesPerRow * effectiveBubbleSize, gameAreaWidth);
+    const startX = (gameAreaWidth - bubbleAreaWidth) / 2;
     const startY = 20;
     const verticalGap = BUBBLE_SIZE - 10;
 
@@ -185,8 +187,12 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       const y = startY + row * verticalGap;
       const bubblesInThisRow = Math.min(bubblesPerRow, totalBubbles - row * bubblesPerRow);
       
+      // 计算每一行的实际宽度和起始位置
+      const rowWidth = bubblesInThisRow * effectiveBubbleSize;
+      const rowStartX = (gameAreaWidth - rowWidth) / 2;
+      
       for (let col = 0; col < bubblesInThisRow; col++) {
-        const x = startX + col * effectiveBubbleSize;
+        const x = rowStartX + col * effectiveBubbleSize;
         positions.push({ x, y });
       }
     }
@@ -896,7 +902,12 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
           </View>
         </View>
 
-        <View style={[styles.gameArea, isDesktop && styles.desktopGameArea]}>
+        <View style={[
+          styles.gameArea,
+          isDesktop && styles.desktopGameArea,
+          isDesktop && { maxWidth: 1200 },
+          !isDesktop && { maxWidth: '100%' }
+        ]}>
           <View style={styles.bubblesContainer}>
             {bubbles.map(renderBubble)}
           </View>
@@ -925,6 +936,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f0f8ff',
+    width: '100%',
   },
   header: {
     flexDirection: 'row',
@@ -935,6 +947,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    width: '100%',
   },
   desktopHeader: {
     paddingHorizontal: 24,
@@ -961,16 +974,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     paddingBottom: Platform.OS === 'ios' ? 120 : 90,
+    width: '100%',
   },
   desktopGameArea: {
     paddingBottom: 140,
-    maxWidth: 1200,
     alignSelf: 'center',
     width: '100%',
+    maxWidth: 1200,
   },
   bubblesContainer: {
     flex: 1,
     position: 'relative',
+    width: '100%',
   },
   targetArea: {
     height: 100,
@@ -980,6 +995,7 @@ const styles = StyleSheet.create({
     bottom: Platform.OS === 'ios' ? 140 : 110,
     left: 0,
     right: 0,
+    width: '100%',
   },
   desktopTargetArea: {
     height: 120,
@@ -990,6 +1006,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 20,
+    width: '100%',
   },
   currentCharContainer: {
     width: BUBBLE_SIZE - 20,
@@ -1050,6 +1067,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    width: '100%',
   },
   scoreContainer: {
     marginBottom: 8,

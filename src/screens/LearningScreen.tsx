@@ -62,7 +62,7 @@ interface LearningScreenProps {
 }
 
 export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
-  const { theme, isDesktop } = useResponsive();
+  const { theme, isDesktop, isTablet } = useResponsive();
   const { width: windowWidth } = useWindowDimensions();
 
   const [state, setState] = useState<LearningState>({
@@ -291,20 +291,30 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
   return (
     <ResponsiveContainer useSafeArea withPadding>
-      <View style={[styles.container, isDesktop && styles.desktopContainer]}>
+      <View style={[styles.container, (isDesktop || isTablet) && styles.wideContainer]}>
         {state.currentWord ? (
           <>
-            <View style={[styles.displayContainer, isDesktop && styles.desktopDisplayContainer]}>
-              <View style={[styles.canvas, isDesktop && styles.desktopCanvas]}>
+            <View style={[
+              styles.displayContainer,
+              (isDesktop || isTablet) && styles.wideDisplayContainer
+            ]}>
+              <View style={[
+                styles.canvas,
+                (isDesktop || isTablet) && styles.wideCanvas
+              ]}>
                 <CharacterLearning
                   character={state.currentWord.character}
                   onComplete={handleComplete}
                   onHanziInfo={handleHanziInfo}
                   isReviewMode={state.isReviewMode}
+                  isDesktop={isDesktop || isTablet}
                 />
               </View>
               
-              <View style={[styles.meaningContainer, isDesktop && styles.desktopMeaningContainer]}>
+              <View style={[
+                styles.meaningContainer,
+                (isDesktop || isTablet) && styles.wideMeaningContainer
+              ]}>
                 <View style={styles.tabContainer}>
                   <TouchableOpacity
                     style={[
@@ -316,11 +326,12 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                     <Text style={[
                       styles.tabText,
                       activeTab === 'zh' && { color: theme.colors.textLight },
-                      isDesktop && styles.desktopTabText
+                      (isDesktop || isTablet) && styles.wideTabText
                     ]}>
                       {i18n.t('chinese')}
                     </Text>
                   </TouchableOpacity>
+
                   <TouchableOpacity
                     style={[
                       styles.tab,
@@ -331,7 +342,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                     <Text style={[
                       styles.tabText,
                       activeTab === 'en' && { color: theme.colors.textLight },
-                      isDesktop && styles.desktopTabText
+                      (isDesktop || isTablet) && styles.wideTabText
                     ]}>
                       {i18n.t('english')}
                     </Text>
@@ -339,42 +350,50 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                 </View>
 
                 <ScrollView style={styles.meaningScroll}>
-                  {state.currentWord && (
+                  {activeTab === 'zh' ? (
                     <>
                       <Text style={[
                         styles.meaningText,
-                        isDesktop && styles.desktopMeaningText
+                        (isDesktop || isTablet) && styles.wideMeaningText
                       ]}>
-                        {activeTab === 'zh'
-                          ? state.currentWord.meanings.zh.join('；')
-                          : state.currentWord.meanings.en.join('; ')}
+                        {state.currentWord.meanings.zh.join('\n')}
                       </Text>
-                      {state.currentWord.words && (
+                      {state.currentWord.words && state.currentWord.words.length > 0 && (
                         <Text style={[
                           styles.wordsText,
-                          isDesktop && styles.desktopWordsText
+                          (isDesktop || isTablet) && styles.wideWordsText
                         ]}>
-                          {state.currentWord.words.join('、')}
+                          {i18n.t('commonWords')}：{state.currentWord.words.join('、')}
                         </Text>
                       )}
                     </>
+                  ) : (
+                    <Text style={[
+                      styles.meaningText,
+                      (isDesktop || isTablet) && styles.wideMeaningText
+                    ]}>
+                      {state.currentWord.meanings.en.join('\n')}
+                    </Text>
                   )}
                 </ScrollView>
 
                 <TouchableOpacity
-                  style={[styles.soundButton, isDesktop && styles.desktopSoundButton]}
+                  style={[styles.soundButton, (isDesktop || isTablet) && styles.wideSoundButton]}
                   onPress={() => state.currentWord && playSound(state.currentWord.character)}
                 >
                   <MaterialCommunityIcons
                     name="volume-high"
-                    size={isDesktop ? 28 : 24}
+                    size={(isDesktop || isTablet) ? 28 : 24}
                     color={theme.colors.primary}
                   />
                 </TouchableOpacity>
               </View>
             </View>
 
-            <View style={[styles.buttonContainer, isDesktop && styles.desktopButtonContainer]}>
+            <View style={[
+              styles.buttonContainer,
+              (isDesktop || isTablet) && styles.wideButtonContainer
+            ]}>
               <TouchableOpacity
                 style={[styles.button, { backgroundColor: theme.colors.success }]}
                 onPress={() => handleComplete(true)}
@@ -406,28 +425,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  desktopContainer: {
+  wideContainer: {
     maxWidth: 1200,
     alignSelf: 'center',
+    width: '100%',
   },
   displayContainer: {
     flex: 1,
     alignItems: 'center',
   },
-  desktopDisplayContainer: {
+  wideDisplayContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'flex-start',
     paddingHorizontal: 32,
+    gap: 32,
   },
   canvas: {
     width: '100%',
     aspectRatio: 1,
-    marginBottom: 16,
+    marginBottom: Platform.OS === 'ios' ? 80 : 64,
   },
-  desktopCanvas: {
+  wideCanvas: {
     width: '60%',
     marginBottom: 0,
+    marginTop: -80,
   },
   meaningContainer: {
     width: '100%',
@@ -446,9 +468,10 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  desktopMeaningContainer: {
+  wideMeaningContainer: {
     width: '35%',
-    marginLeft: 32,
+    alignSelf: 'stretch',
+    marginTop: -40,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -465,7 +488,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  desktopTabText: {
+  wideTabText: {
     fontSize: 16,
   },
   meaningScroll: {
@@ -476,7 +499,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 8,
   },
-  desktopMeaningText: {
+  wideMeaningText: {
     fontSize: 18,
     lineHeight: 28,
   },
@@ -485,7 +508,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#666',
   },
-  desktopWordsText: {
+  wideWordsText: {
     fontSize: 16,
     lineHeight: 24,
   },
@@ -495,18 +518,30 @@ const styles = StyleSheet.create({
     right: 16,
     padding: 8,
   },
-  desktopSoundButton: {
+  wideSoundButton: {
     padding: 12,
   },
   buttonContainer: {
     padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 24, // 增加底部间距，避免被导航栏遮挡
+    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    zIndex: 10,
   },
-  desktopButtonContainer: {
-    maxWidth: 200, // 减小按钮容器的最大宽度
-    alignSelf: 'center',
-    marginTop: 16,
+  wideButtonContainer: {
+    position: 'relative',
+    backgroundColor: 'transparent',
+    borderTopWidth: 0,
+    bottom: 'auto',
+    marginTop: -100,
     marginBottom: 32,
+    maxWidth: 200,
+    alignSelf: 'center',
   },
   button: {
     paddingVertical: 12,

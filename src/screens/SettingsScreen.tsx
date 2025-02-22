@@ -67,8 +67,414 @@ interface LearnedCharacter {
   lastReviewDate: string;
 }
 
+const useResponsiveFontSizes = () => {
+  const { isDesktop, isTablet } = useResponsive();
+  
+  const getSize = (size: number) => {
+    if (isDesktop || isTablet) {
+      return Math.round(size * 1.25); // 25% larger on tablet/desktop
+    }
+    return size;
+  };
+
+  return {
+    menuText: getSize(14),
+    settingGroupTitle: getSize(18),
+    settingLabel: getSize(16),
+    numberValue: getSize(18),
+    languageButtonText: getSize(16),
+    statsText: getSize(24),
+    statsLabel: getSize(14),
+    legendText: getSize(14),
+    gameTitle: getSize(18),
+    statText: getSize(16),
+    resetButtonText: getSize(16),
+    planName: getSize(16),
+    planDuration: getSize(13),
+    planPriceAmount: getSize(20),
+    planPricePeriod: getSize(12),
+    planDescription: getSize(14),
+    characterText: getSize(28),
+    premiumStatusText: getSize(16),
+    expirationText: getSize(14),
+    sectionTitle: getSize(18),
+    noDataText: getSize(16),
+    loadMoreText: getSize(14),
+  };
+};
+
 export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   const { theme, isDesktop, isTablet } = useResponsive();
+  const fontSizes = useResponsiveFontSizes();
+  
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#fff',
+      width: '100%',
+    },
+    desktopContainer: {
+      paddingHorizontal: 0,
+      maxWidth: '100%',
+    },
+    splitView: {
+      flex: 1,
+      flexDirection: 'row',
+      width: '100%',
+    },
+    mobileSidebar: {
+      width: 180,
+      backgroundColor: '#f8f9fa',
+      borderRightWidth: 1,
+      borderRightColor: '#e0e0e0',
+      padding: 12,
+    },
+    mainContentWrapper: {
+      flex: 1,
+      width: '100%',
+      maxWidth: isDesktop ? 800 : '100%',
+      alignSelf: 'center',
+    },
+    mainContent: {
+      flex: 1,
+      padding: 16,
+      width: '100%',
+    },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      backgroundColor: '#f8f9fa',
+      marginBottom: 8,
+    },
+    desktopMenuItem: {
+      padding: 16,
+      marginBottom: 12,
+      flexDirection: 'row',
+    },
+    menuText: {
+      fontSize: fontSizes.menuText,
+      color: '#333',
+      fontWeight: '500',
+      marginLeft: 12,
+    },
+    desktopMenuText: {
+      fontSize: fontSizes.menuText,
+      marginLeft: 12,
+    },
+    sectionContent: {
+      flex: 1,
+      width: '100%',
+      padding: 16,
+    },
+    premiumStatusContainer: {
+      backgroundColor: '#f8f9fa',
+      borderRadius: 12,
+      padding: 20,
+      marginBottom: 20,
+      width: '100%',
+    },
+    premiumStatusHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    premiumStatusText: {
+      fontSize: fontSizes.premiumStatusText,
+      fontWeight: '600',
+      color: '#333',
+    },
+    expirationText: {
+      fontSize: fontSizes.expirationText,
+      color: '#666',
+    },
+    subscriptionPlans: {
+      width: '100%',
+      gap: 16,
+    },
+    subscriptionPlan: {
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      padding: 20,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 3,
+      width: '100%',
+    },
+    planHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    planIconAndName: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    planIcon: {
+      width: 40,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 20,
+      backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    },
+    planNameContainer: {
+      marginLeft: 12,
+      flex: 1,
+    },
+    planName: {
+      fontSize: fontSizes.planName,
+      fontWeight: '600',
+      color: '#333',
+    },
+    planDuration: {
+      fontSize: fontSizes.planDuration,
+      color: '#666',
+      marginTop: 4,
+    },
+    planPriceContainer: {
+      alignItems: 'flex-end',
+    },
+    planPriceAmount: {
+      fontSize: fontSizes.planPriceAmount,
+      fontWeight: '700',
+      color: '#007AFF',
+    },
+    planPricePeriod: {
+      fontSize: fontSizes.planPricePeriod,
+      color: '#666',
+      marginTop: 2,
+    },
+    planDescription: {
+      fontSize: fontSizes.planDescription,
+      color: '#666',
+      lineHeight: fontSizes.planDescription * 1.5,
+      marginTop: 8,
+    },
+    settingGroup: {
+      marginBottom: 25,
+      width: '100%',
+    },
+    settingGroupTitle: {
+      fontSize: fontSizes.settingGroupTitle,
+      fontWeight: '600',
+      color: '#333',
+      marginBottom: 15,
+    },
+    settingItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 10,
+      width: '100%',
+    },
+    settingLabel: {
+      fontSize: fontSizes.settingLabel,
+      color: '#666',
+    },
+    numberSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 15,
+    },
+    numberButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: '#007AFF',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    numberButtonText: {
+      color: '#fff',
+      fontSize: 18,
+      fontWeight: 'bold',
+    },
+    numberValue: {
+      fontSize: fontSizes.numberValue,
+      fontWeight: '600',
+      color: '#333',
+      minWidth: 30,
+      textAlign: 'center',
+    },
+    languageButtons: {
+      flexDirection: 'row',
+      gap: 10,
+      flexWrap: 'wrap',
+      justifyContent: 'flex-start',
+      width: '100%',
+    },
+    languageButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#e0e0e0',
+      minWidth: 100,
+    },
+    activeLanguage: {
+      backgroundColor: '#007AFF',
+      borderColor: '#007AFF',
+    },
+    languageButtonText: {
+      fontSize: fontSizes.languageButtonText,
+      color: '#333',
+      textAlign: 'center',
+    },
+    activeLanguageText: {
+      color: '#fff',
+    },
+    statsContainer: {
+      flex: 1,
+      width: '100%',
+    },
+    statsHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: '#f8f9fa',
+      padding: 20,
+      borderRadius: 12,
+      marginBottom: 20,
+      width: '100%',
+    },
+    statItem: {
+      alignItems: 'center',
+      width: '30%',
+      paddingHorizontal: 8,
+    },
+    timeStatItem: {
+      alignItems: 'center',
+      width: '34%',
+      paddingHorizontal: 8,
+    },
+    statDivider: {
+      width: 1,
+      height: '80%',
+      backgroundColor: '#e0e0e0',
+    },
+    statsText: {
+      fontSize: fontSizes.statsText,
+      fontWeight: '600',
+      color: '#333',
+      marginVertical: 8,
+    },
+    statsLabel: {
+      fontSize: fontSizes.statsLabel,
+      color: '#666',
+      textAlign: 'center',
+    },
+    legendContainer: {
+      flexDirection: 'row',
+      marginBottom: 15,
+      gap: 16,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    legendColor: {
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+    },
+    legendText: {
+      fontSize: fontSizes.legendText,
+      color: '#666',
+    },
+    characterList: {
+      width: '100%',
+    },
+    characterGrid: {
+      width: '100%',
+    },
+    characterItem: {
+      flex: 1,
+      alignItems: 'center',
+      padding: 10,
+      marginBottom: 10,
+    },
+    characterText: {
+      fontSize: fontSizes.characterText,
+      fontWeight: 'bold',
+    },
+    loadMoreButton: {
+      alignItems: 'center',
+      padding: 15,
+      backgroundColor: '#f5f5f5',
+      borderRadius: 8,
+      marginTop: 10,
+      marginBottom: 20,
+    },
+    loadMoreText: {
+      color: '#666',
+      fontSize: fontSizes.loadMoreText,
+    },
+    gameStatsContainer: {
+      width: '100%',
+      gap: 16,
+    },
+    gameStatItem: {
+      backgroundColor: 'white',
+      padding: 20,
+      borderRadius: 12,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 3,
+      width: '100%',
+    },
+    gameTitle: {
+      fontSize: fontSizes.gameTitle,
+      fontWeight: 'bold',
+      marginBottom: 8,
+      color: '#333',
+    },
+    statText: {
+      fontSize: fontSizes.statText,
+      color: '#666',
+      marginBottom: 4,
+    },
+    resetButton: {
+      backgroundColor: '#ff6b6b',
+      padding: 10,
+      borderRadius: 8,
+      marginTop: 10,
+      alignItems: 'center',
+    },
+    resetButtonText: {
+      color: 'white',
+      fontSize: fontSizes.resetButtonText,
+      fontWeight: 'bold',
+    },
+    sectionTitle: {
+      fontSize: fontSizes.sectionTitle,
+      fontWeight: '600',
+      color: '#333',
+      marginBottom: 15,
+    },
+    noDataText: {
+      fontSize: fontSizes.noDataText,
+      color: '#8E8E93',
+      textAlign: 'center',
+    },
+  });
+
   const [dailyWords, setDailyWords] = useState(5);
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language || 'zh');
   const [isPremium, setIsPremium] = useState(false);
@@ -424,6 +830,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       <Text
         style={[
           styles.menuText,
+          { fontSize: fontSizes.menuText },
           activeSection === section && { color: theme.colors.textLight },
           isDesktop && styles.desktopMenuText
         ]}
@@ -445,7 +852,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                   size={24} 
                   color="#FFD700" 
                 />
-                <Text style={styles.premiumStatusText}>
+                <Text style={[styles.premiumStatusText, { fontSize: fontSizes.premiumStatusText }]}>
                   {subscriptionStatus.isLifetime 
                     ? i18n.t('lifetimeName')
                     : subscriptionStatus.isActive 
@@ -455,7 +862,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                 </Text>
               </View>
               {subscriptionStatus.isActive && !subscriptionStatus.isLifetime && subscriptionStatus.expirationDate && (
-                <Text style={styles.expirationText}>
+                <Text style={[styles.expirationText, { fontSize: fontSizes.expirationText }]}>
                   {i18n.t('daysRemaining', { days: formatRemainingDays(subscriptionStatus.expirationDate) })}
                 </Text>
               )}
@@ -475,16 +882,16 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                           <MaterialCommunityIcons name={plan.icon} size={24} color="#007AFF" />
                         </View>
                         <View style={styles.planNameContainer}>
-                          <Text style={styles.planName}>{plan.name}</Text>
-                          <Text style={styles.planDuration}>{plan.duration}</Text>
+                          <Text style={[styles.planName, { fontSize: fontSizes.planName }]}>{plan.name}</Text>
+                          <Text style={[styles.planDuration, { fontSize: fontSizes.planDuration }]}>{plan.duration}</Text>
                         </View>
                       </View>
                       <View style={styles.planPriceContainer}>
-                        <Text style={styles.planPriceAmount}>${plan.price}</Text>
-                        <Text style={styles.planPricePeriod}>{plan.period}</Text>
+                        <Text style={[styles.planPriceAmount, { fontSize: fontSizes.planPriceAmount }]}>${plan.price}</Text>
+                        <Text style={[styles.planPricePeriod, { fontSize: fontSizes.planPricePeriod }]}>{plan.period}</Text>
                       </View>
                     </View>
-                    <Text style={styles.planDescription}>{plan.description}</Text>
+                    <Text style={[styles.planDescription, { fontSize: fontSizes.planDescription }]}>{plan.description}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -495,9 +902,9 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
         return (
           <View style={styles.sectionContent}>
             <View style={styles.settingGroup}>
-              <Text style={styles.settingGroupTitle}>{i18n.t('learningSettings')}</Text>
+              <Text style={[styles.settingGroupTitle, { fontSize: fontSizes.settingGroupTitle }]}>{i18n.t('learningSettings')}</Text>
               <View style={styles.settingItem}>
-                <Text style={styles.settingLabel}>{i18n.t('dailyWords')}</Text>
+                <Text style={[styles.settingLabel, { fontSize: fontSizes.settingLabel }]}>{i18n.t('dailyWords')}</Text>
                 <View style={styles.numberSelector}>
                   <TouchableOpacity 
                     onPress={() => dailyWords > 1 && saveDailyWords(dailyWords - 1)}
@@ -505,7 +912,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                   >
                     <Text style={styles.numberButtonText}>-</Text>
                   </TouchableOpacity>
-                  <Text style={styles.numberValue}>{dailyWords}</Text>
+                  <Text style={[styles.numberValue, { fontSize: fontSizes.numberValue }]}>{dailyWords}</Text>
                   <TouchableOpacity 
                     onPress={() => dailyWords < 20 && saveDailyWords(dailyWords + 1)}
                     style={styles.numberButton}
@@ -516,7 +923,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
               </View>
             </View>
             <View style={styles.settingGroup}>
-              <Text style={styles.settingGroupTitle}>{i18n.t('language')}</Text>
+              <Text style={[styles.settingGroupTitle, { fontSize: fontSizes.settingGroupTitle }]}>{i18n.t('language')}</Text>
               <View style={styles.languageButtons}>
                 <TouchableOpacity 
                   style={[styles.languageButton, currentLanguage === 'zh' && styles.activeLanguage]}
@@ -551,15 +958,15 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           <View style={styles.sectionContent}>
             <View style={styles.gameStatsContainer}>
               <View style={styles.gameStatItem}>
-                <Text style={styles.gameTitle}>{i18n.t('wordGame')}</Text>
-                <Text style={styles.statText}>
+                <Text style={[styles.gameTitle, { fontSize: fontSizes.gameTitle }]}>{i18n.t('wordGame')}</Text>
+                <Text style={[styles.statText, { fontSize: fontSizes.statText }]}>
                   {i18n.t('highScore')}: {gameStats.wordGame.highScore}
                 </Text>
-                <Text style={styles.statText}>
+                <Text style={[styles.statText, { fontSize: fontSizes.statText }]}>
                   {i18n.t('gamesPlayed')}: {gameStats.wordGame.gamesPlayed}
                 </Text>
                 {gameProgress && (
-                  <Text style={styles.statText}>
+                  <Text style={[styles.statText, { fontSize: fontSizes.statText }]}>
                     {i18n.t('currentProgress')}: {i18n.t('level', { level: gameProgress.currentLevel })} - {gameProgress.score}{i18n.t('points')}
                   </Text>
                 )}
@@ -567,20 +974,20 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                   style={styles.resetButton}
                   onPress={() => handleResetGame('word')}
                 >
-                  <Text style={styles.resetButtonText}>{i18n.t('resetGame')}</Text>
+                  <Text style={[styles.resetButtonText, { fontSize: fontSizes.resetButtonText }]}>{i18n.t('resetGame')}</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.gameStatItem}>
-                <Text style={styles.gameTitle}>{i18n.t('pronunciationGame')}</Text>
-                <Text style={styles.statText}>
+                <Text style={[styles.gameTitle, { fontSize: fontSizes.gameTitle }]}>{i18n.t('pronunciationGame')}</Text>
+                <Text style={[styles.statText, { fontSize: fontSizes.statText }]}>
                   {i18n.t('highScore')}: {gameStats.pronunciationGame.highScore}
                 </Text>
-                <Text style={styles.statText}>
+                <Text style={[styles.statText, { fontSize: fontSizes.statText }]}>
                   {i18n.t('gamesPlayed')}: {gameStats.pronunciationGame.gamesPlayed}
                 </Text>
                 {pronunciationGameProgress && (
-                  <Text style={styles.statText}>
+                  <Text style={[styles.statText, { fontSize: fontSizes.statText }]}>
                     {i18n.t('currentProgress')}: {i18n.t('level', { level: pronunciationGameProgress.currentLevel })} - {pronunciationGameProgress.score}{i18n.t('points')}
                   </Text>
                 )}
@@ -588,7 +995,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                   style={styles.resetButton}
                   onPress={() => handleResetGame('pronunciation')}
                 >
-                  <Text style={styles.resetButtonText}>{i18n.t('resetGame')}</Text>
+                  <Text style={[styles.resetButtonText, { fontSize: fontSizes.resetButtonText }]}>{i18n.t('resetGame')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -600,37 +1007,37 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
             <View style={styles.statsHeader}>
               <View style={styles.statItem}>
                 <MaterialCommunityIcons name="book-open-variant" size={24} color="#007AFF" />
-                <Text style={styles.statsText}>
+                <Text style={[styles.statsText, { fontSize: fontSizes.statsText }]}>
                   {learningStats.totalCharacters}
                 </Text>
-                <Text style={styles.statsLabel}>{i18n.t('learned')}</Text>
+                <Text style={[styles.statsLabel, { fontSize: fontSizes.statsLabel }]}>{i18n.t('learned')}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <MaterialCommunityIcons name="star" size={24} color="#007AFF" />
-                <Text style={styles.statsText}>
+                <Text style={[styles.statsText, { fontSize: fontSizes.statsText }]}>
                   {learningStats.masteredCharacters}
                 </Text>
-                <Text style={styles.statsLabel}>{i18n.t('mastered')}</Text>
+                <Text style={[styles.statsLabel, { fontSize: fontSizes.statsLabel }]}>{i18n.t('mastered')}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={[styles.statItem, styles.timeStatItem]}>
                 <MaterialCommunityIcons name="clock-outline" size={24} color="#007AFF" />
-                <Text style={styles.statsText}>
+                <Text style={[styles.statsText, { fontSize: fontSizes.statsText }]}>
                   {formatLearningTime(learningStats.totalLearningTime)}
                 </Text>
-                <Text style={styles.statsLabel}>{i18n.t('totalLearningTime')}</Text>
+                <Text style={[styles.statsLabel, { fontSize: fontSizes.statsLabel }]}>{i18n.t('totalLearningTime')}</Text>
               </View>
             </View>
-            <Text style={styles.sectionTitle}>{i18n.t('learnedCharacters')}</Text>
+            <Text style={[styles.sectionTitle, { fontSize: fontSizes.sectionTitle }]}>{i18n.t('learnedCharacters')}</Text>
             <View style={styles.legendContainer}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendColor, { backgroundColor: '#34C759' }]} />
-                <Text style={styles.legendText}>{i18n.t('masteryLevel2')}</Text>
+                <Text style={[styles.legendText, { fontSize: fontSizes.legendText }]}>{i18n.t('masteryLevel2')}</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendColor, { backgroundColor: '#333333' }]} />
-                <Text style={styles.legendText}>{i18n.t('masteryLevel1')}</Text>
+                <Text style={[styles.legendText, { fontSize: fontSizes.legendText }]}>{i18n.t('masteryLevel1')}</Text>
               </View>
             </View>
             {learnedCharacters.length > 0 ? (
@@ -646,7 +1053,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                 style={styles.characterList}
               />
             ) : (
-              <Text style={styles.noDataText}>{i18n.t('noLearnedChars')}</Text>
+              <Text style={[styles.noDataText, { fontSize: fontSizes.noDataText }]}>{i18n.t('noLearnedChars')}</Text>
             )}
           </View>
         );
@@ -708,394 +1115,18 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   return (
     <ResponsiveContainer>
       <View style={[styles.container, isDesktop && styles.desktopContainer]}>
-        {isDesktop || isTablet ? (
-          // Desktop/Tablet Layout
-          <View style={styles.splitView}>
-            <View style={styles.sidebar}>
-              {renderMenuItem('premium', 'crown', i18n.t('premium'))}
-              {renderMenuItem('settings', 'cog', i18n.t('learningSettings'))}
-              {renderMenuItem('learningStats', 'chart-bar', i18n.t('menuStats'))}
-              {renderMenuItem('gameStats', 'gamepad-variant', i18n.t('gameHighScores'))}
-            </View>
-            <View style={styles.mainContent}>
-              {renderContent()}
-            </View>
+        <View style={styles.splitView}>
+          <View style={styles.mobileSidebar}>
+            {renderMenuItem('premium', 'crown', i18n.t('premium'))}
+            {renderMenuItem('settings', 'cog', i18n.t('learningSettings'))}
+            {renderMenuItem('learningStats', 'chart-bar', i18n.t('menuStats'))}
+            {renderMenuItem('gameStats', 'gamepad-variant', i18n.t('gameHighScores'))}
           </View>
-        ) : (
-          // Mobile Layout
-          <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.menuScroll}>
-              {renderMenuItem('premium', 'crown', i18n.t('premium'))}
-              {renderMenuItem('settings', 'cog', i18n.t('learningSettings'))}
-              {renderMenuItem('learningStats', 'chart-bar', i18n.t('menuStats'))}
-              {renderMenuItem('gameStats', 'gamepad-variant', i18n.t('gameHighScores'))}
-            </ScrollView>
-            <ScrollView style={styles.contentScroll}>
-              {renderContent()}
-            </ScrollView>
-          </>
-        )}
+          <View style={styles.mainContentWrapper}>
+            {renderContent()}
+          </View>
+        </View>
       </View>
     </ResponsiveContainer>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  desktopContainer: {
-    paddingHorizontal: 0,
-  },
-  splitView: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  sidebar: {
-    width: 240,
-    backgroundColor: '#f8f9fa',
-    borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
-    padding: 16,
-  },
-  mainContent: {
-    flex: 1,
-    padding: 24,
-  },
-  menuScroll: {
-    flexGrow: 0,
-    height: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    backgroundColor: '#f8f9fa',
-  },
-  contentScroll: {
-    flex: 1,
-    padding: 16,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-    backgroundColor: '#f8f9fa',
-  },
-  desktopMenuItem: {
-    padding: 16,
-    marginBottom: 12,
-  },
-  menuText: {
-    marginLeft: 12,
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
-  },
-  desktopMenuText: {
-    fontSize: 18,
-  },
-  sectionContent: {
-    flex: 1,
-  },
-  settingGroup: {
-    marginBottom: 25,
-  },
-  settingGroupTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: '#666',
-  },
-  numberSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-  },
-  numberButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  numberButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  numberValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    minWidth: 30,
-    textAlign: 'center',
-  },
-  languageButtons: {
-    flexDirection: 'column',
-    gap: 10,
-  },
-  languageButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    width: '100%',
-    alignItems: 'center',
-  },
-  activeLanguage: {
-    backgroundColor: '#007AFF',
-  },
-  languageButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  activeLanguageText: {
-    color: '#fff',
-  },
-  subscriptionPlans: {
-    gap: 15,
-  },
-  subscriptionPlan: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  planHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  planIconAndName: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  planIcon: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-  },
-  planNameContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  planName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  planDuration: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 4,
-  },
-  planPriceContainer: {
-    alignItems: 'flex-end',
-  },
-  planPriceAmount: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#007AFF',
-  },
-  planPricePeriod: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  planDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  premiumStatusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 12,
-    gap: 10,
-  },
-  premiumStatusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  premiumStatusText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  expirationText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  statsContainer: {
-    flex: 1,
-    paddingBottom: 80, // Add padding at the bottom to avoid navigation bar overlap
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
-  },
-  noDataText: {
-    fontSize: 16,
-    color: '#8E8E93',
-    textAlign: 'center',
-  },
-  characterGrid: {
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
-  characterItem: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 10,
-    marginBottom: 10,
-  },
-  characterText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  masteryText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  loadMoreButton: {
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  loadMoreText: {
-    color: '#666',
-    fontSize: 14,
-  },
-  gameStatsContainer: {
-    marginTop: 10,
-  },
-  gameStatItem: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  gameTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  statText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 4,
-  },
-  resetButton: {
-    backgroundColor: '#ff6b6b',
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  resetButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  statsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  statItem: {
-    alignItems: 'center',
-    width: '30%',
-    paddingHorizontal: 8,
-  },
-  timeStatItem: {
-    alignItems: 'center',
-    width: '34%',
-    paddingHorizontal: 8,
-  },
-  statsText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  statsLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  statDivider: {
-    width: 1,
-    height: '70%',
-    backgroundColor: '#E0E0E0',
-  },
-  legendContainer: {
-    flexDirection: 'row',
-    gap: 20,
-    marginBottom: 15,
-    paddingHorizontal: 10,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  legendText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  characterList: {
-    flex: 1,
-    height: '100%',
-  },
-});

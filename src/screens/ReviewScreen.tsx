@@ -19,7 +19,7 @@ interface ReviewItem {
 }
 
 export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
-  const { theme, isDesktop } = useResponsive();
+  const { theme, isDesktop, isTablet } = useResponsive();
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [canReview, setCanReview] = useState(false);
 
@@ -92,9 +92,6 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
         <Text style={[styles.characterText, isDesktop && styles.desktopCharacterText]}>
           {item.character}
         </Text>
-        <Text style={[styles.mistakesText, isDesktop && styles.desktopMistakesText]}>
-          {i18n.t('mistakeCount', { count: item.mistakes })}
-        </Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.removeButton, { backgroundColor: theme.colors.error }]}
@@ -117,11 +114,16 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
             data={reviewItems}
             renderItem={renderItem}
             keyExtractor={item => item.character}
-            numColumns={isDesktop ? 3 : 2}
-            columnWrapperStyle={styles.columnWrapper}
+            numColumns={isDesktop ? 3 : isTablet ? 2 : 1}
+            columnWrapperStyle={
+              (isDesktop || isTablet) ? [
+                styles.columnWrapper,
+                isTablet && styles.tabletColumnWrapper
+              ] : undefined
+            }
             contentContainerStyle={[
               styles.listContent,
-              isDesktop && styles.desktopListContent
+              (isDesktop || isTablet) && styles.desktopListContent
             ]}
           />
         ) : (
@@ -145,18 +147,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    width: '100%',
   },
   listContent: {
     padding: 16,
+    width: '100%',
   },
   desktopListContent: {
     padding: 24,
     maxWidth: 1200,
     alignSelf: 'center',
+    width: '100%',
   },
   columnWrapper: {
     justifyContent: 'flex-start',
     gap: 16,
+    width: '100%',
+  },
+  tabletColumnWrapper: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
   },
   itemContainer: {
     flex: 1,
@@ -165,7 +175,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
     marginBottom: 16,
-    maxWidth: '48%',
+    maxWidth: '100%',
+    minWidth: 200,
   },
   desktopItemContainer: {
     maxWidth: '31%',
@@ -173,6 +184,8 @@ const styles = StyleSheet.create({
   characterContainer: {
     flex: 1,
     padding: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   desktopCharacterContainer: {
     padding: 20,
@@ -180,7 +193,6 @@ const styles = StyleSheet.create({
   characterText: {
     fontSize: 32,
     fontWeight: '600',
-    marginBottom: 8,
   },
   desktopCharacterText: {
     fontSize: 40,

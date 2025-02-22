@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ViewStyle, Platform, SafeAreaView } from 'react-native';
+import { View, StyleSheet, ViewStyle, Platform, SafeAreaView, useWindowDimensions } from 'react-native';
 import { getDeviceType, DeviceType, getWindowDimensions, addDimensionsListener } from '../utils/responsive';
 import { getTheme } from '../theme';
 
@@ -20,6 +20,8 @@ export const ResponsiveContainer: React.FC<ResponsiveContainerProps> = ({
 }) => {
   const [deviceType, setDeviceType] = useState<DeviceType>(getDeviceType());
   const theme = getTheme(deviceType);
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
 
   useEffect(() => {
     // 监听屏幕尺寸变化
@@ -35,30 +37,60 @@ export const ResponsiveContainer: React.FC<ResponsiveContainerProps> = ({
 
   const containerStyle = [
     styles.container,
-    useMaxWidth && { maxWidth: theme.layout.maxWidth },
-    withPadding && { padding: theme.layout.containerPadding },
+    useMaxWidth && (isTablet ? styles.tabletMaxWidth : { maxWidth: theme.layout.maxWidth }),
+    withPadding && { 
+      padding: isTablet ? 24 : theme.layout.containerPadding,
+      paddingHorizontal: isTablet ? 32 : theme.layout.containerPadding,
+    },
+    isTablet && styles.tabletContainer,
     style,
   ];
 
+  const contentWrapper = (
+    <View style={[
+      containerStyle,
+      isTablet && styles.tabletContentWrapper
+    ]}>
+      {children}
+    </View>
+  );
+
   if (useSafeArea) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={containerStyle}>{children}</View>
+      <SafeAreaView style={[
+        styles.safeArea,
+        isTablet && styles.tabletSafeArea
+      ]}>
+        {contentWrapper}
       </SafeAreaView>
     );
   }
 
-  return <View style={containerStyle}>{children}</View>;
+  return contentWrapper;
 };
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
+    width: '100%',
+  },
+  tabletSafeArea: {
+    alignItems: 'center',
   },
   container: {
     flex: 1,
     alignSelf: 'center',
     width: '100%',
+  },
+  tabletMaxWidth: {
+    maxWidth: 1024,
+  },
+  tabletContainer: {
+    alignItems: 'center',
+  },
+  tabletContentWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }); 

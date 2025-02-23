@@ -590,6 +590,35 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     ]).start();
   }, [score]);
 
+  // Create dynamic styles based on isTablet
+  const dynamicStyles = {
+    levelTitle: {
+      fontSize: isTablet ? 32 : 18,
+    },
+    desktopLevelTitle: {
+      fontSize: isTablet ? 36 : 24,
+    },
+    scoreText: {
+      fontSize: isTablet ? 28 : 18,
+    },
+    bubbleText: {
+      fontSize: isTablet ? 48 : 32,
+    },
+    currentCharText: {
+      fontSize: isTablet ? 42 : 28,
+    },
+    desktopCurrentCharText: {
+      fontSize: isTablet ? 48 : 36,
+    },
+    instructionsText: {
+      fontSize: isTablet ? 20 : 13,
+      lineHeight: isTablet ? 28 : 18,
+    },
+    loadingText: {
+      fontSize: isTablet ? 24 : 16,
+    },
+  };
+
   const renderBubble = (bubble: Bubble) => {
     return (
       <Animated.View
@@ -649,7 +678,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
               start={{ x: 0.2, y: 0.2 }}
               end={{ x: 0.8, y: 0.8 }}
             />
-            <Text style={styles.bubbleText}>{bubble.char}</Text>
+            <Text style={[styles.bubbleText, dynamicStyles.bubbleText]}>{bubble.char}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
@@ -734,7 +763,12 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
           </TouchableOpacity>
           
           <View style={styles.levelTitleContainer}>
-            <Text style={[styles.levelTitle, isDesktop && styles.desktopLevelTitle]}>
+            <Text style={[
+              styles.levelTitle,
+              dynamicStyles.levelTitle,
+              isDesktop && styles.desktopLevelTitle,
+              isDesktop && dynamicStyles.desktopLevelTitle
+            ]}>
               {i18n.t('levelTitle', { current: level, total: totalLevels })}
             </Text>
           </View>
@@ -754,7 +788,9 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
         <View style={styles.progressSection}>
           <View style={styles.scoreContainer}>
-            <Text style={styles.scoreText}>{i18n.t('score', { score })}</Text>
+            <Text style={[styles.scoreText, dynamicStyles.scoreText]}>
+              {i18n.t('score', { score })}
+            </Text>
           </View>
 
           <View style={styles.progressBarContainer}>
@@ -829,6 +865,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
                   />
                   <Text style={[
                     styles.currentCharText,
+                    dynamicStyles.currentCharText,
                     isDesktop && styles.desktopCurrentCharText
                   ]}>
                     {currentChar}

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-na
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useResponsive } from '../hooks/useResponsive';
 
 type GameStackParamList = {
   GamesList: undefined;
@@ -13,38 +14,41 @@ type GameStackParamList = {
 type GamesScreenProps = NativeStackScreenProps<GameStackParamList, 'GamesList'>;
 
 export const GamesScreen = ({ navigation }: GamesScreenProps) => {
+  const { isTablet } = useResponsive();
+  const screenStyles = styles({ isTablet });
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={screenStyles.container}>
+      <View style={screenStyles.header}>
         <TouchableOpacity 
           onPress={() => navigation.goBack()}
-          style={styles.backButton}
+          style={screenStyles.backButton}
         >
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#666" />
+          <MaterialCommunityIcons name="arrow-left" size={isTablet ? 32 : 24} color="#666" />
         </TouchableOpacity>
-        <Text style={styles.title}>{i18n.t('games')}</Text>
+        <Text style={screenStyles.title}>{i18n.t('games')}</Text>
       </View>
 
-      <View style={styles.content}>
+      <View style={screenStyles.content}>
         <TouchableOpacity 
-          style={[styles.gameCard, styles.wordGame]}
+          style={[screenStyles.gameCard, screenStyles.wordGame]}
           onPress={() => navigation.navigate('WordGame', { mode: 'word' })}
         >
-          <MaterialCommunityIcons name="cards" size={32} color="#fff" />
-          <View style={styles.gameInfo}>
-            <Text style={styles.gameName}>{i18n.t('wordGame')}</Text>
-            <Text style={styles.gameDescription}>{i18n.t('wordGameDesc')}</Text>
+          <MaterialCommunityIcons name="cards" size={isTablet ? 48 : 32} color="#fff" />
+          <View style={screenStyles.gameInfo}>
+            <Text style={screenStyles.gameName}>{i18n.t('wordGame')}</Text>
+            <Text style={screenStyles.gameDescription}>{i18n.t('wordGameDesc')}</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.gameCard, styles.pronunciationGame]}
+          style={[screenStyles.gameCard, screenStyles.pronunciationGame]}
           onPress={() => navigation.navigate('PronunciationGame', { mode: 'pronunciation' })}
         >
-          <MaterialCommunityIcons name="microphone" size={32} color="#fff" />
-          <View style={styles.gameInfo}>
-            <Text style={styles.gameName}>{i18n.t('pronunciationGame')}</Text>
-            <Text style={styles.gameDescription}>{i18n.t('pronunciationGameDesc')}</Text>
+          <MaterialCommunityIcons name="microphone" size={isTablet ? 48 : 32} color="#fff" />
+          <View style={screenStyles.gameInfo}>
+            <Text style={screenStyles.gameName}>{i18n.t('pronunciationGame')}</Text>
+            <Text style={screenStyles.gameDescription}>{i18n.t('pronunciationGameDesc')}</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -52,54 +56,54 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = ({ isTablet }: { isTablet: boolean }) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 50,
-    paddingBottom: 80,
+    paddingTop: isTablet ? 60 : 50,
+    paddingBottom: isTablet ? 100 : 80,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
+    padding: isTablet ? 20 : 15,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    padding: 8,
+    padding: isTablet ? 12 : 8,
   },
   title: {
-    fontSize: 20,
+    fontSize: isTablet ? 32 : 20,
     fontWeight: 'bold',
     color: '#333',
-    marginLeft: 10,
+    marginLeft: isTablet ? 15 : 10,
   },
   content: {
     flex: 1,
-    padding: 15,
-    gap: 15,
+    padding: isTablet ? 20 : 15,
+    gap: isTablet ? 20 : 15,
   },
   gameCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    gap: 12,
+    padding: isTablet ? 20 : 12,
+    borderRadius: isTablet ? 16 : 12,
+    gap: isTablet ? 16 : 12,
   },
   gameInfo: {
     flex: 1,
   },
   gameName: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: isTablet ? 28 : 16,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: isTablet ? 4 : 2,
   },
   gameDescription: {
     color: '#fff',
     opacity: 0.9,
-    fontSize: 13,
+    fontSize: isTablet ? 20 : 13,
   },
   wordGame: {
     backgroundColor: '#34C759',

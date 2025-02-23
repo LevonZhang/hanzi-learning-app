@@ -27,9 +27,21 @@ export const getWindowDimensions = (): ScaledSize => {
 
 // 判断设备类型
 export const getDeviceType = (width: number = getWindowDimensions().width): DeviceType => {
-  if (width >= DEVICE_BREAKPOINTS.DESKTOP) return 'DESKTOP';
-  if (width >= DEVICE_BREAKPOINTS.TABLET) return 'TABLET';
-  return 'PHONE';
+  // 确保在 iPad 上返回 TABLET
+  if (Platform.OS === 'ios' && Platform.isPad) {
+    console.log('Device detected as iPad');
+    return 'TABLET';
+  }
+  
+  // 根据屏幕宽度判断设备类型
+  const deviceType = width >= DEVICE_BREAKPOINTS.DESKTOP 
+    ? 'DESKTOP' 
+    : width >= DEVICE_BREAKPOINTS.TABLET 
+      ? 'TABLET' 
+      : 'PHONE';
+  
+  console.log('Device type:', deviceType, 'Screen width:', width);
+  return deviceType;
 };
 
 // 判断是否为 iPad

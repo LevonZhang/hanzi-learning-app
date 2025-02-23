@@ -71,8 +71,11 @@ const useResponsiveFontSizes = () => {
   const { isDesktop, isTablet } = useResponsive();
   
   const getSize = (size: number) => {
-    if (isDesktop || isTablet) {
-      return Math.round(size * 1.25); // 25% larger on tablet/desktop
+    if (isTablet) {
+      return Math.round(size * 1.8); // 80% larger on iPad
+    }
+    if (isDesktop) {
+      return Math.round(size * 1.25); // 25% larger on desktop
     }
     return size;
   };
@@ -123,11 +126,11 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       width: '100%',
     },
     mobileSidebar: {
-      width: 180,
+      width: isTablet ? 200 : 100,
       backgroundColor: '#f8f9fa',
       borderRightWidth: 1,
       borderRightColor: '#e0e0e0',
-      padding: 12,
+      padding: isTablet ? 16 : 12,
     },
     mainContentWrapper: {
       flex: 1,
@@ -141,13 +144,15 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       width: '100%',
     },
     menuItem: {
-      flexDirection: 'row',
+      flexDirection: 'column',
       alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 16,
+      paddingVertical: isTablet ? 16 : 12,
+      paddingHorizontal: isTablet ? 16 : 8,
       borderRadius: 8,
       backgroundColor: '#f8f9fa',
-      marginBottom: 8,
+      marginBottom: isTablet ? 16 : 8,
+      gap: isTablet ? 12 : 8,
+      width: '100%',
     },
     desktopMenuItem: {
       padding: 16,
@@ -158,7 +163,9 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       fontSize: fontSizes.menuText,
       color: '#333',
       fontWeight: '500',
-      marginLeft: 12,
+      textAlign: 'center',
+      width: '100%',
+      flexShrink: 1,
     },
     desktopMenuText: {
       fontSize: fontSizes.menuText,
@@ -172,14 +179,14 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     premiumStatusContainer: {
       backgroundColor: '#f8f9fa',
       borderRadius: 12,
-      padding: 20,
-      marginBottom: 20,
+      padding: 12,
+      marginBottom: 12,
       width: '100%',
     },
     premiumStatusHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 8,
     },
     premiumStatusText: {
       fontSize: fontSizes.premiumStatusText,
@@ -192,12 +199,12 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     },
     subscriptionPlans: {
       width: '100%',
-      gap: 16,
+      gap: 8,
     },
     subscriptionPlan: {
       backgroundColor: '#fff',
       borderRadius: 12,
-      padding: 20,
+      padding: 12,
       shadowColor: '#000',
       shadowOffset: {
         width: 0,
@@ -212,7 +219,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 12,
+      marginBottom: 8,
     },
     planIconAndName: {
       flexDirection: 'row',
@@ -220,15 +227,15 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       flex: 1,
     },
     planIcon: {
-      width: 40,
-      height: 40,
+      width: 32,
+      height: 32,
       justifyContent: 'center',
       alignItems: 'center',
-      borderRadius: 20,
+      borderRadius: 16,
       backgroundColor: 'rgba(0, 122, 255, 0.1)',
     },
     planNameContainer: {
-      marginLeft: 12,
+      marginLeft: 8,
       flex: 1,
     },
     planName: {
@@ -239,7 +246,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     planDuration: {
       fontSize: fontSizes.planDuration,
       color: '#666',
-      marginTop: 4,
+      marginTop: 2,
     },
     planPriceContainer: {
       alignItems: 'flex-end',
@@ -257,8 +264,8 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     planDescription: {
       fontSize: fontSizes.planDescription,
       color: '#666',
-      lineHeight: fontSizes.planDescription * 1.5,
-      marginTop: 8,
+      lineHeight: fontSizes.planDescription * 1.3,
+      marginTop: 4,
     },
     settingGroup: {
       marginBottom: 25,
@@ -824,7 +831,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     >
       <MaterialCommunityIcons
         name={icon}
-        size={isDesktop ? 28 : 24}
+        size={isTablet ? 32 : 24}
         color={activeSection === section ? theme.colors.textLight : theme.colors.textPrimary}
       />
       <Text
@@ -834,6 +841,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           activeSection === section && { color: theme.colors.textLight },
           isDesktop && styles.desktopMenuText
         ]}
+        numberOfLines={1}
       >
         {title}
       </Text>

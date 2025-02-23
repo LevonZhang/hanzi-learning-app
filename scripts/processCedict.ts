@@ -10,7 +10,6 @@ function processChineseExplanation(explanation: string): string[] {
     .filter(line => line.length > 0);
 
   const definitions: string[] = [];
-  let currentDefinition = '';
 
   for (let line of lines) {
     // Skip lines that are not definitions
@@ -27,22 +26,9 @@ function processChineseExplanation(explanation: string): string[] {
 
     // Clean the line
     line = line
-      .replace(/\([^)]+\)/g, '') // Remove content in round brackets
-      .replace(/（[^）]+）/g, '') // Remove content in full-width round brackets
-      .replace(/\[[^\]]+\]/g, '') // Remove content in square brackets
-      .replace(/［[^］]+］/g, '') // Remove content in full-width square brackets
-      .replace(/〈[^〉]+〉/g, '') // Remove content in angle brackets
-      .replace(/《[^》]+》/g, '') // Remove book titles
-      .replace(/「[^」]+」/g, '') // Remove content in corner brackets
-      .replace(/『[^』]+』/g, '') // Remove content in white corner brackets
-      .replace(/\{[^}]+\}/g, '') // Remove content in curly brackets
-      .replace(/～/g, '') // Remove wave dash
       .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .replace(/[""]/g, '') // Remove quotation marks
-      .replace(/\d+\./g, '') // Remove numbered list markers
-      .replace(/⒈|⒉|⒊|⒋|⒌|⒍|⒎|⒏|⒐|⒑/g, '') // Remove circled numbers
-      .replace(/①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩/g, '') // Remove circled numbers
       .replace(/\-\-.*$/, '') // Remove everything after --
+      .replace(/^\d+\.\s*/, '') // Remove leading numbers
       .trim();
 
     // Skip if line is empty after cleaning
@@ -53,42 +39,27 @@ function processChineseExplanation(explanation: string): string[] {
     // If line contains multiple definitions separated by semicolons or periods
     if (line.includes('。') || line.includes('；')) {
       const subDefs = line.split(/[。；]/).filter(def => def.trim().length > 0);
-      for (const def of subDefs) {
-        if (currentDefinition) {
-          definitions.push(currentDefinition + def + '。');
-          currentDefinition = '';
-        } else {
-          definitions.push(def + '。');
-        }
-      }
+      definitions.push(...subDefs.map(def => def.trim() + '。'));
     } else {
-      // If line doesn't end with period, accumulate it
-      currentDefinition += line;
+      // If line doesn't end with period, add it
+      definitions.push(line + (line.endsWith('。') ? '' : '。'));
     }
-  }
-
-  // Add any remaining definition
-  if (currentDefinition) {
-    definitions.push(currentDefinition + '。');
   }
 
   // Filter and clean the definitions
   return [...new Set(definitions)]
-    .filter(def => {
-      // Filter out definitions that are too short or contain unwanted patterns
-      return def.length > 2 && 
-             !def.match(/^[a-zA-Z0-9]/) &&
-             !def.includes('见') &&
-             !def.includes('通') &&
-             !def.includes('同') &&
-             !def.includes('亦作') &&
-             !def.includes('或作');
-    })
-    .map(def => {
-      // Ensure definition ends with proper punctuation
-      if (!def.match(/[。！？；]$/)) {
-        def += '。';
-      }
-      return def;
-    });
-} 
+    .filter(def => def.length > 2);
+}
+
+// Test the function with some sample data
+const testExplanation = `测试（测试用例）这是一个测试。
+这是第二个解释；这是第二个解释的第二部分。
+《诗经》中的一句 [这是注释] 实际文本。
+(这是括号中的内容) 主要解释。
+这是「重要内容」的说明。`;
+
+console.log("Testing processChineseExplanation function:");
+console.log("Input explanation:");
+console.log(testExplanation);
+console.log("\nProcessed result:");
+console.log(processChineseExplanation(testExplanation)); 

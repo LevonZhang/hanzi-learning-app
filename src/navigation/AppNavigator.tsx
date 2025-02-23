@@ -14,6 +14,7 @@ import { i18n } from '../i18n/i18n';
 import { RouteProp } from '@react-navigation/native';
 import { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import { SearchScreen } from '../screens/SearchScreen';
+import { useResponsive } from '../hooks/useResponsive';
 
 type RootTabParamList = {
   Learning: { mode: 'learning' | 'review' | 'display', character?: string } | undefined;
@@ -43,7 +44,16 @@ const GameStackNavigator = () => {
 };
 
 export const AppNavigator = () => {
+  const { isTablet } = useResponsive();
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
+
+  // Calculate sizes based on device type
+  const isIPad = Platform.OS === 'ios' && Platform.isPad;
+  const isMacOS = Platform.OS === 'macos';
+  const tabBarHeight = isTablet ? (Platform.OS === 'ios' ? 100 : 90) : (Platform.OS === 'ios' ? 70 : 60);
+  const iconSize = isTablet ? 40 : 24;
+  const labelSize = isMacOS ? 13 : isIPad ? 20 : isTablet ? 18 : 12;
+  const bottomPadding = isTablet ? (Platform.OS === 'ios' ? 25 : 15) : (Platform.OS === 'ios' ? 15 : 5);
 
   useEffect(() => {
     // 监听语言变化
@@ -59,7 +69,7 @@ export const AppNavigator = () => {
   }, []);
 
   const getTabScreenOptions = ({ route }: { route: RouteProp<RootTabParamList, keyof RootTabParamList> }): BottomTabNavigationOptions => ({
-    tabBarIcon: ({ focused, color, size }: { focused: boolean; color: string; size: number }) => {
+    tabBarIcon: ({ focused, color }: { focused: boolean; color: string; size: number }) => {
       let iconName: keyof typeof MaterialCommunityIcons.glyphMap;
       switch (route.name) {
         case 'Learning':
@@ -80,19 +90,19 @@ export const AppNavigator = () => {
         default:
           iconName = 'help';
       }
-      return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
+      return <MaterialCommunityIcons name={iconName} size={iconSize} color={color} />;
     },
     tabBarActiveTintColor: '#4CAF50',
     tabBarInactiveTintColor: 'gray',
     tabBarStyle: {
-      paddingBottom: Platform.OS === 'ios' ? 15 : 5,
-      height: Platform.OS === 'ios' ? 70 : 60,
-      paddingTop: 5,
+      paddingBottom: bottomPadding,
+      height: tabBarHeight,
+      paddingTop: isTablet ? 12 : 5,
       position: 'absolute' as const,
-      bottom: 15,
-      left: 10,
-      right: 10,
-      borderRadius: 15,
+      bottom: isTablet ? 25 : 15,
+      left: isTablet ? 20 : 10,
+      right: isTablet ? 20 : 10,
+      borderRadius: isTablet ? 25 : 15,
       backgroundColor: 'rgba(255, 255, 255, 0.8)',
       shadowColor: '#000',
       shadowOffset: {
@@ -105,8 +115,10 @@ export const AppNavigator = () => {
       borderTopWidth: 0,
     },
     tabBarLabelStyle: {
-      fontSize: 12,
-      marginBottom: Platform.OS === 'ios' ? 0 : 5,
+      fontSize: labelSize,
+      marginBottom: Platform.OS === 'ios' ? 0 : isTablet ? 10 : 5,
+      fontWeight: isIPad ? '600' : isTablet ? '600' : '500',
+      lineHeight: isIPad ? 24 : isTablet ? 22 : undefined,
     },
     headerShown: false,
     tabBarLabel: route.name === 'Settings' ? i18n.t('profileTab') : i18n.t(route.name.toLowerCase())

@@ -14,6 +14,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import HanziService from '../services/HanziService';
 import SubscriptionService from '../services/SubscriptionService';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface SearchResult {
   character: string;
@@ -21,10 +22,24 @@ interface SearchResult {
 }
 
 export const SearchScreen = ({ navigation }: any) => {
+  const { isTablet } = useResponsive();
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [canSearch, setCanSearch] = useState(false);
   const isAlertShowing = useRef(false);
+
+  // Create dynamic styles based on isTablet
+  const dynamicStyles = {
+    searchInput: {
+      fontSize: isTablet ? 24 : 16,
+    },
+    characterText: {
+      fontSize: isTablet ? 36 : 24,
+    },
+    pinyinText: {
+      fontSize: isTablet ? 24 : 16,
+    },
+  };
 
   useEffect(() => {
     checkSearchPermission();
@@ -101,18 +116,21 @@ export const SearchScreen = ({ navigation }: any) => {
       style={styles.resultItem}
       onPress={() => handleCharacterPress(item.character)}
     >
-      <Text style={styles.characterText}>{item.character}</Text>
-      <Text style={styles.pinyinText}>{item.pinyin.join(', ')}</Text>
+      <Text style={[styles.characterText, dynamicStyles.characterText]}>{item.character}</Text>
+      <Text style={[styles.pinyinText, dynamicStyles.pinyinText]}>{item.pinyin.join(', ')}</Text>
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <MaterialCommunityIcons name="magnify" size={24} color="#666" />
+        <View style={[
+          styles.searchInputContainer,
+          { paddingVertical: isTablet ? 15 : Platform.OS === 'ios' ? 10 : 4 }
+        ]}>
+          <MaterialCommunityIcons name="magnify" size={isTablet ? 32 : 24} color="#666" />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, dynamicStyles.searchInput]}
             value={searchText}
             onChangeText={handleSearch}
             placeholder={i18n.t('searchPlaceholder')}
@@ -123,7 +141,7 @@ export const SearchScreen = ({ navigation }: any) => {
               onPress={() => handleSearch('')}
               style={styles.clearButton}
             >
-              <MaterialCommunityIcons name="close-circle" size={20} color="#999" />
+              <MaterialCommunityIcons name="close-circle" size={isTablet ? 28 : 20} color="#999" />
             </TouchableOpacity>
           )}
         </View>
@@ -133,7 +151,10 @@ export const SearchScreen = ({ navigation }: any) => {
         data={searchResults}
         renderItem={renderSearchResult}
         keyExtractor={(item) => item.character}
-        contentContainerStyle={styles.resultsList}
+        contentContainerStyle={[
+          styles.resultsList,
+          { padding: isTablet ? 20 : 15 }
+        ]}
         keyboardShouldPersistTaps="handled"
       />
     </SafeAreaView>
@@ -156,11 +177,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 4,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
     marginLeft: 8,
     color: '#333',
     padding: 4,
@@ -179,13 +198,11 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   characterText: {
-    fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
     marginRight: 12,
   },
   pinyinText: {
-    fontSize: 16,
     color: '#666',
   },
 }); 

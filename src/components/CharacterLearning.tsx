@@ -121,16 +121,16 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             background-color: transparent; 
           }
           #character-target-div { 
-            width: 250px; 
-            height: 250px; 
+            width: ${shouldUseDesktopLayout ? '400px' : '250px'}; 
+            height: ${shouldUseDesktopLayout ? '400px' : '250px'}; 
             background-color: transparent;
             background-image: url('data:image/svg+xml;utf8,\
-              <svg xmlns="http://www.w3.org/2000/svg" width="250" height="250" viewBox="0 0 250 250">\
-                <rect width="250" height="250" fill="none" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="0" y1="125" x2="250" y2="125" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="125" y1="0" x2="125" y2="250" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="0" y1="0" x2="250" y2="250" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="250" y1="0" x2="0" y2="250" stroke="%23DDD" stroke-width="1"/>\
+              <svg xmlns="http://www.w3.org/2000/svg" width="${shouldUseDesktopLayout ? '400' : '250'}" height="${shouldUseDesktopLayout ? '400' : '250'}" viewBox="0 0 ${shouldUseDesktopLayout ? '400' : '250'} ${shouldUseDesktopLayout ? '400' : '250'}">\
+                <rect width="${shouldUseDesktopLayout ? '400' : '250'}" height="${shouldUseDesktopLayout ? '400' : '250'}" fill="none" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="0" y1="${shouldUseDesktopLayout ? '200' : '125'}" x2="${shouldUseDesktopLayout ? '400' : '250'}" y2="${shouldUseDesktopLayout ? '200' : '125'}" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="${shouldUseDesktopLayout ? '200' : '125'}" y1="0" x2="${shouldUseDesktopLayout ? '200' : '125'}" y2="${shouldUseDesktopLayout ? '400' : '250'}" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="0" y1="0" x2="${shouldUseDesktopLayout ? '400' : '250'}" y2="${shouldUseDesktopLayout ? '400' : '250'}" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="${shouldUseDesktopLayout ? '400' : '250'}" y1="0" x2="0" y2="${shouldUseDesktopLayout ? '400' : '250'}" stroke="%23DDD" stroke-width="1"/>\
               </svg>');
             background-size: 100% 100%;
             position: relative;
@@ -160,10 +160,10 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               writer = null;
             }
 
-            writer = HanziWriter.create('character-target-div', '${character}', {
-              width: 250,
-              height: 250,
-              padding: 5,
+            writer = HanziWriter.create('character-target-div', character, {
+              width: ${shouldUseDesktopLayout ? 400 : 250},
+              height: ${shouldUseDesktopLayout ? 400 : 250},
+              padding: ${shouldUseDesktopLayout ? 10 : 5},
               showOutline: true,
               strokeAnimationSpeed: 1,
               delayBetweenStrokes: 500,
@@ -192,7 +192,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               highlightOnComplete: true,
               showCharacter: true,
               strokeHighlightSpeed: 2,
-              drawingWidth: 12,
+              drawingWidth: ${shouldUseDesktopLayout ? 20 : 12},
               showHintAfterMisses: 3,
               onComplete: () => {
                 window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -255,22 +255,22 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       paddingBottom: 20,
     },
     displayContainer: {
-      width: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 90,
-      height: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 90,
+      width: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 90,
+      height: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 90,
       backgroundColor: 'transparent',
       overflow: 'hidden',
-      marginTop: -25,
-      marginBottom: -5,
+      marginTop: shouldUseDesktopLayout ? -60 : -25,
+      marginBottom: shouldUseDesktopLayout ? -40 : -5,
       position: 'relative',
     },
     canvas: {
-      width: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 90,
-      height: shouldUseDesktopLayout ? Math.min(width - 200, height - 200) : width - 90,
+      width: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 90,
+      height: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 90,
       backgroundColor: 'transparent',
     },
     buttonContainer: {
-      width: shouldUseDesktopLayout ? '80%' : '100%',
-      maxWidth: 800,
+      width: shouldUseDesktopLayout ? '90%' : '100%',
+      maxWidth: 1000,
       paddingHorizontal: 20,
       gap: 8,
     },
@@ -284,15 +284,15 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: shouldUseDesktopLayout ? 12 : 10,
+      padding: shouldUseDesktopLayout ? 20 : 10,
       borderRadius: 8,
-      gap: 4,
+      gap: shouldUseDesktopLayout ? 12 : 8,
       minWidth: shouldUseDesktopLayout ? 150 : 120,
       backgroundColor: '#5B7B9E',
     },
     buttonText: {
       color: '#fff',
-      fontSize: shouldUseDesktopLayout ? 14 : 13,
+      fontSize: shouldUseDesktopLayout ? 24 : 13,
       fontWeight: '600',
       textAlign: 'center',
       flexShrink: 1,
@@ -475,7 +475,11 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               }
             }}
           >
-            <MaterialCommunityIcons name="pencil-outline" size={20} color="#fff" />
+            <MaterialCommunityIcons 
+              name="pencil-outline" 
+              size={shouldUseDesktopLayout ? 28 : 20} 
+              color="#fff" 
+            />
             <Text style={styles.buttonText}>{i18n.t('demonstrateStrokes')}</Text>
           </TouchableOpacity>
           
@@ -487,7 +491,11 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               }
             }}
           >
-            <MaterialCommunityIcons name="pencil" size={20} color="#fff" />
+            <MaterialCommunityIcons 
+              name="pencil" 
+              size={shouldUseDesktopLayout ? 28 : 20} 
+              color="#fff" 
+            />
             <Text style={styles.buttonText}>{i18n.t('practice')}</Text>
           </TouchableOpacity>
         </View>
@@ -501,7 +509,6 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
                   const learningManager = LearningManager.getInstance();
                   await learningManager.recordProgress(character, false);
                   await onComplete?.(false);
-                  // 显示添加成功提示
                   Alert.alert(
                     i18n.t('success'),
                     i18n.t('addedToReview'),
@@ -517,7 +524,11 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
                 }
               }}
             >
-              <MaterialCommunityIcons name="bookmark-plus" size={20} color="#fff" />
+              <MaterialCommunityIcons 
+                name="bookmark-plus" 
+                size={shouldUseDesktopLayout ? 28 : 20} 
+                color="#fff" 
+              />
               <Text style={styles.buttonText}>{i18n.t('addToWrongBook')}</Text>
             </TouchableOpacity>
           )}
@@ -526,7 +537,11 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             style={[styles.button, styles.generateButton, !isReviewMode && { flex: 1 }]}
             onPress={() => setShowStrokeOrder(true)}
           >
-            <MaterialCommunityIcons name="card-outline" size={20} color="#fff" />
+            <MaterialCommunityIcons 
+              name="card-outline" 
+              size={shouldUseDesktopLayout ? 28 : 20} 
+              color="#fff" 
+            />
             <Text style={styles.buttonText}>{i18n.t('generateCard')}</Text>
           </TouchableOpacity>
         </View>

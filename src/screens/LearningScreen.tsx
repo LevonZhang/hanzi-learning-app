@@ -61,9 +61,172 @@ interface LearningScreenProps {
   navigation: any;
 }
 
+type StylesProps = {
+  isTablet: boolean;
+};
+
+const styles = ({ isTablet }: StylesProps) => {
+  const baseStyles = StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    wideContainer: {
+      maxWidth: isTablet ? 1024 : 1200,
+      alignSelf: 'center',
+      width: '100%',
+    },
+    displayContainer: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    wideDisplayContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+      paddingHorizontal: isTablet ? 24 : 32,
+      gap: isTablet ? 24 : 32,
+    },
+    canvas: {
+      width: '100%',
+      aspectRatio: 1,
+      marginBottom: Platform.OS === 'ios' ? 80 : 64,
+    },
+    wideCanvas: {
+      width: isTablet ? '65%' : '60%',
+      marginBottom: 0,
+      marginTop: isTablet ? -60 : -80,
+    },
+    meaningContainer: {
+      width: '100%',
+      padding: isTablet ? 20 : 16,
+      borderRadius: 8,
+      backgroundColor: '#fff',
+      marginTop: -60,
+      height: '80%',
+      maxHeight: Platform.OS === 'ios' ? '80%' : '80%',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 4,
+        },
+      }),
+    },
+    wideMeaningContainer: {
+      width: isTablet ? '32%' : '35%',
+      alignSelf: 'stretch',
+      marginTop: -60,
+      height: '80%',
+      maxHeight: '80%',
+    },
+    tabContainer: {
+      flexDirection: 'row',
+      marginBottom: 16,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 8,
+      alignItems: 'center',
+      borderBottomWidth: 2,
+    },
+    tabText: {
+      fontSize: isTablet ? 18 : 16,
+      fontWeight: '500',
+    },
+    wideTabText: {
+      fontSize: isTablet ? 20 : 18,
+    },
+    meaningScroll: {
+      flex: 1,
+    },
+    meaningText: {
+      fontSize: isTablet ? 24 : 18,
+      lineHeight: isTablet ? 34 : 24,
+      marginBottom: 8,
+    },
+    wideMeaningText: {
+      fontSize: isTablet ? 28 : 20,
+      lineHeight: isTablet ? 38 : 28,
+    },
+    wordsText: {
+      fontSize: isTablet ? 20 : 16,
+      lineHeight: isTablet ? 28 : 22,
+      marginBottom: 8,
+    },
+    wideWordsText: {
+      fontSize: isTablet ? 24 : 18,
+      lineHeight: isTablet ? 32 : 24,
+    },
+    soundButton: {
+      padding: isTablet ? 12 : 8,
+      borderRadius: 8,
+      backgroundColor: '#f0f0f0',
+    },
+    wideSoundButton: {
+      padding: isTablet ? 16 : 12,
+    },
+    buttonContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingBottom: 16,
+    },
+    wideButtonContainer: {
+      paddingHorizontal: isTablet ? 24 : 32,
+      ...(isTablet ? {
+        position: 'relative',
+        backgroundColor: 'transparent',
+        borderTopWidth: 0,
+        bottom: 'auto',
+        marginTop: -320,
+        marginBottom: 32,
+        maxWidth: 200,
+        alignSelf: 'center',
+      } : {}),
+    },
+    button: {
+      flex: 1,
+      marginHorizontal: 8,
+      paddingVertical: isTablet ? 16 : 12,
+      borderRadius: 8,
+      alignItems: 'center',
+      backgroundColor: '#007AFF',
+    },
+    buttonText: {
+      color: '#fff',
+      fontSize: isTablet ? 24 : 16,
+      fontWeight: '600',
+    },
+    completedContainer: {
+      alignItems: 'center',
+      padding: isTablet ? 32 : 24,
+    },
+    completedText: {
+      fontSize: isTablet ? 24 : 20,
+      fontWeight: '600',
+      marginBottom: 16,
+    },
+    statsText: {
+      fontSize: isTablet ? 18 : 16,
+      color: '#666',
+      marginBottom: 8,
+    },
+  });
+
+  return baseStyles;
+};
+
 export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   const { theme, isDesktop, isTablet } = useResponsive();
   const { width: windowWidth } = useWindowDimensions();
+
+  console.log('LearningScreen responsive info:', { isDesktop, isTablet, windowWidth });
+
+  const screenStyles = styles({ isTablet });
 
   const [state, setState] = useState<LearningState>({
     newWords: [],
@@ -291,16 +454,16 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
   return (
     <ResponsiveContainer useSafeArea withPadding>
-      <View style={[styles.container, (isDesktop || isTablet) && styles.wideContainer]}>
+      <View style={[screenStyles.container, (isDesktop || isTablet) && screenStyles.wideContainer]}>
         {state.currentWord ? (
           <>
             <View style={[
-              styles.displayContainer,
-              (isDesktop || isTablet) && styles.wideDisplayContainer
+              screenStyles.displayContainer,
+              (isDesktop || isTablet) && screenStyles.wideDisplayContainer
             ]}>
               <View style={[
-                styles.canvas,
-                (isDesktop || isTablet) && styles.wideCanvas
+                screenStyles.canvas,
+                (isDesktop || isTablet) && screenStyles.wideCanvas
               ]}>
                 <CharacterLearning
                   character={state.currentWord.character}
@@ -312,21 +475,21 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
               </View>
               
               <View style={[
-                styles.meaningContainer,
-                (isDesktop || isTablet) && styles.wideMeaningContainer
+                screenStyles.meaningContainer,
+                (isDesktop || isTablet) && screenStyles.wideMeaningContainer
               ]}>
-                <View style={styles.tabContainer}>
+                <View style={screenStyles.tabContainer}>
                   <TouchableOpacity
                     style={[
-                      styles.tab,
+                      screenStyles.tab,
                       activeTab === 'zh' && { backgroundColor: theme.colors.primary }
                     ]}
                     onPress={() => setActiveTab('zh')}
                   >
                     <Text style={[
-                      styles.tabText,
+                      screenStyles.tabText,
                       activeTab === 'zh' && { color: theme.colors.textLight },
-                      (isDesktop || isTablet) && styles.wideTabText
+                      (isDesktop || isTablet) && screenStyles.wideTabText
                     ]}>
                       {i18n.t('chinese')}
                     </Text>
@@ -334,34 +497,34 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
                   <TouchableOpacity
                     style={[
-                      styles.tab,
+                      screenStyles.tab,
                       activeTab === 'en' && { backgroundColor: theme.colors.primary }
                     ]}
                     onPress={() => setActiveTab('en')}
                   >
                     <Text style={[
-                      styles.tabText,
+                      screenStyles.tabText,
                       activeTab === 'en' && { color: theme.colors.textLight },
-                      (isDesktop || isTablet) && styles.wideTabText
+                      (isDesktop || isTablet) && screenStyles.wideTabText
                     ]}>
                       {i18n.t('english')}
                     </Text>
                   </TouchableOpacity>
                 </View>
 
-                <ScrollView style={styles.meaningScroll}>
+                <ScrollView style={screenStyles.meaningScroll}>
                   {activeTab === 'zh' ? (
                     <>
                       <Text style={[
-                        styles.meaningText,
-                        (isDesktop || isTablet) && styles.wideMeaningText
+                        screenStyles.meaningText,
+                        (isDesktop || isTablet) && screenStyles.wideMeaningText
                       ]}>
                         {state.currentWord.meanings.zh.join('\n')}
                       </Text>
                       {state.currentWord.words && state.currentWord.words.length > 0 && (
                         <Text style={[
-                          styles.wordsText,
-                          (isDesktop || isTablet) && styles.wideWordsText
+                          screenStyles.wordsText,
+                          (isDesktop || isTablet) && screenStyles.wideWordsText
                         ]}>
                           {i18n.t('commonWords')}：{state.currentWord.words.join('、')}
                         </Text>
@@ -369,8 +532,8 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                     </>
                   ) : (
                     <Text style={[
-                      styles.meaningText,
-                      (isDesktop || isTablet) && styles.wideMeaningText
+                      screenStyles.meaningText,
+                      (isDesktop || isTablet) && screenStyles.wideMeaningText
                     ]}>
                       {state.currentWord.meanings.en.join('\n')}
                     </Text>
@@ -378,7 +541,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                 </ScrollView>
 
                 <TouchableOpacity
-                  style={[styles.soundButton, (isDesktop || isTablet) && styles.wideSoundButton]}
+                  style={[screenStyles.soundButton, (isDesktop || isTablet) && screenStyles.wideSoundButton]}
                   onPress={() => state.currentWord && playSound(state.currentWord.character)}
                 >
                   <MaterialCommunityIcons
@@ -391,25 +554,25 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
             </View>
 
             <View style={[
-              styles.buttonContainer,
-              (isDesktop || isTablet) && styles.wideButtonContainer
+              screenStyles.buttonContainer,
+              (isDesktop || isTablet) && screenStyles.wideButtonContainer
             ]}>
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: theme.colors.success }]}
+                style={[screenStyles.button, { backgroundColor: theme.colors.success }]}
                 onPress={() => handleComplete(true)}
               >
-                <Text style={[styles.buttonText, { color: theme.colors.textLight }]}>
+                <Text style={[screenStyles.buttonText, { color: theme.colors.textLight }]}>
                   {i18n.t('next')}
                 </Text>
               </TouchableOpacity>
             </View>
           </>
         ) : (
-          <View style={styles.completedContainer}>
-            <Text style={[styles.completedText, { color: theme.colors.textPrimary }]}>
+          <View style={screenStyles.completedContainer}>
+            <Text style={[screenStyles.completedText, { color: theme.colors.textPrimary }]}>
               {i18n.t('learningCompleted')}
             </Text>
-            <Text style={[styles.statsText, { color: theme.colors.textSecondary }]}>
+            <Text style={[screenStyles.statsText, { color: theme.colors.textSecondary }]}>
               {`${i18n.t('totalLearned')}: ${state.statistics.totalLearned}\n`}
               {`${i18n.t('mastered')}: ${state.statistics.mastered}\n`}
               {`${i18n.t('needReview')}: ${state.statistics.needReview}`}
@@ -419,154 +582,4 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       </View>
     </ResponsiveContainer>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  wideContainer: {
-    maxWidth: 1200,
-    alignSelf: 'center',
-    width: '100%',
-  },
-  displayContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  wideDisplayContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    paddingHorizontal: 32,
-    gap: 32,
-  },
-  canvas: {
-    width: '100%',
-    aspectRatio: 1,
-    marginBottom: Platform.OS === 'ios' ? 80 : 64,
-  },
-  wideCanvas: {
-    width: '60%',
-    marginBottom: 0,
-    marginTop: -80,
-  },
-  meaningContainer: {
-    width: '100%',
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  wideMeaningContainer: {
-    width: '35%',
-    alignSelf: 'stretch',
-    marginTop: -40,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    marginHorizontal: 4,
-    borderRadius: 4,
-    alignItems: 'center',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  wideTabText: {
-    fontSize: 16,
-  },
-  meaningScroll: {
-    maxHeight: 200,
-  },
-  meaningText: {
-    fontSize: 16,
-    lineHeight: 24,
-    marginBottom: 8,
-  },
-  wideMeaningText: {
-    fontSize: 18,
-    lineHeight: 28,
-  },
-  wordsText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#666',
-  },
-  wideWordsText: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  soundButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    padding: 8,
-  },
-  wideSoundButton: {
-    padding: 12,
-  },
-  buttonContainer: {
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    zIndex: 10,
-  },
-  wideButtonContainer: {
-    position: 'relative',
-    backgroundColor: 'transparent',
-    borderTopWidth: 0,
-    bottom: 'auto',
-    marginTop: -100,
-    marginBottom: 32,
-    maxWidth: 200,
-    alignSelf: 'center',
-  },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  completedContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  completedText: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  statsText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-}); 
+}; 

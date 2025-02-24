@@ -2,9 +2,8 @@ export const ENV = {
   IS_PRODUCTION: false,  // 开发测试时设为 false
   IS_SANDBOX: true,     // 沙箱测试时设为 true
   CHECK_SUBSCRIPTION: true,
-  APP_SHARED_SECRET: process.env.APP_SHARED_SECRET || '', // 从 App Store Connect 获取
+  APP_SHARED_SECRET: '9273691d0c3d499e97e426de073e1e8d', // 从 App Store Connect 获取
 };
-
 // 订阅相关的错误消息
 export const SUBSCRIPTION_ERRORS = {
   E_USER_CANCELLED: 'User cancelled the purchase',

@@ -47,7 +47,8 @@ export const SearchScreen = ({ navigation }: any) => {
 
   const checkSearchPermission = async () => {
     try {
-      const hasPermission = await SubscriptionService.canUseSearch();
+      const subscriptionService = SubscriptionService.getInstance();
+      const hasPermission = await subscriptionService.canUseSearch();
       setCanSearch(hasPermission);
     } catch (error) {
       console.error('Failed to check search permission:', error);

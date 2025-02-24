@@ -113,7 +113,7 @@ export default class SubscriptionService {
 
   async validateReceipt(purchase: ProductPurchase) {
     try {
-      logger.subscription('Validating receipt', {
+      logger.subscription('Starting receipt validation:', {
         purchaseId: purchase.transactionId,
         productId: purchase.productId,
         hasReceipt: !!purchase.transactionReceipt
@@ -128,7 +128,7 @@ export default class SubscriptionService {
         purchase.transactionReceipt
       );
 
-      logger.subscription('Receipt validation result', {
+      logger.subscription('Receipt validation result:', {
         status: result.status,
         hasLatestReceiptInfo: !!result.latest_receipt_info,
         latestReceiptInfoLength: result.latest_receipt_info?.length
@@ -140,11 +140,10 @@ export default class SubscriptionService {
           throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
         }
 
-        // 使用最新的收据信息
         const latestReceipt = result.latest_receipt_info[0];
         const subscriptionData = SubscriptionValidationService.parseReceiptInfo(latestReceipt);
         
-        logger.subscription('Parsed subscription data', {
+        logger.subscription('Parsed subscription data:', {
           isActive: subscriptionData.isActive,
           productId: subscriptionData.productId,
           expirationDate: subscriptionData.expirationDate,
@@ -277,17 +276,37 @@ export default class SubscriptionService {
       const subscriptionData = await AsyncStorage.getItem('subscriptionData');
       if (subscriptionData) {
         const parsedData = JSON.parse(subscriptionData);
-        if (parsedData.productId.includes('lifetime')) {
+        
+        logger.subscription('Current subscription status:', {
+          isActive: parsedData.isActive,
+          productId: parsedData.productId,
+          expirationDate: parsedData.expirationDate
+        });
+
+        if (parsedData.productId?.includes('lifetime')) {
           return true;
         }
-        if (new Date() < new Date(parsedData.expirationDate)) {
-          return true;
+        
+        if (parsedData.expirationDate) {
+          const expirationDate = new Date(parsedData.expirationDate);
+          const now = new Date();
+          const isActive = now < expirationDate;
+          
+          logger.subscription('Subscription expiration check:', {
+            expirationDate: expirationDate.toISOString(),
+            currentDate: now.toISOString(),
+            isActive
+          });
+          
+          return isActive;
         }
       }
 
       try {
         const purchases = await getAvailablePurchases();
         if (purchases && purchases.length > 0) {
+          logger.subscription('Found available purchases:', { count: purchases.length });
+          
           await this.validateReceipt(purchases[0]);
           const updatedData = await AsyncStorage.getItem('subscriptionData');
           if (updatedData) {
@@ -411,7 +430,10 @@ export default class SubscriptionService {
       logger.debug('Search feature check disabled in development mode');
       return true;
     }
-    return this.checkSubscriptionStatus();
+    
+    const isSubscribed = await this.checkSubscriptionStatus();
+    logger.subscription('Search permission check:', { isSubscribed });
+    return isSubscribed;
   }
 
   // 检查是否可以使用复习功能
@@ -420,7 +442,10 @@ export default class SubscriptionService {
       logger.debug('Review feature check disabled in development mode');
       return true;
     }
-    return this.checkSubscriptionStatus();
+    
+    const isSubscribed = await this.checkSubscriptionStatus();
+    logger.subscription('Review permission check:', { isSubscribed });
+    return isSubscribed;
   }
 
   // 恢复订阅

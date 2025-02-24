@@ -29,8 +29,14 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
   }, []);
 
   const checkReviewPermission = async () => {
-    const hasPermission = await SubscriptionService.canUseReview();
-    setCanReview(hasPermission);
+    try {
+      const subscriptionService = SubscriptionService.getInstance();
+      const hasPermission = await subscriptionService.canUseReview();
+      setCanReview(hasPermission);
+    } catch (error) {
+      console.error('Failed to check review permission:', error);
+      setCanReview(false);
+    }
   };
 
   const loadReviewItems = async () => {

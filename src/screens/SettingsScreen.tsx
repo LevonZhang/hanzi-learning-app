@@ -781,12 +781,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
         Alert.alert(
           i18n.t('subscription.alreadySubscribed'),
           i18n.t('subscription.alreadySubscribedDesc'),
-          [
-            {
-              text: i18n.t('ok'),
-              style: 'cancel',
-            }
-          ]
+          [{ text: i18n.t('ok'), style: 'cancel' }]
         );
         return;
       }
@@ -798,6 +793,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           {
             text: i18n.t('cancelButton'),
             style: 'cancel',
+            // 用户取消时不需要任何操作
           },
           {
             text: i18n.t('subscribeButton'),
@@ -805,10 +801,12 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
               try {
                 const subscriptionService = SubscriptionService.getInstance();
                 await subscriptionService.purchaseSubscription(plan.id);
-                // 注意：实际的订阅状态更新会通过 SubscriptionService 的监听器处理
-              } catch (error) {
-                console.error('订阅失败:', error);
-                Alert.alert(i18n.t('errorTitle'), i18n.t('purchaseError'));
+              } catch (error: any) {
+                // 只有在非用户取消的情况下才显示错误
+                if (error.code !== 'E_USER_CANCELLED') {
+                  console.error('订阅失败:', error);
+                  Alert.alert(i18n.t('errorTitle'), i18n.t('purchaseError'));
+                }
               }
             },
           },

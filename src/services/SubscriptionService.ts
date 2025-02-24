@@ -39,6 +39,8 @@ class SubscriptionService {
   private static readonly FREE_CHAR_LIMIT = 10;
   private static readonly FREE_GAME_LEVEL_LIMIT = 2;
 
+  private isInitialized = false;
+
   private constructor() {}
 
   static getInstance(): SubscriptionService {
@@ -49,27 +51,50 @@ class SubscriptionService {
   }
 
   async initialize() {
+    if (this.isInitialized) {
+      return;
+    }
+    
     try {
       logger.subscription('Initializing subscription service');
       await initConnection();
       await this.updateSubscriptionListeners();
+      this.isInitialized = true;
       logger.subscription('Subscription service initialized');
     } catch (err) {
       logger.error('Failed to initialize IAP:', err);
+      // 不抛出错误，让应用继续运行
+      this.isInitialized = false;
     }
   }
 
   private handlePurchaseError(error: PurchaseError) {
+    logger.error('Purchase error occurred:', {
+      code: error.code,
+      message: error.message
+    });
+
+    // 防止重复抛出错误
+    if (error instanceof Error) {
+      return error;
+    }
+
+    let errorMessage: string;
     switch (error.code) {
       case 'E_USER_CANCELLED':
-        throw new Error(SUBSCRIPTION_ERRORS.E_USER_CANCELLED);
+        errorMessage = i18n.t('subscription.errors.userCancelled');
+        break;
       case 'E_ALREADY_OWNED':
-        throw new Error(SUBSCRIPTION_ERRORS.E_ALREADY_OWNED);
+        errorMessage = i18n.t('subscription.errors.alreadyOwned');
+        break;
       case 'E_NETWORK_ERROR':
-        throw new Error(SUBSCRIPTION_ERRORS.E_NETWORK);
+        errorMessage = i18n.t('subscription.errors.network');
+        break;
       default:
-        throw new Error(`Purchase failed: ${error.message}`);
+        errorMessage = i18n.t('subscription.errors.unknown');
     }
+
+    return new Error(errorMessage);
   }
 
   async validateReceipt(purchase: ProductPurchase) {
@@ -91,22 +116,55 @@ class SubscriptionService {
   }
 
   private async updateSubscriptionStatus(subscriptionData: any) {
-    try {
-      const data = {
-        ...subscriptionData,
-        lastUpdated: new Date().toISOString(),
-        environment: ENV.IS_SANDBOX ? 'sandbox' : 'production'
-      };
-      
-      await AsyncStorage.setItem('subscriptionData', JSON.stringify(data));
-      await AsyncStorage.setItem('isPremium', data.isActive.toString());
-      
-      this.notifySubscriptionUpdate(data);
-      logger.subscription('Subscription status updated', data);
-    } catch (err) {
-      logger.error('Failed to update subscription status:', err);
-      throw err;
+    const updatePromise = async () => {
+      try {
+        const data = {
+          ...subscriptionData,
+          lastUpdated: new Date().toISOString(),
+          environment: ENV.IS_SANDBOX ? 'sandbox' : 'production'
+        };
+        
+        // 使用事务性更新
+        await AsyncStorage.multiSet([
+          ['subscriptionData', JSON.stringify(data)],
+          ['isPremium', data.isActive.toString()]
+        ]);
+        
+        // 安全地通知监听器
+        this.safeNotifySubscriptionUpdate(data);
+        
+        logger.subscription('Subscription status updated successfully', data);
+      } catch (err) {
+        logger.error('Failed to update subscription status:', err);
+        throw err;
+      }
+    };
+
+    // 添加重试机制
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        await updatePromise();
+        return;
+      } catch (err) {
+        retries--;
+        if (retries === 0) throw err;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
+  }
+
+  private safeNotifySubscriptionUpdate(data: any) {
+    const listeners = Array.from(this.subscriptionUpdateListeners);
+    listeners.forEach(listener => {
+      try {
+        listener(data);
+      } catch (error) {
+        logger.error('Error in subscription listener:', error);
+        // 移除有问题的监听器
+        this.subscriptionUpdateListeners.delete(listener);
+      }
+    });
   }
 
   // 添加订阅状态更新监听器
@@ -173,60 +231,51 @@ class SubscriptionService {
     try {
       const sku = subscriptionSkus[planId as keyof typeof IOS_SKUS];
       if (!sku) {
-        logger.error('Invalid subscription plan:', { 
-          planId,
-          availableSkus: Object.keys(subscriptionSkus)
-        });
-        throw new Error('Invalid subscription plan');
+        throw new Error(i18n.t('subscription.errors.invalidPlan'));
       }
 
-      logger.subscription('Initiating subscription purchase', { 
-        planId, 
-        sku,
-        allSkus: subscriptionSkus,
-        environment: ENV.IS_SANDBOX ? 'sandbox' : 'production'
+      logger.subscription('Starting subscription purchase', { planId, sku });
+
+      // 确保 IAP 连接已初始化
+      await this.ensureIAPConnection();
+
+      // 使用 Promise.race 添加超时处理
+      const purchasePromise = requestSubscription({
+        sku: sku,
+        andDangerouslyFinishTransactionAutomaticallyIOS: false
       });
 
-      // 检查初始化状态
-      try {
-        await initConnection();
-        logger.subscription('IAP connection re-initialized');
-      } catch (initError: any) {
-        logger.error('Failed to re-initialize IAP:', {
-          error: initError,
-          errorCode: initError?.code,
-          errorMessage: initError?.message
-        });
-      }
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(i18n.t('subscription.errors.timeout')));
+        }, 30000); // 30秒超时
+      });
+
+      await Promise.race([purchasePromise, timeoutPromise]);
       
-      // 添加额外的错误处理
-      try {
-        logger.subscription('Requesting subscription with SKU:', { sku });
-        await requestSubscription({
-          sku: sku,
-          andDangerouslyFinishTransactionAutomaticallyIOS: false,
-        });
-        logger.subscription('Subscription request sent successfully');
-      } catch (subscriptionError: any) {
-        logger.error('Subscription request failed:', {
-          error: subscriptionError,
-          errorCode: subscriptionError?.code,
-          errorMessage: subscriptionError?.message,
-          requestedSku: sku,
-          planId: planId
-        });
-        throw subscriptionError;
-      }
     } catch (err: any) {
-      logger.error('Purchase failed:', {
-        error: err,
-        errorCode: err?.code,
-        errorMessage: err?.message,
-        stackTrace: err?.stack,
-        planId: planId,
-        requestedSku: subscriptionSkus[planId as keyof typeof IOS_SKUS]
-      });
-      this.handlePurchaseError(err as PurchaseError);
+      const error = this.handlePurchaseError(err);
+      
+      // 显示用户友好的错误消息
+      Alert.alert(
+        i18n.t('error'),
+        error.message,
+        [{ text: i18n.t('ok') }]
+      );
+      
+      // 重新抛出错误以便上层处理
+      throw error;
+    }
+  }
+
+  // 确保 IAP 连接已初始化
+  private async ensureIAPConnection() {
+    try {
+      await initConnection();
+      logger.subscription('IAP connection initialized');
+    } catch (error) {
+      logger.error('Failed to initialize IAP connection:', error);
+      throw new Error(i18n.t('subscription.errors.initFailed'));
     }
   }
 

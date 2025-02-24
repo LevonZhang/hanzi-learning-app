@@ -27,30 +27,36 @@ class SubscriptionValidationService {
   async verifyReceiptWithApple(receiptData: string): Promise<any> {
     try {
       const isProduction = !ENV.IS_SANDBOX;
-      logger.subscription('Verifying receipt', { environment: isProduction ? 'production' : 'sandbox' });
-      
       const verificationUrl = isProduction ? 
         CONSTANTS.PROD_VERIFICATION_URL : 
         CONSTANTS.SANDBOX_VERIFICATION_URL;
       
+      // 添加超时处理
       const response = await axios.post(verificationUrl, {
         'receipt-data': receiptData,
         'password': ENV.APP_SHARED_SECRET,
         'exclude-old-transactions': true
+      }, {
+        timeout: 15000 // 15秒超时
       });
 
-      // 验证响应数据
+      if (!response.data) {
+        throw new Error('Empty response from Apple verification server');
+      }
+
       const validatedResponse = this.validateReceiptResponse(response.data);
 
-      // 如果是沙盒收据但在生产环境验证，重试沙盒环境
       if (validatedResponse.status === 21007 && isProduction) {
-        logger.subscription('Sandbox receipt detected, retrying with sandbox environment');
+        logger.subscription('Retrying with sandbox environment');
         return this.verifyReceiptWithApple(receiptData);
       }
 
       return validatedResponse;
     } catch (error) {
-      logger.error('Apple receipt verification failed:', error);
+      if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
+        throw new Error(SUBSCRIPTION_ERRORS.E_TIMEOUT);
+      }
+      logger.error('Receipt verification failed:', error);
       throw new Error(SUBSCRIPTION_ERRORS.E_VALIDATION_FAILED);
     }
   }

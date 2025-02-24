@@ -201,6 +201,8 @@ export const zh = {
     expired: '订阅已过期',
     canceled: '订阅已取消',
     restored: '订阅已恢复',
+    alreadySubscribed: '已有活跃订阅',
+    alreadySubscribedDesc: '您已经有一个活跃的订阅，无需重复订阅。如需更改订阅计划，请先等待当前订阅到期或取消当前订阅。',
     
     // 订阅操作
     subscribe: '订阅',

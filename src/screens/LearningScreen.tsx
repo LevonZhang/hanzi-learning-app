@@ -224,8 +224,6 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   const { theme, isDesktop, isTablet } = useResponsive();
   const { width: windowWidth } = useWindowDimensions();
 
-  console.log('LearningScreen responsive info:', { isDesktop, isTablet, windowWidth });
-
   const screenStyles = styles({ isTablet });
 
   const [state, setState] = useState<LearningState>({

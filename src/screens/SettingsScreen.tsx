@@ -480,6 +480,18 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       color: '#8E8E93',
       textAlign: 'center',
     },
+    restoreButton: {
+      backgroundColor: '#007AFF',
+      padding: 10,
+      borderRadius: 8,
+      marginTop: 12,
+      alignItems: 'center',
+    },
+    restoreButtonText: {
+      color: 'white',
+      fontSize: fontSizes.resetButtonText,
+      fontWeight: 'bold',
+    },
   });
 
   const [dailyWords, setDailyWords] = useState(5);
@@ -531,7 +543,8 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   useEffect(() => {
     return () => {
       // 清理订阅监听器
-      SubscriptionService.cleanup();
+      const subscriptionService = SubscriptionService.getInstance();
+      subscriptionService.cleanup();
     };
   }, []);
 
@@ -614,7 +627,8 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
 
   const initializeSubscription = async () => {
     try {
-      await SubscriptionService.initialize();
+      const subscriptionService = SubscriptionService.getInstance();
+      await subscriptionService.initialize();
       // 获取订阅状态
       const subscriptionData = await AsyncStorage.getItem('subscriptionData');
       if (subscriptionData) {
@@ -762,6 +776,21 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
 
   const handleSubscription = async (plan: SubscriptionPlan) => {
     try {
+      // 检查是否已经有活跃的订阅
+      if (subscriptionStatus.isActive) {
+        Alert.alert(
+          i18n.t('subscription.alreadySubscribed'),
+          i18n.t('subscription.alreadySubscribedDesc'),
+          [
+            {
+              text: i18n.t('ok'),
+              style: 'cancel',
+            }
+          ]
+        );
+        return;
+      }
+
       Alert.alert(
         i18n.t('subscriptionConfirm'),
         i18n.t('subscriptionConfirmDesc', { price: plan.price, period: plan.period }),
@@ -774,7 +803,8 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
             text: i18n.t('subscribeButton'),
             onPress: async () => {
               try {
-                await SubscriptionService.purchaseSubscription(plan.id);
+                const subscriptionService = SubscriptionService.getInstance();
+                await subscriptionService.purchaseSubscription(plan.id);
                 // 注意：实际的订阅状态更新会通过 SubscriptionService 的监听器处理
               } catch (error) {
                 console.error('订阅失败:', error);
@@ -874,6 +904,19 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                   {i18n.t('daysRemaining', { days: formatRemainingDays(subscriptionStatus.expirationDate) })}
                 </Text>
               )}
+              <TouchableOpacity
+                style={[styles.restoreButton, { marginTop: 12 }]}
+                onPress={async () => {
+                  try {
+                    const subscriptionService = SubscriptionService.getInstance();
+                    await subscriptionService.restoreSubscriptions();
+                  } catch (error) {
+                    console.error('恢复订阅失败:', error);
+                  }
+                }}
+              >
+                <Text style={styles.restoreButtonText}>{i18n.t('subscription.restore')}</Text>
+              </TouchableOpacity>
             </View>
 
             {!subscriptionStatus.isLifetime && (

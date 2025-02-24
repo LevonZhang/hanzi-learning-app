@@ -40,7 +40,6 @@ export const getDeviceType = (width: number = getWindowDimensions().width): Devi
       ? 'TABLET' 
       : 'PHONE';
   
-  console.log('Device type:', deviceType, 'Screen width:', width);
   return deviceType;
 };
 

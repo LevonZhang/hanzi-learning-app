@@ -29,7 +29,7 @@ const IOS_SKUS = {
 
 export const subscriptionSkus = IOS_SKUS;
 
-class SubscriptionService {
+export default class SubscriptionService {
   private static instance: SubscriptionService;
   private purchaseUpdateSubscription: any;
   private purchaseErrorSubscription: any;
@@ -57,7 +57,21 @@ class SubscriptionService {
     
     try {
       logger.subscription('Initializing subscription service');
+      
+      // 在开发环境中清除缓存
+      if (ENV.IS_SANDBOX) {
+        await clearTransactionIOS();
+        await clearProductsIOS();
+      }
+      
       await initConnection();
+      
+      // 获取可用产品
+      const products = await getSubscriptions({
+        skus: Object.values(IOS_SKUS)
+      });
+      logger.subscription('Available products:', products);
+      
       await this.updateSubscriptionListeners();
       this.isInitialized = true;
       logger.subscription('Subscription service initialized');
@@ -99,18 +113,55 @@ class SubscriptionService {
 
   async validateReceipt(purchase: ProductPurchase) {
     try {
-      logger.subscription('Validating receipt', { purchaseId: purchase.transactionId });
+      logger.subscription('Validating receipt', {
+        purchaseId: purchase.transactionId,
+        productId: purchase.productId,
+        hasReceipt: !!purchase.transactionReceipt
+      });
+
+      if (!purchase.transactionReceipt) {
+        logger.error('No receipt data in purchase');
+        throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
+      }
+
       const result = await SubscriptionValidationService.verifyReceiptWithApple(
         purchase.transactionReceipt
       );
 
-      if (result.status === 0 && result.latest_receipt_info?.length > 0) {
+      logger.subscription('Receipt validation result', {
+        status: result.status,
+        hasLatestReceiptInfo: !!result.latest_receipt_info,
+        latestReceiptInfoLength: result.latest_receipt_info?.length
+      });
+
+      if (result.status === 0) {
+        if (!result.latest_receipt_info?.length) {
+          logger.error('No receipt info in validation result');
+          throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
+        }
+
+        // 使用最新的收据信息
         const latestReceipt = result.latest_receipt_info[0];
         const subscriptionData = SubscriptionValidationService.parseReceiptInfo(latestReceipt);
+        
+        logger.subscription('Parsed subscription data', {
+          isActive: subscriptionData.isActive,
+          productId: subscriptionData.productId,
+          expirationDate: subscriptionData.expirationDate,
+          environment: subscriptionData.environment
+        });
+
         await this.updateSubscriptionStatus(subscriptionData);
+      } else {
+        logger.error('Invalid receipt status', { status: result.status });
+        throw new Error(SUBSCRIPTION_ERRORS.E_VALIDATION_FAILED);
       }
     } catch (err) {
-      logger.error('Receipt validation failed:', err);
+      logger.error('Receipt validation failed:', {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        purchaseId: purchase.transactionId
+      });
       throw err;
     }
   }
@@ -124,18 +175,42 @@ class SubscriptionService {
           environment: ENV.IS_SANDBOX ? 'sandbox' : 'production'
         };
         
+        logger.subscription('Updating subscription status', {
+          isActive: data.isActive,
+          productId: data.productId,
+          expirationDate: data.expirationDate,
+          environment: data.environment
+        });
+        
         // 使用事务性更新
         await AsyncStorage.multiSet([
           ['subscriptionData', JSON.stringify(data)],
           ['isPremium', data.isActive.toString()]
         ]);
+
+        // 读取回来验证是否正确保存
+        const [savedData, savedIsPremium] = await AsyncStorage.multiGet(['subscriptionData', 'isPremium']);
+        logger.subscription('Verified saved subscription data', {
+          subscriptionDataSaved: !!savedData[1],
+          isPremiumSaved: savedIsPremium[1],
+          savedDataMatches: savedData[1] === JSON.stringify(data),
+          savedIsPremiumMatches: savedIsPremium[1] === data.isActive.toString()
+        });
         
         // 安全地通知监听器
         this.safeNotifySubscriptionUpdate(data);
         
         logger.subscription('Subscription status updated successfully', data);
       } catch (err) {
-        logger.error('Failed to update subscription status:', err);
+        logger.error('Failed to update subscription status:', {
+          error: err,
+          errorMessage: err instanceof Error ? err.message : 'Unknown error',
+          subscriptionData: {
+            isActive: subscriptionData.isActive,
+            productId: subscriptionData.productId,
+            expirationDate: subscriptionData.expirationDate
+          }
+        });
         throw err;
       }
     };
@@ -148,6 +223,10 @@ class SubscriptionService {
         return;
       } catch (err) {
         retries--;
+        logger.error(`Failed to update subscription status, retries left: ${retries}`, {
+          error: err,
+          errorMessage: err instanceof Error ? err.message : 'Unknown error'
+        });
         if (retries === 0) throw err;
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
@@ -503,5 +582,3 @@ class SubscriptionService {
     );
   }
 }
-
-export default SubscriptionService.getInstance();

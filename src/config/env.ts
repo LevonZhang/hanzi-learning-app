@@ -13,7 +13,8 @@ export const SUBSCRIPTION_ERRORS = {
   E_RECEIPT_INVALID: 'Invalid receipt',
   E_VALIDATION_FAILED: 'Receipt validation failed',
   E_SANDBOX_TEST: 'This is a sandbox test environment',
-};
+  E_TIMEOUT: 'Verification request timed out',
+} as const;
 
 // 环境相关的常量
 export const CONSTANTS = {

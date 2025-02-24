@@ -54,7 +54,7 @@ class SubscriptionValidationService {
       return validatedResponse;
     } catch (error) {
       if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
-        throw new Error(SUBSCRIPTION_ERRORS.E_TIMEOUT);
+        throw new Error(SUBSCRIPTION_ERRORS.E_NETWORK);
       }
       logger.error('Receipt verification failed:', error);
       throw new Error(SUBSCRIPTION_ERRORS.E_VALIDATION_FAILED);

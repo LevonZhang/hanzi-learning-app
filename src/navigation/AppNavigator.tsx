@@ -44,16 +44,15 @@ const GameStackNavigator = () => {
 };
 
 export const AppNavigator = () => {
-  const { isTablet } = useResponsive();
+  const { isIPad } = useResponsive();
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
 
-  // Calculate sizes based on device type
-  const isIPad = Platform.OS === 'ios' && Platform.isPad;
   const isMacOS = Platform.OS === 'macos';
-  const tabBarHeight = isTablet ? (Platform.OS === 'ios' ? 100 : 90) : (Platform.OS === 'ios' ? 70 : 60);
-  const iconSize = isTablet ? 40 : 24;
-  const labelSize = isMacOS ? 13 : isIPad ? 20 : isTablet ? 18 : 12;
-  const bottomPadding = isTablet ? (Platform.OS === 'ios' ? 25 : 15) : (Platform.OS === 'ios' ? 15 : 5);
+  
+  const tabBarHeight = isMacOS ? 100 : isIPad ? 90 : Platform.OS === 'ios' ? 70 : 60;
+  const iconSize = isMacOS ? 40 : isIPad ? 32 : 24;
+  const labelSize = isMacOS ? 20 : isIPad ? 16 : 12;
+  const bottomPadding = isMacOS ? 25 : isIPad ? 20 : Platform.OS === 'ios' ? 15 : 5;
 
   useEffect(() => {
     // 监听语言变化
@@ -97,12 +96,12 @@ export const AppNavigator = () => {
     tabBarStyle: {
       paddingBottom: bottomPadding,
       height: tabBarHeight,
-      paddingTop: isTablet ? 12 : 5,
+      paddingTop: isMacOS ? 12 : isIPad ? 10 : 5,
       position: 'absolute' as const,
-      bottom: isTablet ? 25 : 15,
-      left: isTablet ? 20 : 10,
-      right: isTablet ? 20 : 10,
-      borderRadius: isTablet ? 25 : 15,
+      bottom: isMacOS ? 25 : isIPad ? 20 : 15,
+      left: isMacOS ? 20 : isIPad ? 15 : 10,
+      right: isMacOS ? 20 : isIPad ? 15 : 10,
+      borderRadius: isMacOS ? 25 : isIPad ? 20 : 15,
       backgroundColor: 'rgba(255, 255, 255, 0.8)',
       shadowColor: '#000',
       shadowOffset: {
@@ -116,9 +115,9 @@ export const AppNavigator = () => {
     },
     tabBarLabelStyle: {
       fontSize: labelSize,
-      marginBottom: Platform.OS === 'ios' ? 0 : isTablet ? 10 : 5,
-      fontWeight: isIPad ? '600' : isTablet ? '600' : '500',
-      lineHeight: isIPad ? 24 : isTablet ? 22 : undefined,
+      marginBottom: Platform.OS === 'ios' ? 0 : isIPad ? 10 : 5,
+      fontWeight: isIPad ? '600' : '500',
+      lineHeight: isIPad ? 24 : undefined,
     },
     headerShown: false,
     tabBarLabel: route.name === 'Settings' ? i18n.t('profileTab') : i18n.t(route.name.toLowerCase())

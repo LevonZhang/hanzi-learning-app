@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ScaledSize } from 'react-native';
+import { ScaledSize, Platform } from 'react-native';
 import { getDeviceType, DeviceType, getWindowDimensions, addDimensionsListener } from '../utils/responsive';
 import { getTheme, Theme } from '../theme';
 
@@ -11,12 +11,14 @@ interface ResponsiveInfo {
   isDesktop: boolean;
   width: number;
   height: number;
+  isIPad: boolean;
 }
 
 export const useResponsive = (): ResponsiveInfo => {
   const [dimensions, setDimensions] = useState<ScaledSize>(getWindowDimensions());
   const deviceType = getDeviceType(dimensions.width);
   const theme = getTheme(deviceType);
+  const isIPad = Platform.OS === 'ios' && Platform.isPad;
 
   useEffect(() => {
     const subscription = addDimensionsListener((window) => {
@@ -36,5 +38,6 @@ export const useResponsive = (): ResponsiveInfo => {
     isDesktop: deviceType === 'DESKTOP',
     width: dimensions.width,
     height: dimensions.height,
+    isIPad
   };
 }; 

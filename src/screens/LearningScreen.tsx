@@ -62,11 +62,11 @@ interface LearningScreenProps {
 }
 
 type StylesProps = {
-  isTablet: boolean;
+  isIPad: boolean;
 };
 
 export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
-  const { deviceType, theme, isTablet, isDesktop } = useResponsive();
+  const { deviceType, theme, isDesktop, isIPad } = useResponsive();
   const { width: windowWidth } = useWindowDimensions();
 
   const screenStyles = StyleSheet.create({
@@ -74,7 +74,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       flex: 1,
     },
     wideContainer: {
-      maxWidth: isTablet ? 1024 : 1200,
+      maxWidth: isIPad ? 1024 : 1200,
       alignSelf: 'center',
       width: '100%',
     },
@@ -86,8 +86,8 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'flex-start',
-      paddingHorizontal: isTablet ? 24 : 32,
-      gap: isTablet ? 24 : 32,
+      paddingHorizontal: isIPad ? 20 : 32,
+      gap: isIPad ? 20 : 32,
     },
     canvas: {
       width: '100%',
@@ -95,18 +95,18 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       marginBottom: Platform.OS === 'ios' ? 80 : 64,
     },
     wideCanvas: {
-      width: isTablet ? '65%' : '60%',
+      width: isIPad ? '65%' : '60%',
       marginBottom: 0,
-      marginTop: isTablet ? -60 : -80,
+      marginTop: isIPad ? -60 : -80,
     },
     meaningContainer: {
       width: '100%',
-      padding: isTablet ? 20 : 16,
+      padding: isIPad ? 18 : 20,
       borderRadius: 8,
       backgroundColor: '#fff',
       marginTop: -60,
-      height: isTablet ? '80%' : '40%',
-      maxHeight: Platform.OS === 'ios' ? (isTablet ? '80%' : '40%') : (isTablet ? '80%' : '40%'),
+      height: isIPad ? '70%' : '80%',
+      maxHeight: Platform.OS === 'ios' ? (isIPad ? '70%' : '80%') : (isIPad ? '70%' : '80%'),
       ...Platform.select({
         ios: {
           shadowColor: '#000',
@@ -120,7 +120,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       }),
     },
     wideMeaningContainer: {
-      width: isTablet ? '32%' : '35%',
+      width: isIPad ? '32%' : '35%',
       alignSelf: 'stretch',
       marginTop: -60,
       height: '80%',
@@ -137,87 +137,91 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       borderBottomWidth: 2,
     },
     tabText: {
-      fontSize: isTablet ? 18 : 16,
+      fontSize: isIPad ? 17 : 18,
       fontWeight: '500',
     },
     wideTabText: {
-      fontSize: isTablet ? 20 : 18,
+      fontSize: isIPad ? 19 : 20,
     },
     meaningScroll: {
       flex: 1,
     },
     meaningText: {
-      fontSize: isTablet ? 24 : 16,
-      lineHeight: isTablet ? 34 : 22,
+      fontSize: isIPad ? 20 : 24,
+      lineHeight: isIPad ? 28 : 34,
       marginBottom: 8,
     },
     wideMeaningText: {
-      fontSize: isTablet ? 28 : 20,
-      lineHeight: isTablet ? 38 : 28,
+      fontSize: isIPad ? 24 : 28,
+      lineHeight: isIPad ? 32 : 38,
     },
     wordsText: {
-      fontSize: isTablet ? 20 : 14,
-      lineHeight: isTablet ? 28 : 20,
+      fontSize: isIPad ? 18 : 20,
+      lineHeight: isIPad ? 24 : 28,
       marginBottom: 8,
     },
     wideWordsText: {
-      fontSize: isTablet ? 24 : 18,
-      lineHeight: isTablet ? 32 : 24,
+      fontSize: isIPad ? 20 : 24,
+      lineHeight: isIPad ? 28 : 32,
     },
     soundButton: {
-      width: isTablet ? 60 : 50,
-      paddingVertical: isTablet ? 16 : 12,
+      width: isIPad ? 55 : 60,
+      paddingVertical: isIPad ? 14 : 16,
       borderRadius: 8,
       alignItems: 'center',
       backgroundColor: theme.colors.primary,
       marginHorizontal: 8,
     },
     wideSoundButton: {
-      width: isTablet ? 70 : 60,
+      width: isIPad ? 65 : 70,
     },
     buttonContainer: {
       flexDirection: 'row',
       justifyContent: 'center',
       paddingHorizontal: 16,
       paddingBottom: 16,
-      marginBottom: Platform.OS === 'ios' && !isTablet ? 30 : 16,
-      marginTop: Platform.OS === 'ios' && !isTablet ? 20 : 0,
+      marginBottom: Platform.OS === 'ios' && !isIPad ? 30 : 16,
+      marginTop: Platform.OS === 'ios' && !isIPad ? 20 : 0,
     },
     wideButtonContainer: {
-      paddingHorizontal: isTablet ? 24 : 32,
-      ...(isTablet ? {
+      paddingHorizontal: isIPad ? 24 : 32,
+      ...(isIPad ? {
         position: 'relative',
         backgroundColor: 'transparent',
         borderTopWidth: 0,
         bottom: 'auto',
-        marginTop: -320,
+        marginTop: -420,
         marginBottom: 32,
         maxWidth: 200,
         alignSelf: 'center',
+        zIndex: 10,
       } : {}),
     },
     button: {
       flex: 0,
-      width: isTablet ? 200 : 150,
-      marginHorizontal: 8,
-      paddingVertical: isTablet ? 16 : 12,
+      width: isIPad ? 180 : 200,
+      paddingVertical: isIPad ? 14 : 16,
       borderRadius: 8,
       alignItems: 'center',
-      backgroundColor: '#007AFF',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.success,
+    },
+    wideButton: {
+      width: isIPad ? 180 : 200,
     },
     buttonText: {
       color: '#fff',
-      fontSize: isTablet ? 24 : 16,
+      fontSize: isIPad ? 18 : 20,
       fontWeight: '600',
     },
     completedContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      padding: isTablet ? 32 : 24,
+      padding: isIPad ? 28 : 32,
       flex: 1,
       backgroundColor: '#f9f9f9',
       borderRadius: 16,
-      margin: isTablet ? 24 : 16,
+      margin: isIPad ? 20 : 24,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
@@ -225,15 +229,15 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       elevation: 3,
     },
     completedText: {
-      fontSize: isTablet ? 28 : 22,
+      fontSize: isIPad ? 24 : 28,
       fontWeight: '700',
       marginBottom: 24,
       textAlign: 'center',
       color: theme.colors.primary,
     },
     statsText: {
-      fontSize: isTablet ? 18 : 16,
-      lineHeight: isTablet ? 28 : 24,
+      fontSize: isIPad ? 17 : 18,
+      lineHeight: isIPad ? 26 : 28,
       color: theme.colors.textSecondary,
       marginBottom: 24,
       textAlign: 'center',
@@ -246,10 +250,10 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     },
     statItem: {
       alignItems: 'center',
-      padding: 16,
+      padding: isIPad ? 14 : 16,
       backgroundColor: '#fff',
       borderRadius: 12,
-      minWidth: isTablet ? 120 : 90,
+      minWidth: isIPad ? 100 : 120,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
@@ -257,19 +261,19 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       elevation: 1,
     },
     statValue: {
-      fontSize: isTablet ? 24 : 20,
+      fontSize: isIPad ? 22 : 24,
       fontWeight: '700',
       color: theme.colors.primary,
       marginBottom: 4,
     },
     statLabel: {
-      fontSize: isTablet ? 14 : 12,
+      fontSize: isIPad ? 13 : 14,
       color: theme.colors.textSecondary,
     },
     learnMoreButton: {
       backgroundColor: theme.colors.primary,
-      paddingVertical: isTablet ? 16 : 12,
-      paddingHorizontal: isTablet ? 32 : 24,
+      paddingVertical: isIPad ? 14 : 16,
+      paddingHorizontal: isIPad ? 28 : 32,
       borderRadius: 12,
       marginTop: 16,
       flexDirection: 'row',
@@ -278,7 +282,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     },
     learnMoreText: {
       color: '#fff',
-      fontSize: isTablet ? 18 : 16,
+      fontSize: isIPad ? 17 : 18,
       fontWeight: '600',
       marginLeft: 8,
     },
@@ -566,29 +570,29 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
   return (
     <ResponsiveContainer useSafeArea withPadding>
-      <View style={[screenStyles.container, (isDesktop || isTablet) && screenStyles.wideContainer]}>
+      <View style={[screenStyles.container, (isDesktop || isIPad) && screenStyles.wideContainer]}>
         {state.currentWord ? (
           <>
             <View style={[
               screenStyles.displayContainer,
-              (isDesktop || isTablet) && screenStyles.wideDisplayContainer
+              (isDesktop || isIPad) && screenStyles.wideDisplayContainer
             ]}>
               <View style={[
                 screenStyles.canvas,
-                (isDesktop || isTablet) && screenStyles.wideCanvas
+                (isDesktop || isIPad) && screenStyles.wideCanvas
               ]}>
                 <CharacterLearning
                   character={state.currentWord.character}
                   onComplete={handleComplete}
                   onHanziInfo={handleHanziInfo}
                   isReviewMode={state.isReviewMode}
-                  isDesktop={isDesktop || isTablet}
+                  isDesktop={isDesktop || isIPad}
                 />
               </View>
               
               <View style={[
                 screenStyles.meaningContainer,
-                (isDesktop || isTablet) && screenStyles.wideMeaningContainer
+                (isDesktop || isIPad) && screenStyles.wideMeaningContainer
               ]}>
                 <View style={screenStyles.tabContainer}>
                   <TouchableOpacity
@@ -601,7 +605,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                     <Text style={[
                       screenStyles.tabText,
                       activeTab === 'zh' && { color: theme.colors.textLight },
-                      (isDesktop || isTablet) && screenStyles.wideTabText
+                      (isDesktop || isIPad) && screenStyles.wideTabText
                     ]}>
                       {i18n.t('chinese')}
                     </Text>
@@ -617,7 +621,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                     <Text style={[
                       screenStyles.tabText,
                       activeTab === 'en' && { color: theme.colors.textLight },
-                      (isDesktop || isTablet) && screenStyles.wideTabText
+                      (isDesktop || isIPad) && screenStyles.wideTabText
                     ]}>
                       {i18n.t('english')}
                     </Text>
@@ -629,14 +633,14 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                     <>
                       <Text style={[
                         screenStyles.meaningText,
-                        (isDesktop || isTablet) && screenStyles.wideMeaningText
+                        (isDesktop || isIPad) && screenStyles.wideMeaningText
                       ]}>
                         {state.currentWord.meanings.zh.join('\n')}
                       </Text>
                       {state.currentWord.words && state.currentWord.words.length > 0 && (
                         <Text style={[
                           screenStyles.wordsText,
-                          (isDesktop || isTablet) && screenStyles.wideWordsText
+                          (isDesktop || isIPad) && screenStyles.wideWordsText
                         ]}>
                           {i18n.t('commonWords')}：{state.currentWord.words.join('、')}
                         </Text>
@@ -645,7 +649,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                   ) : (
                     <Text style={[
                       screenStyles.meaningText,
-                      (isDesktop || isTablet) && screenStyles.wideMeaningText
+                      (isDesktop || isIPad) && screenStyles.wideMeaningText
                     ]}>
                       {state.currentWord.meanings.en.join('\n')}
                     </Text>
@@ -656,15 +660,15 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
             <View style={[
               screenStyles.buttonContainer,
-              (isDesktop || isTablet) && screenStyles.wideButtonContainer
+              (isDesktop || isIPad) && screenStyles.wideButtonContainer
             ]}>
               <TouchableOpacity
-                style={[screenStyles.soundButton, (isDesktop || isTablet) && screenStyles.wideSoundButton]}
+                style={[screenStyles.soundButton, (isDesktop || isIPad) && screenStyles.wideSoundButton]}
                 onPress={() => state.currentWord && playSound(state.currentWord.character)}
               >
                 <MaterialCommunityIcons
                   name="volume-high"
-                  size={(isDesktop || isTablet) ? 24 : 20}
+                  size={(isDesktop || isIPad) ? (isIPad ? 22 : 24) : 20}
                   color={theme.colors.textLight}
                 />
               </TouchableOpacity>
@@ -708,7 +712,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
             >
               <MaterialCommunityIcons 
                 name="book-open-variant" 
-                size={isTablet ? 24 : 20} 
+                size={isIPad ? 22 : 24} 
                 color="#fff" 
               />
               <Text style={screenStyles.learnMoreText}>

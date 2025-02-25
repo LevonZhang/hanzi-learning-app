@@ -49,10 +49,10 @@ export const AppNavigator = () => {
 
   const isMacOS = Platform.OS === 'macos';
   
-  const tabBarHeight = isMacOS ? 100 : isIPad ? 90 : Platform.OS === 'ios' ? 70 : 60;
-  const iconSize = isMacOS ? 40 : isIPad ? 32 : 24;
-  const labelSize = isMacOS ? 20 : isIPad ? 16 : 12;
-  const bottomPadding = isMacOS ? 25 : isIPad ? 20 : Platform.OS === 'ios' ? 15 : 5;
+  const tabBarHeight = isMacOS ? 100 : isIPad ? 65 : Platform.OS === 'ios' ? 70 : 60;
+  const iconSize = isMacOS ? 40 : isIPad ? 26 : 24;
+  const labelSize = isMacOS ? 20 : isIPad ? 13 : 12;
+  const bottomPadding = isMacOS ? 25 : isIPad ? 12 : Platform.OS === 'ios' ? 15 : 5;
 
   useEffect(() => {
     // 监听语言变化

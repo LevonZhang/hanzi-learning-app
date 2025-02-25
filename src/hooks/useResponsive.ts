@@ -7,7 +7,6 @@ interface ResponsiveInfo {
   deviceType: DeviceType;
   theme: Theme;
   isPhone: boolean;
-  isTablet: boolean;
   isDesktop: boolean;
   width: number;
   height: number;
@@ -34,7 +33,6 @@ export const useResponsive = (): ResponsiveInfo => {
     deviceType,
     theme,
     isPhone: deviceType === 'PHONE',
-    isTablet: deviceType === 'TABLET',
     isDesktop: deviceType === 'DESKTOP',
     width: dimensions.width,
     height: dimensions.height,

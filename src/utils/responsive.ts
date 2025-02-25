@@ -3,7 +3,6 @@ import { Dimensions, Platform, ScaledSize } from 'react-native';
 // 设备类型断点
 const DEVICE_BREAKPOINTS = {
   PHONE: 414,
-  TABLET: 768,
   DESKTOP: 1024,
 } as const;
 
@@ -29,16 +28,13 @@ export const getWindowDimensions = (): ScaledSize => {
 export const getDeviceType = (width: number = getWindowDimensions().width): DeviceType => {
   // 确保在 iPad 上返回 TABLET
   if (Platform.OS === 'ios' && Platform.isPad) {
-    console.log('Device detected as iPad');
     return 'TABLET';
   }
   
   // 根据屏幕宽度判断设备类型
   const deviceType = width >= DEVICE_BREAKPOINTS.DESKTOP 
     ? 'DESKTOP' 
-    : width >= DEVICE_BREAKPOINTS.TABLET 
-      ? 'TABLET' 
-      : 'PHONE';
+    : 'PHONE';
   
   return deviceType;
 };
@@ -55,6 +51,11 @@ export const isMac = (): boolean => {
 
 // 计算响应式字体大小
 export const getFontSize = (baseSize: number, deviceType: DeviceType = getDeviceType()): number => {
+  // 为iPad设置特殊的缩放因子
+  if (Platform.OS === 'ios' && Platform.isPad) {
+    return Math.round(baseSize * 1.05);
+  }
+  
   const scaleFactor = {
     PHONE: 1,
     TABLET: 1.1,
@@ -77,6 +78,11 @@ export const getBaseFontSizes = (deviceType: DeviceType = getDeviceType()) => {
 
 // 计算响应式间距
 export const getSpacing = (baseSpacing: number, deviceType: DeviceType = getDeviceType()): number => {
+  // 为iPad设置特殊的缩放因子
+  if (Platform.OS === 'ios' && Platform.isPad) {
+    return Math.round(baseSpacing * 1.1);
+  }
+  
   const scaleFactor = {
     PHONE: 1,
     TABLET: 1.2,

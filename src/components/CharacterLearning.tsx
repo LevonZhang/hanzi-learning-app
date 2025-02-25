@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal, Alert, ActivityIndicator, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import cnchar from 'cnchar';
@@ -7,6 +7,7 @@ import { hanziDict as importedHanziDict } from '../data/hanziDict';
 import { StrokeOrderCard } from './StrokeOrderCard';
 import { i18n } from '../i18n/i18n';
 import { LearningManager } from '../services/LearningManager';
+import { useResponsive } from '../hooks/useResponsive';
 
 const hanziDict = importedHanziDict as HanziDict;
 
@@ -50,10 +51,10 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [hasStrokeData, setHasStrokeData] = useState(true);
-
   const { width, height } = Dimensions.get('window');
-  const isWideScreen = width >= 800;
-  const shouldUseDesktopLayout = isDesktop || isWideScreen;
+  const { isIPad } = useResponsive();
+  
+  const shouldUseDesktopLayout = isDesktop || width > 768;
 
   useEffect(() => {
     // Reset states when character changes
@@ -104,36 +105,24 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     <!DOCTYPE html>
     <html>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://fastly.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/cnchar@3.2.3/cnchar.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/cnchar-all@3.2.3/cnchar.all.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/cnchar-trad@3.2.3/cnchar.trad.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/cnchar-draw@3.2.3/cnchar.draw.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/cnchar-radical@3.2.3/cnchar.radical.min.js"></script>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
         <style>
-          body { 
-            margin: 0; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            background-color: transparent; 
-          }
-          #character-target-div { 
-            width: ${shouldUseDesktopLayout ? '400px' : '250px'}; 
-            height: ${shouldUseDesktopLayout ? '400px' : '250px'}; 
+          body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             background-color: transparent;
-            background-image: url('data:image/svg+xml;utf8,\
-              <svg xmlns="http://www.w3.org/2000/svg" width="${shouldUseDesktopLayout ? '400' : '250'}" height="${shouldUseDesktopLayout ? '400' : '250'}" viewBox="0 0 ${shouldUseDesktopLayout ? '400' : '250'} ${shouldUseDesktopLayout ? '400' : '250'}">\
-                <rect width="${shouldUseDesktopLayout ? '400' : '250'}" height="${shouldUseDesktopLayout ? '400' : '250'}" fill="none" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="0" y1="${shouldUseDesktopLayout ? '200' : '125'}" x2="${shouldUseDesktopLayout ? '400' : '250'}" y2="${shouldUseDesktopLayout ? '200' : '125'}" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="${shouldUseDesktopLayout ? '200' : '125'}" y1="0" x2="${shouldUseDesktopLayout ? '200' : '125'}" y2="${shouldUseDesktopLayout ? '400' : '250'}" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="0" y1="0" x2="${shouldUseDesktopLayout ? '400' : '250'}" y2="${shouldUseDesktopLayout ? '400' : '250'}" stroke="%23DDD" stroke-width="1"/>\
-                <line x1="${shouldUseDesktopLayout ? '400' : '250'}" y1="0" x2="0" y2="${shouldUseDesktopLayout ? '400' : '250'}" stroke="%23DDD" stroke-width="1"/>\
-              </svg>');
-            background-size: 100% 100%;
-            position: relative;
+            touch-action: none;
+          }
+          #character-target-div {
+            width: ${shouldUseDesktopLayout ? (isIPad ? 240 : 400) : 250}px;
+            height: ${shouldUseDesktopLayout ? (isIPad ? 240 : 400) : 250}px;
+            background-color: transparent;
           }
         </style>
       </head>
@@ -141,12 +130,9 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
         <div id="character-target-div"></div>
         <script>
           let writer = null;
-          let cncharReady = false;
-
-          // 等待 cnchar 加载完成
+          
           function waitForCnchar() {
-            if (window.cnchar && window.cnchar.stroke) {
-              cncharReady = true;
+            if (typeof HanziWriter !== 'undefined') {
               initializeAll();
             } else {
               setTimeout(waitForCnchar, 100);
@@ -161,16 +147,18 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             }
 
             writer = HanziWriter.create('character-target-div', character, {
-              width: ${shouldUseDesktopLayout ? 400 : 250},
-              height: ${shouldUseDesktopLayout ? 400 : 250},
-              padding: ${shouldUseDesktopLayout ? 10 : 5},
+              width: ${shouldUseDesktopLayout ? (isIPad ? 240 : 400) : 250},
+              height: ${shouldUseDesktopLayout ? (isIPad ? 240 : 400) : 250},
+              padding: ${shouldUseDesktopLayout ? (isIPad ? 4 : 10) : 5},
               showOutline: true,
               strokeAnimationSpeed: 1,
               delayBetweenStrokes: 500,
               showCharacter: false,
               strokeColor: '#FF4444',
               outlineColor: '#666666',
-              charColor: '#666666'
+              charColor: '#666666',
+              showHintAfterMisses: 3,
+              gridColor: '#DDD'
             });
 
             return writer;
@@ -192,13 +180,14 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               highlightOnComplete: true,
               showCharacter: true,
               strokeHighlightSpeed: 2,
-              drawingWidth: ${shouldUseDesktopLayout ? 20 : 12},
+              drawingWidth: ${shouldUseDesktopLayout ? (isIPad ? 10 : 20) : 12},
               showHintAfterMisses: 3,
               onComplete: () => {
                 window.ReactNativeWebView.postMessage(JSON.stringify({
                   type: 'quizComplete'
                 }));
-              }
+              },
+              gridColor: '#DDD'
             });
           }
 
@@ -259,8 +248,8 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       height: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 90,
       backgroundColor: 'transparent',
       overflow: 'hidden',
-      marginTop: shouldUseDesktopLayout ? -60 : -25,
-      marginBottom: shouldUseDesktopLayout ? -40 : -5,
+      marginTop: shouldUseDesktopLayout ? (isIPad ? -40 : -60) : -25,
+      marginBottom: shouldUseDesktopLayout ? (isIPad ? -80 : -40) : -5,
       position: 'relative',
     },
     canvas: {
@@ -269,30 +258,31 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       backgroundColor: 'transparent',
     },
     buttonContainer: {
-      width: shouldUseDesktopLayout ? '90%' : '100%',
+      width: shouldUseDesktopLayout ? (isIPad ? '95%' : '90%') : '100%',
       maxWidth: 1000,
-      paddingHorizontal: 20,
-      gap: 8,
+      paddingHorizontal: isIPad ? 16 : 20,
+      gap: isIPad ? 10 : 8,
+      marginTop: isIPad ? -60 : 0,
     },
     buttonRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      gap: 8,
+      gap: isIPad ? 10 : 8,
     },
     button: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: shouldUseDesktopLayout ? 20 : 10,
+      padding: shouldUseDesktopLayout ? (isIPad ? 14 : 20) : 10,
       borderRadius: 8,
-      gap: shouldUseDesktopLayout ? 12 : 8,
-      minWidth: shouldUseDesktopLayout ? 150 : 120,
+      gap: shouldUseDesktopLayout ? (isIPad ? 10 : 12) : 8,
+      minWidth: shouldUseDesktopLayout ? (isIPad ? 130 : 150) : 120,
       backgroundColor: '#5B7B9E',
     },
     buttonText: {
       color: '#fff',
-      fontSize: shouldUseDesktopLayout ? 24 : 13,
+      fontSize: shouldUseDesktopLayout ? (isIPad ? 18 : 24) : 13,
       fontWeight: '600',
       textAlign: 'center',
       flexShrink: 1,
@@ -310,7 +300,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     modalContent: {
       backgroundColor: '#fff',
       borderRadius: 12,
-      width: shouldUseDesktopLayout ? '60%' : '90%',
+      width: shouldUseDesktopLayout ? (isIPad ? '75%' : '60%') : '90%',
       maxWidth: 800,
       maxHeight: '80%',
       padding: 15,
@@ -322,7 +312,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       marginBottom: 15,
     },
     modalTitle: {
-      fontSize: shouldUseDesktopLayout ? 20 : 18,
+      fontSize: shouldUseDesktopLayout ? (isIPad ? 19 : 20) : 18,
       fontWeight: '600',
       color: '#333',
     },
@@ -342,7 +332,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       paddingVertical: 10,
       paddingHorizontal: 20,
       borderRadius: 8,
-      minWidth: shouldUseDesktopLayout ? 150 : 120,
+      minWidth: shouldUseDesktopLayout ? (isIPad ? 130 : 150) : 120,
       alignItems: 'center',
     },
     saveButton: {
@@ -353,12 +343,12 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     },
     saveButtonText: {
       color: '#fff',
-      fontSize: shouldUseDesktopLayout ? 16 : 14,
+      fontSize: shouldUseDesktopLayout ? (isIPad ? 15 : 16) : 14,
       fontWeight: '500',
     },
     shareButtonText: {
       color: '#fff',
-      fontSize: shouldUseDesktopLayout ? 16 : 14,
+      fontSize: shouldUseDesktopLayout ? (isIPad ? 15 : 16) : 14,
       fontWeight: '500',
     },
     loadingContainer: {
@@ -387,12 +377,12 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     },
     loadingText: {
       marginTop: 10,
-      fontSize: shouldUseDesktopLayout ? 16 : 14,
+      fontSize: shouldUseDesktopLayout ? (isIPad ? 15 : 16) : 14,
       color: '#666',
     },
     errorText: {
       marginTop: 10,
-      fontSize: shouldUseDesktopLayout ? 16 : 14,
+      fontSize: shouldUseDesktopLayout ? (isIPad ? 15 : 16) : 14,
       color: '#FF3B30',
       textAlign: 'center',
       paddingHorizontal: 15,
@@ -477,7 +467,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
           >
             <MaterialCommunityIcons 
               name="pencil-outline" 
-              size={shouldUseDesktopLayout ? 28 : 20} 
+              size={shouldUseDesktopLayout ? (isIPad ? 24 : 28) : 20} 
               color="#fff" 
             />
             <Text style={styles.buttonText}>{i18n.t('demonstrateStrokes')}</Text>
@@ -493,7 +483,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
           >
             <MaterialCommunityIcons 
               name="pencil" 
-              size={shouldUseDesktopLayout ? 28 : 20} 
+              size={shouldUseDesktopLayout ? (isIPad ? 24 : 28) : 20} 
               color="#fff" 
             />
             <Text style={styles.buttonText}>{i18n.t('practice')}</Text>
@@ -526,7 +516,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             >
               <MaterialCommunityIcons 
                 name="bookmark-plus" 
-                size={shouldUseDesktopLayout ? 28 : 20} 
+                size={shouldUseDesktopLayout ? (isIPad ? 24 : 28) : 20} 
                 color="#fff" 
               />
               <Text style={styles.buttonText}>{i18n.t('addToWrongBook')}</Text>
@@ -539,7 +529,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
           >
             <MaterialCommunityIcons 
               name="card-outline" 
-              size={shouldUseDesktopLayout ? 28 : 20} 
+              size={shouldUseDesktopLayout ? (isIPad ? 24 : 28) : 20} 
               color="#fff" 
             />
             <Text style={styles.buttonText}>{i18n.t('generateCard')}</Text>

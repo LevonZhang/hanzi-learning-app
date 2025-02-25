@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -29,10 +29,14 @@ import { useResponsive } from '../hooks/useResponsive';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
 const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.6;
-const BUBBLE_SIZE = 80;
-const HORIZONTAL_GAP = 5; // 减小水平间距
-const VERTICAL_OVERLAP = -8; // 增加垂直重叠
-const TOP_MARGIN = 10; // 使用常量作为起始边距
+
+// 获取响应式信息
+const { isIPad, isDesktop } = useResponsive();
+
+const BUBBLE_SIZE = Platform.OS === 'macos' ? 100 : isIPad ? 70 : 60;
+const HORIZONTAL_GAP = Platform.OS === 'macos' ? 8 : isIPad ? 6 : 5;
+const VERTICAL_OVERLAP = Platform.OS === 'macos' ? -10 : isIPad ? -7 : -5;
+const TOP_MARGIN = Platform.OS === 'macos' ? 15 : isIPad ? 12 : 10;
 
 const BUBBLE_COLORS: readonly [string, string, string][] = [
   ['#FF6B6B', '#FF8787', '#FFA5A5'],
@@ -86,17 +90,17 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreenProps) => {
-  const { theme, isDesktop, isTablet } = useResponsive();
+  const { theme, isDesktop, isIPad } = useResponsive();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   
   // Calculate bubble size based on screen dimensions
   const BUBBLE_SIZE = isDesktop
     ? Math.min(windowWidth / 8, windowHeight / 6)
-    : isTablet
+    : isIPad
     ? Math.min(windowWidth / 4, windowHeight / 6)
     : Math.min(windowWidth / 4, windowHeight / 6);
 
-  const [level, setLevel] = useState<number>(1);
+  const [currentLevel, setCurrentLevel] = useState<GameLevel>(1);
   const [score, setScore] = useState(0);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [currentChar, setCurrentChar] = useState<string | null>(null);
@@ -109,12 +113,16 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   const [successSound, setSuccessSound] = useState<Audio.Sound | null>(null);
   const [failureSound, setFailureSound] = useState<Audio.Sound | null>(null);
   const [maxScore, setMaxScore] = useState(0);
-  const progressWidth = useState(new Animated.Value(0))[0];
-  const floatingAnimation = useState(new Animated.Value(0))[0];
-  const levelTransition = useState(new Animated.Value(1))[0];
-  const scoreTransition = useState(new Animated.Value(1))[0];
+  const progressWidth = useRef(new Animated.Value(0)).current;
+  const floatingAnimation = useRef(new Animated.Value(0)).current;
+  const levelTransition = useRef(new Animated.Value(1)).current;
+  const scoreTransition = useRef(new Animated.Value(1)).current;
   const [isAnimating, setIsAnimating] = useState(false);
   const [wordPairs, setWordPairs] = useState<WordPair[]>([]);
+  const [selectedBubble, setSelectedBubble] = useState<Bubble | null>(null);
+  const [canPlay, setCanPlay] = useState(true);
+  const [isGameComplete, setIsGameComplete] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
 
   // 在组件加载时加载游戏进度
   useEffect(() => {
@@ -122,7 +130,10 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       try {
         const progress = await gameService.loadGameProgress(route.params.mode);
         if (progress) {
-          setLevel(progress.currentLevel);
+          const level = progress.currentLevel;
+          if (level >= 1 && level <= 5) {
+            setCurrentLevel(level as GameLevel);
+          }
           setScore(progress.score);
           setCompletedWords(progress.completedWords);
         }
@@ -136,9 +147,9 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   }, []);
 
   const saveProgress = async () => {
-    const isCompleted = level > gameService.getTotalLevels();
+    const isCompleted = currentLevel > gameService.getTotalLevels();
     await gameService.saveGameProgress({
-      currentLevel: level,
+      currentLevel: currentLevel,
       score,
       completedWords,
       isCompleted
@@ -148,7 +159,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
   useEffect(() => {
     saveProgress();
-  }, [level, score, completedWords]);
+  }, [currentLevel, score, completedWords]);
 
   const getLevelBubbleCount = (level: GameLevel) => {
     if (level <= 3) {
@@ -159,12 +170,12 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
   const generateLayeredPositions = (totalBubbles: number) => {
     const positions: { x: number; y: number }[] = [];
-    const bubblesPerRow = isDesktop ? 6 : isTablet ? 4 : 3;
+    const bubblesPerRow = isDesktop ? 6 : isIPad ? 4 : 3;
     const effectiveBubbleSize = BUBBLE_SIZE + 10;
     const rows = Math.ceil(totalBubbles / bubblesPerRow);
     
     // 计算游戏区域的宽度和起始位置
-    const gameAreaWidth = windowWidth - (isDesktop || isTablet ? 48 : 20);
+    const gameAreaWidth = windowWidth - (isDesktop || isIPad ? 48 : 20);
     const bubbleAreaWidth = bubblesPerRow * effectiveBubbleSize;
     const startX = (gameAreaWidth - bubbleAreaWidth) / 2;
     const startY = 20;
@@ -268,7 +279,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     try {
       // 检查是否超过免费用户关卡限制
       const subscriptionService = SubscriptionService.getInstance();
-      const isLevelLocked = await subscriptionService.checkGameLevelLimit(level);
+      const isLevelLocked = await subscriptionService.checkGameLevelLimit(currentLevel);
       
       if (isLevelLocked) {
         Alert.alert(
@@ -288,8 +299,8 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
         return;
       }
 
-      const bubbleCount = getLevelBubbleCount(level as GameLevel);
-      const wordPairs = await gameService.getWordPairsForLevel(level);
+      const bubbleCount = getLevelBubbleCount(currentLevel as GameLevel);
+      const wordPairs = await gameService.getWordPairsForLevel(currentLevel);
       
       const validWordPairs = wordPairs.filter((pair: WordPair) => 
         pair.characters.length === 2 && 
@@ -299,11 +310,11 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       );
       
       if (validWordPairs.length === 0) {
-        if (level === 5) {
+        if (currentLevel === 5) {
           Alert.alert(i18n.t('gameComplete'), i18n.t('gameCompleteMessage'));
           navigation.goBack();
         } else {
-          setLevel(prev => (prev + 1) as GameLevel);
+          setCurrentLevel(prev => (prev + 1) as GameLevel);
         }
         return;
       }
@@ -393,74 +404,52 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     }).start();
   };
 
+  // 在组件内更新关卡
+  const updateLevel = (newLevel: number) => {
+    if (newLevel >= 1 && newLevel <= 5) {
+      const nextLevel = newLevel as GameLevel;
+      setCurrentLevel(nextLevel);
+    }
+  };
+
+  // 处理气泡点击
   const handleBubblePress = async (bubble: Bubble) => {
-    if (isAnimating || !currentChar) return;
+    if (!canPlay || isAnimating) return;
 
-    const isMatch = bubble.matches.includes(currentChar);
-    setIsAnimating(true);
-
-    try {
-      if (isMatch) {
-        await playCorrectSound();
-        
+    if (selectedBubble === null) {
+      setSelectedBubble(bubble);
+      playBubblePopAnimation(bubble);
+    } else {
+      if (bubble.matches.includes(selectedBubble.char)) {
+        // 匹配成功
         const newScore = score + 10;
         setScore(newScore);
         updateProgressBar(newScore);
-
-        setCompletedWords([...completedWords, bubble.word]);
-
-        // 移除匹配的气球，但保持其他气球位置不变
-        setBubbles(prevBubbles => prevBubbles.filter(b => b.id !== bubble.id));
-
-        // 更新剩余的第一个字符
-        const remainingChars = remainingFirstChars.filter(char => char !== currentChar);
-        setRemainingFirstChars(remainingChars);
-
+        await playCorrectSound();
+        
+        // 移除匹配的气泡
+        setBubbles(prev => prev.filter(b => 
+          b.id !== bubble.id && b.id !== selectedBubble.id
+        ));
+        
+        setSelectedBubble(null);
+        
         // 检查是否完成当前关卡
-        if (bubbles.length <= 1) { // 因为当前气泡还未从状态中移除，所以用1判断
-          const totalLevels = gameService.getTotalLevels();
-          if (level >= totalLevels) {
+        if (bubbles.length <= 2) {
+          if (currentLevel >= 5) {
             handleGameComplete(newScore);
           } else {
-            setLevel(level + 1);
+            const nextLevel = (currentLevel + 1) as GameLevel;
+            setCurrentLevel(nextLevel);
             await initializeLevel();
           }
-        } else if (remainingChars.length > 0) {
-          // 如果还有剩余字符，设置下一个当前字符
-          setCurrentChar(remainingChars[0]);
         }
-
-        playBubblePopAnimation(bubble);
-        
-        // 延迟重置动画状态
-        setTimeout(() => {
-          setIsAnimating(false);
-        }, 500);
       } else {
+        // 匹配失败
+        setScore(prev => Math.max(0, prev - 5));
         await playWrongSound();
-        
-        const newScore = Math.max(0, score - 5);
-        setScore(newScore);
-        updateProgressBar(newScore);
-
-        Animated.sequence([
-          Animated.timing(bubble.scale, {
-            toValue: 1.2,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-          Animated.timing(bubble.scale, {
-            toValue: 1,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          setIsAnimating(false);
-        });
+        setSelectedBubble(null);
       }
-    } catch (error) {
-      console.error('处理气泡点击时出错:', error);
-      setIsAnimating(false);
     }
   };
 
@@ -506,23 +495,31 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     }, 3000);
   };
 
+  // 处理游戏完成
   const handleGameComplete = async (finalScore: number) => {
     try {
       await gameService.updateGameStats(finalScore, true, route.params.mode);
       await gameService.resetGame(route.params.mode);
       
-      Alert.alert(
-        i18n.t('gameComplete'),
-        i18n.t('gameCompleteMessage'),
-        [
-          {
-            text: i18n.t('confirm'),
-            onPress: () => navigation.goBack()
-          }
-        ]
-      );
+      if (currentLevel >= 5) {
+        setIsGameComplete(true);
+        Alert.alert(
+          i18n.t('gameComplete'),
+          i18n.t('gameCompleteMessage'),
+          [
+            {
+              text: i18n.t('confirm'),
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      } else {
+        const nextLevel = (currentLevel + 1) as GameLevel;
+        setCurrentLevel(nextLevel);
+        await initializeLevel();
+      }
     } catch (error) {
-      // Silent error handling
+      console.error('Error handling game completion:', error);
     }
   };
 
@@ -554,7 +551,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     return () => {
       isMounted = false;
     };
-  }, [level]);
+  }, [currentLevel]);
 
   // 添加关卡切换动画
   useEffect(() => {
@@ -572,7 +569,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
         easing: Easing.in(Easing.back(2)),
       }),
     ]).start();
-  }, [level]);
+  }, [currentLevel]);
 
   // 添加分数更新动画
   useEffect(() => {
@@ -592,33 +589,49 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     ]).start();
   }, [score]);
 
-  // Create dynamic styles based on isTablet
+  // 动态样式
   const dynamicStyles = {
+    container: {
+      padding: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 16,
+    },
     levelTitle: {
-      fontSize: isTablet ? 32 : 18,
+      fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 18,
     },
     desktopLevelTitle: {
-      fontSize: isTablet ? 36 : 24,
+      fontSize: Platform.OS === 'macos' ? 28 : isIPad ? 24 : 20,
     },
     scoreText: {
-      fontSize: isTablet ? 28 : 18,
+      fontSize: Platform.OS === 'macos' ? 22 : isIPad ? 19 : 16,
     },
     bubbleText: {
-      fontSize: isTablet ? 48 : 32,
+      fontSize: Platform.OS === 'macos' ? 32 : isIPad ? 26 : 22,
     },
     currentCharText: {
-      fontSize: isTablet ? 42 : 28,
+      fontSize: Platform.OS === 'macos' ? 42 : isIPad ? 32 : 28,
     },
-    desktopCurrentCharText: {
-      fontSize: isTablet ? 48 : 36,
+    hintText: {
+      fontSize: Platform.OS === 'macos' ? 48 : isIPad ? 36 : 32,
     },
     instructionsText: {
-      fontSize: isTablet ? 20 : 13,
-      lineHeight: isTablet ? 28 : 18,
+      fontSize: Platform.OS === 'macos' ? 20 : isIPad ? 16 : 13,
+      lineHeight: Platform.OS === 'macos' ? 28 : isIPad ? 22 : 18,
     },
-    loadingText: {
-      fontSize: isTablet ? 24 : 16,
+    pointsText: {
+      fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 16,
     },
+    targetArea: {
+      height: Platform.OS === 'macos' ? 120 : isIPad ? 90 : 80,
+      bottom: Platform.OS === 'macos' ? 160 : isIPad ? 130 : 110,
+    },
+    desktopTargetArea: {
+      height: Platform.OS === 'macos' ? 140 : isIPad ? 100 : 90,
+      bottom: Platform.OS === 'macos' ? 180 : isIPad ? 140 : 120,
+    },
+    currentCharContainer: {
+      width: BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10),
+      height: BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10),
+      borderRadius: (BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10)) / 2,
+    }
   };
 
   const renderBubble = (bubble: Bubble) => {
@@ -692,7 +705,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       i18n.t('exitGame'),
       i18n.t('exitGameMessage', {
         score,
-        level,
+        level: currentLevel,
         total: gameService.getTotalLevels()
       }),
       [
@@ -706,7 +719,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
             try {
               // 保存游戏进度
               await gameService.saveGameProgress({
-                currentLevel: level,
+                currentLevel: currentLevel,
                 score,
                 completedWords,
                 isCompleted: false
@@ -771,7 +784,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
               isDesktop && styles.desktopLevelTitle,
               isDesktop && dynamicStyles.desktopLevelTitle
             ]}>
-              {i18n.t('levelTitle', { current: level, total: totalLevels })}
+              {i18n.t('levelTitle', { current: currentLevel, total: totalLevels })}
             </Text>
           </View>
 
@@ -913,12 +926,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   levelTitle: {
-    fontSize: 18,
+    fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 18,
     fontWeight: '600',
     color: '#333',
   },
   desktopLevelTitle: {
-    fontSize: 24,
+    fontSize: Platform.OS === 'macos' ? 28 : isIPad ? 24 : 20,
   },
   progressSection: {
     paddingHorizontal: 15,
@@ -932,7 +945,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   scoreText: {
-    fontSize: 18,
+    fontSize: Platform.OS === 'macos' ? 22 : isIPad ? 19 : 16,
     fontWeight: '600',
     color: '#333',
   },
@@ -964,18 +977,18 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   targetArea: {
-    height: 100,
+    height: Platform.OS === 'macos' ? 120 : isIPad ? 90 : 80,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 140 : 110,
+    bottom: Platform.OS === 'macos' ? 160 : isIPad ? 130 : 110,
     left: 0,
     right: 0,
     width: '100%',
   },
   desktopTargetArea: {
-    height: 120,
-    bottom: 160,
+    height: Platform.OS === 'macos' ? 140 : isIPad ? 100 : 90,
+    bottom: Platform.OS === 'macos' ? 180 : isIPad ? 140 : 120,
   },
   targetControls: {
     flexDirection: 'row',
@@ -985,11 +998,11 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   currentCharContainer: {
-    width: BUBBLE_SIZE - 20,
-    height: BUBBLE_SIZE - 20,
+    width: BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10),
+    height: BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10),
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: (BUBBLE_SIZE - 20) / 2,
+    borderRadius: (BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10)) / 2,
     shadowColor: '#000',
     shadowOffset: {
       width: 2,
@@ -1023,9 +1036,10 @@ const styles = StyleSheet.create({
   bubble: {
     width: BUBBLE_SIZE,
     height: BUBBLE_SIZE,
-    position: 'absolute', // 改为绝对定位
+    borderRadius: BUBBLE_SIZE / 2,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'absolute',
   },
   bubbleContent: {
     width: '100%',
@@ -1088,13 +1102,12 @@ const styles = StyleSheet.create({
     ],
   },
   bubbleText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-    textShadowColor: 'rgba(255, 255, 255, 0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    zIndex: 2,
+    fontSize: Platform.OS === 'macos' ? 32 : isIPad ? 26 : 22,
+    color: '#fff',
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   instructionsContainer: {
     position: 'absolute',

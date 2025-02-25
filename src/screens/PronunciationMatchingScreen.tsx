@@ -76,10 +76,10 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchingScreenProps) => {
-  const { theme, isDesktop, isTablet } = useResponsive();
+  const { isIPad, isDesktop, theme } = useResponsive();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   
-  const [level, setLevel] = useState<GameLevel>(1);
+  const [currentLevel, setCurrentLevel] = useState<GameLevel>(1);
   const [score, setScore] = useState(0);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [currentChar, setCurrentChar] = useState<PronunciationChar | null>(null);
@@ -91,6 +91,10 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [showLevelComplete, setShowLevelComplete] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [canPlay, setCanPlay] = useState(true);
+  const [isGameComplete, setIsGameComplete] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
   
   // 所有的 Animated.Value 都使用 useRef
   const progressWidth = useRef(new Animated.Value(0)).current;
@@ -171,12 +175,12 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   // 生成分层的气球位置
   const generateLayeredPositions = (totalBubbles: number) => {
     const positions: { x: number; y: number }[] = [];
-    const bubblesPerRow = isDesktop ? 6 : isTablet ? 4 : 3;
+    const bubblesPerRow = isDesktop ? 6 : isIPad ? 4 : 3;
     const effectiveBubbleSize = BUBBLE_SIZE + 10;
     const rows = Math.ceil(totalBubbles / bubblesPerRow);
     
     // 计算游戏区域的宽度和起始位置
-    const gameAreaWidth = isDesktop ? 1200 : windowWidth - (isTablet ? 48 : 20);
+    const gameAreaWidth = isDesktop ? 1200 : windowWidth - (isIPad ? 48 : 20);
     const bubbleAreaWidth = Math.min(bubblesPerRow * effectiveBubbleSize, gameAreaWidth);
     const startX = (gameAreaWidth - bubbleAreaWidth) / 2;
     const startY = 20;
@@ -287,7 +291,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       try {
         const progress = await gameService.loadGameProgress('pronunciation');
         if (progress) {
-          setLevel(progress.currentLevel as GameLevel);
+          setCurrentLevel(progress.currentLevel as GameLevel);
           setScore(progress.score);
         }
       } catch (error) {
@@ -303,7 +307,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     
     // Add subscription check
     const subscriptionService = SubscriptionService.getInstance();
-    const isLevelLocked = await subscriptionService.checkGameLevelLimit(level);
+    const isLevelLocked = await subscriptionService.checkGameLevelLimit(currentLevel);
     if (isLevelLocked) {
       Alert.alert(
         i18n.t('premiumFeature'),
@@ -323,11 +327,11 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       return;
     }
     
-    const bubbleCount = getLevelBubbleCount(level);
+    const bubbleCount = getLevelBubbleCount(currentLevel);
     
     try {
       // 获取拼音数据
-      const pronunciationChars = await gameService.getPronunciationCharsForLevel(level);
+      const pronunciationChars = await gameService.getPronunciationCharsForLevel(currentLevel);
       
       if (!pronunciationChars || pronunciationChars.length === 0) {
         Alert.alert('错误', '无法加载关卡数据');
@@ -540,10 +544,10 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       // 检查是否完成当前关卡
       if (newRemainingChars.length === 0) {
         const totalLevels = gameService.getTotalLevels();
-        if (level >= totalLevels) {
+        if (currentLevel >= totalLevels) {
           handleGameComplete(newScore);
         } else {
-          setLevel((prev: GameLevel) => (prev + 1 as GameLevel));
+          setCurrentLevel((prev: GameLevel) => (prev + 1 as GameLevel));
         }
       } else if (newRemainingChars.length > 0) {
         // 如果还有剩余字符，设置下一个当前字符并播放其声音
@@ -677,50 +681,62 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     }).start();
   };
 
-  // 关卡完成动画
+  // 更新关卡
+  const updateLevel = (newLevel: number) => {
+    if (newLevel >= 1 && newLevel <= 5) {
+      setCurrentLevel(newLevel as GameLevel);
+    }
+  };
+
+  // 处理游戏完成
+  const handleGameComplete = async (finalScore: number) => {
+    try {
+      await gameService.updateGameStats(finalScore, true, 'pronunciation');
+      await gameService.resetGame('pronunciation');
+      
+      if (currentLevel >= 5) {
+        setIsGameComplete(true);
+        Alert.alert(
+          i18n.t('gameComplete'),
+          i18n.t('gameCompleteMessage'),
+          [
+            {
+              text: i18n.t('confirm'),
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      } else {
+        updateLevel(currentLevel + 1);
+        await initializeLevel();
+      }
+    } catch (error) {
+      console.error('Error handling game completion:', error);
+    }
+  };
+
+  // 处理关卡完成动画
   const playLevelCompleteAnimation = () => {
     setShowLevelComplete(true);
     Animated.sequence([
-      Animated.spring(levelCompleteAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 7,
-      }),
-      Animated.delay(1500),
-      Animated.timing(levelCompleteAnim, {
+      Animated.timing(levelTransition, {
         toValue: 0,
-        duration: 300,
+        duration: 500,
         useNativeDriver: true,
       }),
+      Animated.timing(levelTransition, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      })
     ]).start(() => {
       setShowLevelComplete(false);
-      if (level === 5) {
+      if (currentLevel === 5) {
         navigation.goBack();
       } else {
-        setLevel(prev => (prev + 1) as GameLevel);
+        updateLevel(currentLevel + 1);
       }
     });
-  };
-
-  const handleGameComplete = async (finalScore: number) => {
-    try {
-      // 更新游戏统计
-      await StatisticsService.updateGameScore('pronunciationGame', finalScore);
-      
-      Alert.alert(
-        i18n.t('gameComplete'),
-        i18n.t('gameCompleteMessage'),
-        [
-          {
-            text: i18n.t('confirm'),
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Failed to update game score:', error);
-    }
   };
 
   const handleExit = async () => {
@@ -728,7 +744,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       i18n.t('exitGame'),
       i18n.t('exitGameMessage', {
         score,
-        level,
+        level: currentLevel,
         total: gameService.getTotalLevels()
       }),
       [
@@ -742,7 +758,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
             try {
               // 保存游戏进度
               await gameService.saveGameProgress({
-                currentLevel: level,
+                currentLevel: currentLevel,
                 score,
                 completedWords: [], // 不需要记录已完成的字符
                 isCompleted: false
@@ -765,40 +781,56 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
 
   useEffect(() => {
     initializeLevel();
-  }, [level]);
+  }, [currentLevel]);
 
   useEffect(() => {
     playLevelTransition();
-  }, [level]);
+  }, [currentLevel]);
 
   useEffect(() => {
     playScoreTransition();
   }, [score]);
 
-  // Create dynamic styles based on isTablet
+  // 计算游戏区域尺寸
+  const bubblesPerRow = isDesktop ? 6 : isIPad ? 4 : 3;
+  const gameAreaWidth = windowWidth - (isDesktop || isIPad ? 48 : 20);
+  const bubbleSpacing = HORIZONTAL_GAP;
+  const availableWidth = gameAreaWidth - (bubblesPerRow + 1) * bubbleSpacing;
+  const calculatedBubbleSize = Math.min(
+    availableWidth / bubblesPerRow,
+    BUBBLE_SIZE
+  );
+
+  // 动态样式
   const dynamicStyles = {
+    container: {
+      padding: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 16,
+    },
     levelTitle: {
-      fontSize: isTablet ? 32 : 18,
+      fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 18,
     },
     desktopLevelTitle: {
-      fontSize: isTablet ? 36 : 24,
+      fontSize: Platform.OS === 'macos' ? 28 : isIPad ? 24 : 20,
     },
     scoreText: {
-      fontSize: isTablet ? 28 : 18,
+      fontSize: Platform.OS === 'macos' ? 22 : isIPad ? 19 : 16,
     },
     bubbleText: {
-      fontSize: isTablet ? 48 : 32,
+      fontSize: Platform.OS === 'macos' ? 32 : isIPad ? 26 : 22,
     },
     currentCharText: {
-      fontSize: isTablet ? 42 : 28,
+      fontSize: Platform.OS === 'macos' ? 42 : isIPad ? 32 : 28,
     },
-    desktopCurrentCharText: {
-      fontSize: isTablet ? 48 : 36,
+    hintText: {
+      fontSize: Platform.OS === 'macos' ? 48 : isIPad ? 36 : 32,
     },
     instructionsText: {
-      fontSize: isTablet ? 20 : 13,
-      lineHeight: isTablet ? 28 : 18,
+      fontSize: Platform.OS === 'macos' ? 20 : isIPad ? 16 : 13,
+      lineHeight: Platform.OS === 'macos' ? 28 : isIPad ? 22 : 18,
     },
+    pointsText: {
+      fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 16,
+    }
   };
 
   const renderBubble = (bubble: Bubble) => {
@@ -876,7 +908,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
 
   return (
     <ResponsiveContainer>
-      <View style={styles.container}>
+      <View style={[styles.container, dynamicStyles.container]}>
         <View style={[styles.header, isDesktop && styles.desktopHeader]}>
           <TouchableOpacity
             style={styles.headerButton}
@@ -896,7 +928,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
               isDesktop && styles.desktopLevelTitle,
               isDesktop && dynamicStyles.desktopLevelTitle
             ]}>
-              {i18n.t('levelTitle', { current: level, total: gameService.getTotalLevels() })}
+              {i18n.t('levelTitle', { current: currentLevel, total: gameService.getTotalLevels() })}
             </Text>
           </View>
 

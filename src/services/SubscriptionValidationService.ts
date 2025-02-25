@@ -24,33 +24,50 @@ class SubscriptionValidationService {
     return SubscriptionValidationService.instance;
   }
 
-  async verifyReceiptWithApple(receiptData: string): Promise<any> {
+  async verifyReceiptWithApple(receiptData: string, forceSandbox: boolean = false): Promise<any> {
+    const isProduction = !forceSandbox && !ENV.IS_SANDBOX;
+    
     try {
-      const isProduction = !ENV.IS_SANDBOX;
       const verificationUrl = isProduction ? 
         CONSTANTS.PROD_VERIFICATION_URL : 
         CONSTANTS.SANDBOX_VERIFICATION_URL;
       
-      logger.subscription('Verifying receipt with Apple', {
+      // 添加更详细的日志
+      logger.subscription('Receipt verification details:', {
         environment: isProduction ? 'production' : 'sandbox',
         url: verificationUrl,
-        receiptLength: receiptData.length
+        receiptLength: receiptData.length,
+        receiptStart: receiptData.substring(0, 100),
+        sharedSecretLength: ENV.APP_SHARED_SECRET?.length || 0,
+        forceSandbox
       });
       
+      // 验证收据格式
+      if (!receiptData.match(/^[A-Za-z0-9+/=]+$/)) {
+        logger.error('Receipt is not valid base64', {
+          receiptStart: receiptData.substring(0, 100)
+        });
+        throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
+      }
+
       // 添加超时处理
       const response = await axios.post(verificationUrl, {
         'receipt-data': receiptData,
         'password': ENV.APP_SHARED_SECRET,
-        'exclude-old-transactions': false // 改为 false，确保获取所有交易记录
+        'exclude-old-transactions': false
       }, {
-        timeout: 15000 // 15秒超时
+        timeout: 15000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
-      logger.subscription('Received response from Apple', {
+      logger.subscription('Apple verification response:', {
         status: response.data?.status,
         hasReceipt: !!response.data?.receipt,
         hasLatestReceiptInfo: !!response.data?.latest_receipt_info,
-        responseData: response.data // 临时添加完整响应数据用于调试
+        environment: isProduction ? 'production' : 'sandbox',
+        responseData: response.data
       });
 
       if (!response.data) {
@@ -65,7 +82,9 @@ class SubscriptionValidationService {
         case 21002:
           logger.error('Receipt data is malformed', {
             receiptLength: receiptData.length,
-            receiptStart: receiptData.substring(0, 100) // 只记录前100个字符
+            receiptStart: receiptData.substring(0, 100),
+            environment: isProduction ? 'production' : 'sandbox',
+            sharedSecretLength: ENV.APP_SHARED_SECRET?.length || 0
           });
           throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
         case 21003:
@@ -77,33 +96,32 @@ class SubscriptionValidationService {
         case 21007:
           if (isProduction) {
             logger.subscription('Retrying with sandbox environment');
-            return this.verifyReceiptWithApple(receiptData);
+            return this.verifyReceiptWithApple(receiptData, true);
           }
           break;
         default:
-          logger.error('Unknown status code from Apple', { status: response.data.status });
+          logger.error('Unknown status code from Apple', { 
+            status: response.data.status,
+            environment: isProduction ? 'production' : 'sandbox'
+          });
           throw new Error(SUBSCRIPTION_ERRORS.E_VALIDATION_FAILED);
       }
 
-      const validatedResponse = this.validateReceiptResponse(response.data);
-
-      logger.subscription('Receipt validation successful', {
-        status: validatedResponse.status,
-        environment: isProduction ? 'production' : 'sandbox',
-        hasLatestReceipt: !!validatedResponse.latest_receipt,
-        hasLatestReceiptInfo: !!validatedResponse.latest_receipt_info
-      });
-
-      return validatedResponse;
+      return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
-        logger.error('Receipt verification timeout', { error });
+        logger.error('Receipt verification timeout', { 
+          error,
+          environment: isProduction ? 'production' : 'sandbox'
+        });
         throw new Error(SUBSCRIPTION_ERRORS.E_NETWORK);
       }
       logger.error('Receipt verification failed:', {
         error,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        errorResponse: axios.isAxiosError(error) ? error.response?.data : undefined
+        errorResponse: axios.isAxiosError(error) ? error.response?.data : undefined,
+        environment: isProduction ? 'production' : 'sandbox',
+        sharedSecretLength: ENV.APP_SHARED_SECRET?.length || 0
       });
       throw error;
     }

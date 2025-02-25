@@ -203,6 +203,9 @@ export const zh = {
     restored: '订阅已恢复',
     alreadySubscribed: '已有活跃订阅',
     alreadySubscribedDesc: '您已经有一个活跃的订阅，无需重复订阅。如需更改订阅计划，请先等待当前订阅到期或取消当前订阅。',
+    noActiveSubscription: '没有找到活跃的订阅',
+    subscribeNow: '是否要订阅会员以使用所有功能？',
+    noSubscriptionFound: '未找到可恢复的订阅',
     
     // 订阅操作
     subscribe: '订阅',
@@ -218,7 +221,6 @@ export const zh = {
     
     restoreSuccess: '订阅已成功恢复',
     restoreError: '恢复订阅失败，请确认您之前是否有订阅记录',
-    noSubscriptionToRestore: '未找到可恢复的订阅',
     
     expiringSoon: '您的订阅即将到期',
     expiringSoonMessage: '您的订阅将在 {{days}} 天后到期，请及时续订以继续使用所有功能。',

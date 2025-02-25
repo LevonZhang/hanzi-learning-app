@@ -265,27 +265,29 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   }, [bubbles]);
 
   const initializeLevel = async () => {
-    const isLevelLocked = await SubscriptionService.checkGameLevelLimit(level);
-    
-    if (isLevelLocked) {
-      Alert.alert(
-        i18n.t('levelLocked'),
-        i18n.t('levelLockedDesc'),
-        [
-          { text: i18n.t('cancel'), style: 'cancel' },
-          { 
-            text: i18n.t('getPremium'),
-            onPress: () => {
-              navigation.getParent()?.navigate('Settings', { screen: 'premium' });
-            }
-          }
-        ]
-      );
-      navigation.goBack();
-      return;
-    }
-
     try {
+      // 检查是否超过免费用户关卡限制
+      const subscriptionService = SubscriptionService.getInstance();
+      const isLevelLocked = await subscriptionService.checkGameLevelLimit(level);
+      
+      if (isLevelLocked) {
+        Alert.alert(
+          i18n.t('levelLocked'),
+          i18n.t('levelLockedDesc'),
+          [
+            { text: i18n.t('cancel'), style: 'cancel' },
+            { 
+              text: i18n.t('getPremium'),
+              onPress: () => {
+                navigation.getParent()?.navigate('Settings', { screen: 'premium' });
+              }
+            }
+          ]
+        );
+        navigation.goBack();
+        return;
+      }
+
       const bubbleCount = getLevelBubbleCount(level as GameLevel);
       const wordPairs = await gameService.getWordPairsForLevel(level);
       

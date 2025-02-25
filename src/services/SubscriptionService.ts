@@ -122,117 +122,51 @@ export default class SubscriptionService {
     return new Error(errorMessage);
   }
 
-  async validateReceipt(purchase: ProductPurchase) {
+  async validatePurchase(purchase: ProductPurchase): Promise<boolean> {
     try {
-      logger.subscription('Starting receipt validation:', {
-        purchaseId: purchase.transactionId,
+      const transaction = {
+        transactionId: purchase.transactionId || '',
+        originalTransactionId: purchase.originalTransactionDateIOS || '',
         productId: purchase.productId,
-        hasReceipt: !!purchase.transactionReceipt,
-        receiptLength: purchase.transactionReceipt?.length,
-        receiptStart: purchase.transactionReceipt?.substring(0, 50),
         purchaseDate: purchase.transactionDate,
-        originalTransactionDate: purchase.originalTransactionDateIOS
-      });
+        jws: purchase.transactionReceipt || ''
+      };
 
-      if (!purchase.transactionReceipt) {
-        logger.error('No receipt data in purchase');
-        throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
+      if (!transaction.transactionId || !transaction.jws) {
+        throw new Error('Missing transaction data');
       }
 
-      // 确保收据是 base64 格式
-      const receiptData = purchase.transactionReceipt.includes('<?xml')
-        ? Buffer.from(purchase.transactionReceipt).toString('base64')
-        : purchase.transactionReceipt;
+      const result = await SubscriptionValidationService.verifyTransaction(
+        transaction.transactionId,
+        transaction.jws
+      );
 
-      logger.subscription('Processed receipt data:', {
-        originalLength: purchase.transactionReceipt.length,
-        processedLength: receiptData.length,
-        isBase64: !purchase.transactionReceipt.includes('<?xml'),
-        receiptStart: receiptData.substring(0, 50),
-        purchaseId: purchase.transactionId
-      });
+      const subscriptionData = SubscriptionValidationService.parseTransactionInfo(result.transaction);
+      await this.updateSubscriptionStatus(subscriptionData);
+      return subscriptionData.isActive;
+    } catch (error) {
+      logger.error('Purchase validation failed:', error);
+      return false;
+    }
+  }
 
-      // 验证处理后的收据数据
-      if (!receiptData.match(/^[A-Za-z0-9+/=]+$/)) {
-        logger.error('Processed receipt is not valid base64', {
-          receiptStart: receiptData.substring(0, 50),
-          purchaseId: purchase.transactionId
-        });
-        throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
-      }
-
-      const result = await SubscriptionValidationService.verifyReceiptWithApple(receiptData);
-
-      logger.subscription('Receipt validation result:', {
-        status: result.status,
-        hasLatestReceiptInfo: !!result.latest_receipt_info,
-        latestReceiptInfoLength: result.latest_receipt_info?.length,
-        environment: ENV.IS_SANDBOX ? 'sandbox' : 'production',
-        purchaseId: purchase.transactionId,
-        productId: purchase.productId
-      });
-
-      if (result.status === 0) {
-        if (!result.latest_receipt_info?.length) {
-          logger.error('No receipt info in validation result', {
-            purchaseId: purchase.transactionId,
-            productId: purchase.productId
-          });
-          throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
-        }
-
-        const latestReceipt = result.latest_receipt_info[0];
-        const subscriptionData = SubscriptionValidationService.parseReceiptInfo(latestReceipt);
-        
-        logger.subscription('Parsed subscription data:', {
-          isActive: subscriptionData.isActive,
-          productId: subscriptionData.productId,
-          expirationDate: subscriptionData.expirationDate,
-          environment: subscriptionData.environment,
-          purchaseId: purchase.transactionId
-        });
-
-        await this.updateSubscriptionStatus(subscriptionData);
-        return subscriptionData;
-      } else if (result.status === 21007) {
-        // 如果是生产环境收据但在使用沙盒，重试一次
-        logger.subscription('Retrying with sandbox environment', {
-          purchaseId: purchase.transactionId,
-          productId: purchase.productId
-        });
-        const sandboxResult = await SubscriptionValidationService.verifyReceiptWithApple(
-          receiptData,
-          true // 强制使用沙盒
+  async validatePurchaseWithAlert(purchase: ProductPurchase): Promise<boolean> {
+    try {
+      const isValid = await this.validatePurchase(purchase);
+      if (!isValid) {
+        Alert.alert(
+          i18n.t('error'),
+          i18n.t('subscription.errors.validation')
         );
-        if (sandboxResult.status === 0) {
-          const latestReceipt = sandboxResult.latest_receipt_info[0];
-          const subscriptionData = SubscriptionValidationService.parseReceiptInfo(latestReceipt);
-          await this.updateSubscriptionStatus(subscriptionData);
-          return subscriptionData;
-        } else {
-          logger.error('Invalid receipt status after sandbox retry', { 
-            status: sandboxResult.status,
-            purchaseId: purchase.transactionId,
-            productId: purchase.productId
-          });
-          throw new Error(SUBSCRIPTION_ERRORS.E_VALIDATION_FAILED);
-        }
-      } else {
-        logger.error('Invalid receipt status', { 
-          status: result.status,
-          purchaseId: purchase.transactionId,
-          productId: purchase.productId
-        });
-        throw new Error(SUBSCRIPTION_ERRORS.E_VALIDATION_FAILED);
       }
-    } catch (err) {
-      logger.error('Receipt validation failed:', {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : 'Unknown error',
-        purchaseId: purchase.transactionId,
-        productId: purchase.productId
-      });
-      throw err;
+      return isValid;
+    } catch (error) {
+      logger.error('Purchase validation with alert failed:', error);
+      Alert.alert(
+        i18n.t('error'),
+        i18n.t('subscription.errors.validation')
+      );
+      return false;
     }
   }
 
@@ -378,12 +312,28 @@ export default class SubscriptionService {
         if (purchases && purchases.length > 0) {
           logger.subscription('Found available purchases:', { count: purchases.length });
           
-          await this.validateReceipt(purchases[0]);
-          const updatedData = await AsyncStorage.getItem('subscriptionData');
-          if (updatedData) {
-            const parsedData = JSON.parse(updatedData);
-            return parsedData.isActive;
+          // 使用最新的交易进行验证
+          const latestPurchase = purchases[0];
+          const transaction = {
+            transactionId: latestPurchase.transactionId || '',
+            originalTransactionId: latestPurchase.originalTransactionDateIOS || '',
+            productId: latestPurchase.productId,
+            purchaseDate: latestPurchase.transactionDate,
+            jws: latestPurchase.transactionReceipt || ''
+          };
+
+          if (!transaction.transactionId || !transaction.jws) {
+            throw new Error('Missing transaction data');
           }
+
+          const result = await SubscriptionValidationService.verifyTransaction(
+            transaction.transactionId,
+            transaction.jws
+          );
+
+          const subscriptionData = SubscriptionValidationService.parseTransactionInfo(result.transaction);
+          await this.updateSubscriptionStatus(subscriptionData);
+          return subscriptionData.isActive;
         }
       } catch (error) {
         logger.error('Failed to get available purchases:', error);
@@ -406,45 +356,58 @@ export default class SubscriptionService {
       logger.subscription('Starting subscription purchase', { planId, sku });
 
       // 确保 IAP 连接已初始化
-      await this.ensureIAPConnection();
+      try {
+        await initConnection();
+        logger.subscription('IAP connection initialized');
+      } catch (error) {
+        logger.error('Failed to initialize IAP connection:', error);
+        throw new Error(i18n.t('subscription.errors.initFailed'));
+      }
 
-      // 使用 Promise.race 添加超时处理
-      const purchasePromise = requestSubscription({
+      // 检查是否已有活跃订阅 - 移到初始化成功后检查
+      try {
+        const subscriptionStatus = await this.checkSubscriptionStatus();
+        if (subscriptionStatus) {
+          Alert.alert(
+            i18n.t('subscription.alreadySubscribed'),
+            i18n.t('subscription.alreadySubscribedDesc'),
+            [
+              { 
+                text: i18n.t('subscription.cancel'),
+                style: 'cancel'
+              },
+              {
+                text: i18n.t('subscription.manage'),
+                onPress: () => this.openSubscriptionManagement()
+              }
+            ]
+          );
+          return;
+        }
+      } catch (error) {
+        logger.error('Failed to check subscription status:', error);
+        // 即使检查失败也继续订阅流程
+      }
+
+      // 开始订阅流程
+      return await requestSubscription({
         sku: sku,
         andDangerouslyFinishTransactionAutomaticallyIOS: false
       });
-
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error(i18n.t('subscription.errors.timeout')));
-        }, 30000); // 30秒超时
-      });
-
-      await Promise.race([purchasePromise, timeoutPromise]);
       
     } catch (err: any) {
       const error = this.handlePurchaseError(err);
       
-      // 显示用户友好的错误消息
-      Alert.alert(
-        i18n.t('error'),
-        error.message,
-        [{ text: i18n.t('ok') }]
-      );
+      // 只有在不是用户取消操作时才显示错误消息
+      if (error.message !== i18n.t('subscription.errors.userCancelled')) {
+        Alert.alert(
+          i18n.t('error'),
+          error.message,
+          [{ text: i18n.t('ok') }]
+        );
+      }
       
-      // 重新抛出错误以便上层处理
       throw error;
-    }
-  }
-
-  // 确保 IAP 连接已初始化
-  private async ensureIAPConnection() {
-    try {
-      await initConnection();
-      logger.subscription('IAP connection initialized');
-    } catch (error) {
-      logger.error('Failed to initialize IAP connection:', error);
-      throw new Error(i18n.t('subscription.errors.initFailed'));
     }
   }
 
@@ -460,21 +423,22 @@ export default class SubscriptionService {
 
   // 检查是否达到免费用户字数限制
   async checkFreeCharacterLimit(): Promise<boolean> {
-    if (!ENV.CHECK_SUBSCRIPTION) {
-      logger.debug('Character limit check disabled in development mode');
-      return false;
-    }
-
     try {
-      const isPremium = await this.checkSubscriptionStatus();
-      if (isPremium) return false;
+      // 如果是会员用户，直接返回 false（未达到限制）
+      const subscriptionData = await this.checkSubscriptionStatus();
+      if (subscriptionData) {
+        return false;
+      }
 
+      // 获取今天已学习的字数
       const learningManager = LearningManager.getInstance();
-      const stats = await learningManager.getStatistics();
-      return stats.totalLearned >= CONSTANTS.FREE_CHAR_LIMIT;
-    } catch (err) {
-      logger.error('Failed to check character limit:', err);
-      return false;
+      const todayLearned = await learningManager.getTodayLearnedCount();
+      
+      // 检查是否达到免费用户限制
+      return todayLearned >= CONSTANTS.FREE_CHAR_LIMIT;
+    } catch (error) {
+      logger.error('Error checking free character limit:', error);
+      return false; // 出错时默认不限制
     }
   }
 
@@ -526,7 +490,6 @@ export default class SubscriptionService {
       
       const purchases = await getAvailablePurchases();
       
-      // 如果没有找到任何购买记录，直接返回
       if (!purchases || purchases.length === 0) {
         logger.subscription('No purchases found to restore');
         Alert.alert(
@@ -537,7 +500,7 @@ export default class SubscriptionService {
             {
               text: i18n.t('getPremium'),
               onPress: () => {
-                // 这里不需要做任何事情，因为用户已经在订阅页面
+                // 用户已经在订阅页面
               }
             }
           ]
@@ -545,15 +508,31 @@ export default class SubscriptionService {
         return false;
       }
 
-      // 只有找到购买记录才尝试验证
       let hasRestoredSubscription = false;
       for (const purchase of purchases) {
         try {
-          await this.validateReceipt(purchase);
-          hasRestoredSubscription = true;
+          const transaction = {
+            transactionId: purchase.transactionId || '',
+            originalTransactionId: purchase.originalTransactionDateIOS || '',
+            productId: purchase.productId,
+            purchaseDate: purchase.transactionDate,
+            jws: purchase.transactionReceipt || ''
+          };
+
+          if (!transaction.transactionId || !transaction.jws) {
+            continue;
+          }
+
+          const result = await SubscriptionValidationService.verifyTransaction(
+            transaction.transactionId,
+            transaction.jws
+          );
+
+          const subscriptionData = SubscriptionValidationService.parseTransactionInfo(result.transaction);
+          await this.updateSubscriptionStatus(subscriptionData);
+          hasRestoredSubscription = hasRestoredSubscription || subscriptionData.isActive;
         } catch (error) {
           logger.error('Failed to validate restored purchase:', error);
-          // 继续尝试下一个购买记录
         }
       }
 
@@ -674,18 +653,48 @@ export default class SubscriptionService {
             i18n.t('subscription.verifyingReceipt'),
             i18n.t('subscription.processingPurchase')
           );
-          await this.validateReceipt(purchase);
-          await finishTransaction({ purchase: purchase });
-          
-          // 通知用户订阅状态更新
-          const subscriptionData = await AsyncStorage.getItem('subscriptionData');
-          if (subscriptionData) {
-            const parsedData = JSON.parse(subscriptionData);
+
+          try {
+            // 获取交易信息
+            const transaction = {
+              transactionId: purchase.transactionId || '',
+              originalTransactionId: purchase.originalTransactionDateIOS || '',
+              productId: purchase.productId,
+              purchaseDate: purchase.transactionDate,
+              jws: purchase.transactionReceipt
+            };
+
+            if (!transaction.transactionId) {
+              throw new Error('Missing transaction ID');
+            }
+
+            // 使用新的验证方法
+            const result = await SubscriptionValidationService.verifyTransaction(
+              transaction.transactionId,
+              transaction.jws
+            );
+
+            // 解析验证结果
+            const subscriptionData = SubscriptionValidationService.parseTransactionInfo(result.transaction);
+            await this.updateSubscriptionStatus(subscriptionData);
+
+            // 完成交易
+            await finishTransaction({ purchase });
+
+            // 通知用户订阅状态更新
+            if (subscriptionData.isActive) {
+              Alert.alert(
+                i18n.t('subscription.statusChanged'),
+                i18n.t('subscription.renewedUntil', {
+                  date: subscriptionData.expirationDate.toLocaleDateString()
+                })
+              );
+            }
+          } catch (error) {
+            logger.error('Transaction verification failed:', error);
             Alert.alert(
-              i18n.t('subscription.statusChanged'),
-              i18n.t('subscription.renewedUntil', {
-                date: new Date(parsedData.expirationDate).toLocaleDateString()
-              })
+              i18n.t('error'),
+              i18n.t('subscription.errors.validation')
             );
           }
         }

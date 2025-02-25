@@ -314,4 +314,69 @@ export class LearningManager {
       throw error;
     }
   }
+
+  // 获取今天已学习的字数
+  public async getTodayLearnedCount(): Promise<number> {
+    try {
+      const progress = await this.getAllProgress();
+      const today = new Date().toISOString().split('T')[0];
+      
+      // 计算今天学习的字数
+      const todayLearned = Object.values(progress).filter(item => 
+        item.lastReviewDate === today
+      ).length;
+
+      console.log('[LearningManager.getTodayLearnedCount]', {
+        date: today,
+        count: todayLearned
+      });
+
+      return todayLearned;
+    } catch (error) {
+      console.error('[LearningManager.getTodayLearnedCount] Error:', error);
+      return 0;
+    }
+  }
+
+  // 获取更多字符学习
+  public async getMoreCharactersToLearn(count: number = 5): Promise<Character[]> {
+    try {
+      const progress = await this.getAllProgress();
+      const hanziService = HanziService.getInstance();
+      const allCharacters = await hanziService.getHanziListWithDetails();
+      
+      // 获取已学习的字符集
+      const learnedChars = new Set(Object.keys(progress));
+      
+      // 从未学习的字符中选择新的字符，按难易程度排序
+      const availableChars = allCharacters
+        .filter(char => !learnedChars.has(char.character))
+        .sort((a, b) => {
+          // 1. 首先按常用字排序（常用字优先）
+          if (a.isCommon !== b.isCommon) {
+            return a.isCommon ? -1 : 1;
+          }
+
+          // 2. 在常用字中，按笔画数排序（笔画少的优先）
+          const strokeDiff = a.strokes - b.strokes;
+          if (strokeDiff !== 0) {
+            return strokeDiff;
+          }
+
+          // 3. 如果笔画数相同，按使用频率排序
+          if (a.isCommon && b.isCommon) {
+            return a.commonIndex - b.commonIndex;
+          }
+
+          // 4. 如果都不是常用字，保持随机顺序
+          return Math.random() - 0.5;
+        });
+      
+      // 返回指定数量的新字符
+      return availableChars.slice(0, count);
+    } catch (error) {
+      console.error('[LearningManager.getMoreCharactersToLearn] Error:', error);
+      return [];
+    }
+  }
 } 

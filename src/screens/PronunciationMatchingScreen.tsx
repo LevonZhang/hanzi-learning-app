@@ -48,7 +48,6 @@ type GameStackParamList = {
   GamesList: undefined;
   WordGame: { mode: 'word' };
   PronunciationGame: { mode: 'pronunciation' };
-  Settings: { initialTab: string };
 };
 
 type PronunciationMatchingScreenProps = NativeStackScreenProps<GameStackParamList, 'PronunciationGame'>;
@@ -303,7 +302,8 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     gameStartAnim.setValue(0);
     
     // Add subscription check
-    const isLevelLocked = await SubscriptionService.checkGameLevelLimit(level);
+    const subscriptionService = SubscriptionService.getInstance();
+    const isLevelLocked = await subscriptionService.checkGameLevelLimit(level);
     if (isLevelLocked) {
       Alert.alert(
         i18n.t('premiumFeature'),
@@ -316,7 +316,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
           },
           {
             text: i18n.t('subscribe'),
-            onPress: () => navigation.navigate('Settings', { initialTab: 'subscription' })
+            onPress: () => navigation.getParent()?.navigate('Settings', { screen: 'premium' })
           }
         ]
       );

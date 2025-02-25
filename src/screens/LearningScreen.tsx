@@ -65,8 +65,11 @@ type StylesProps = {
   isTablet: boolean;
 };
 
-const styles = ({ isTablet }: StylesProps) => {
-  const baseStyles = StyleSheet.create({
+export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
+  const { deviceType, theme, isTablet, isDesktop } = useResponsive();
+  const { width: windowWidth } = useWindowDimensions();
+
+  const screenStyles = StyleSheet.create({
     container: {
       flex: 1,
     },
@@ -102,8 +105,8 @@ const styles = ({ isTablet }: StylesProps) => {
       borderRadius: 8,
       backgroundColor: '#fff',
       marginTop: -60,
-      height: '80%',
-      maxHeight: Platform.OS === 'ios' ? '80%' : '80%',
+      height: isTablet ? '80%' : '40%',
+      maxHeight: Platform.OS === 'ios' ? (isTablet ? '80%' : '40%') : (isTablet ? '80%' : '40%'),
       ...Platform.select({
         ios: {
           shadowColor: '#000',
@@ -144,8 +147,8 @@ const styles = ({ isTablet }: StylesProps) => {
       flex: 1,
     },
     meaningText: {
-      fontSize: isTablet ? 24 : 18,
-      lineHeight: isTablet ? 34 : 24,
+      fontSize: isTablet ? 24 : 16,
+      lineHeight: isTablet ? 34 : 22,
       marginBottom: 8,
     },
     wideMeaningText: {
@@ -153,8 +156,8 @@ const styles = ({ isTablet }: StylesProps) => {
       lineHeight: isTablet ? 38 : 28,
     },
     wordsText: {
-      fontSize: isTablet ? 20 : 16,
-      lineHeight: isTablet ? 28 : 22,
+      fontSize: isTablet ? 20 : 14,
+      lineHeight: isTablet ? 28 : 20,
       marginBottom: 8,
     },
     wideWordsText: {
@@ -162,18 +165,23 @@ const styles = ({ isTablet }: StylesProps) => {
       lineHeight: isTablet ? 32 : 24,
     },
     soundButton: {
-      padding: isTablet ? 12 : 8,
+      width: isTablet ? 60 : 50,
+      paddingVertical: isTablet ? 16 : 12,
       borderRadius: 8,
-      backgroundColor: '#f0f0f0',
+      alignItems: 'center',
+      backgroundColor: theme.colors.primary,
+      marginHorizontal: 8,
     },
     wideSoundButton: {
-      padding: isTablet ? 16 : 12,
+      width: isTablet ? 70 : 60,
     },
     buttonContainer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      justifyContent: 'center',
       paddingHorizontal: 16,
       paddingBottom: 16,
+      marginBottom: Platform.OS === 'ios' && !isTablet ? 30 : 16,
+      marginTop: Platform.OS === 'ios' && !isTablet ? 20 : 0,
     },
     wideButtonContainer: {
       paddingHorizontal: isTablet ? 24 : 32,
@@ -189,7 +197,8 @@ const styles = ({ isTablet }: StylesProps) => {
       } : {}),
     },
     button: {
-      flex: 1,
+      flex: 0,
+      width: isTablet ? 200 : 150,
       marginHorizontal: 8,
       paddingVertical: isTablet ? 16 : 12,
       borderRadius: 8,
@@ -203,28 +212,77 @@ const styles = ({ isTablet }: StylesProps) => {
     },
     completedContainer: {
       alignItems: 'center',
+      justifyContent: 'center',
       padding: isTablet ? 32 : 24,
+      flex: 1,
+      backgroundColor: '#f9f9f9',
+      borderRadius: 16,
+      margin: isTablet ? 24 : 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
     },
     completedText: {
-      fontSize: isTablet ? 24 : 20,
-      fontWeight: '600',
-      marginBottom: 16,
+      fontSize: isTablet ? 28 : 22,
+      fontWeight: '700',
+      marginBottom: 24,
+      textAlign: 'center',
+      color: theme.colors.primary,
     },
     statsText: {
       fontSize: isTablet ? 18 : 16,
-      color: '#666',
-      marginBottom: 8,
+      lineHeight: isTablet ? 28 : 24,
+      color: theme.colors.textSecondary,
+      marginBottom: 24,
+      textAlign: 'center',
+    },
+    statsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      width: '100%',
+      marginBottom: 32,
+    },
+    statItem: {
+      alignItems: 'center',
+      padding: 16,
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      minWidth: isTablet ? 120 : 90,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    statValue: {
+      fontSize: isTablet ? 24 : 20,
+      fontWeight: '700',
+      color: theme.colors.primary,
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: isTablet ? 14 : 12,
+      color: theme.colors.textSecondary,
+    },
+    learnMoreButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: isTablet ? 16 : 12,
+      paddingHorizontal: isTablet ? 32 : 24,
+      borderRadius: 12,
+      marginTop: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    learnMoreText: {
+      color: '#fff',
+      fontSize: isTablet ? 18 : 16,
+      fontWeight: '600',
+      marginLeft: 8,
     },
   });
-
-  return baseStyles;
-};
-
-export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
-  const { theme, isDesktop, isTablet } = useResponsive();
-  const { width: windowWidth } = useWindowDimensions();
-
-  const screenStyles = styles({ isTablet });
 
   const [state, setState] = useState<LearningState>({
     newWords: [],
@@ -268,7 +326,8 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   }, [route?.params]);
 
   const loadTodayLearning = async () => {
-    const reachedLimit = await SubscriptionService.checkFreeCharacterLimit();
+    const subscriptionService = SubscriptionService.getInstance();
+    const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
     
     if (reachedLimit) {
       Alert.alert(
@@ -292,14 +351,35 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     const learningManager = LearningManager.getInstance();
     const { newWords, reviewWords } = await learningManager.getTodayLearningList();
     const statistics = await learningManager.getStatistics();
+    
+    // 这里的判断应该只看 newWords
+    if (newWords.length === 0) {  // 修改这里，不需要考虑 reviewWords
+      setState(prev => ({
+        ...prev,
+        newWords: [],
+        reviewWords: [],
+        currentWord: null,
+        statistics
+      }));
+      return;
+    }
 
+    // 设置当前要学习的字
+    const currentWord = newWords[0];  // 直接使用 newWords[0]，不需要考虑 reviewWords
+    
     setState(prev => ({
       ...prev,
       newWords,
       reviewWords,
-      currentWord: newWords[0] || reviewWords[0],
+      currentWord,
+      isReviewMode: false,  // 这里应该始终是 false，因为我们只关注学习
       statistics
     }));
+
+    // 记录为已开始学习
+    if (currentWord) {
+      await handleCharacterLearned(currentWord.character);
+    }
   };
 
   const loadReviewWords = async (reviewWords: string[]) => {
@@ -450,6 +530,40 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     }
   };
 
+  // 加载更多汉字学习
+  const loadMoreCharacters = async () => {
+    try {
+      const learningManager = LearningManager.getInstance();
+      // 获取更多字符（默认5个）
+      const moreCharacters = await learningManager.getMoreCharactersToLearn();
+      
+      if (moreCharacters.length === 0) {
+        // 没有更多可学习的字符
+        Alert.alert(
+          i18n.t('success'),
+          '恭喜！您已经学习了所有可用的汉字。',
+          [{ text: i18n.t('confirm'), style: 'default' }]
+        );
+        return;
+      }
+      
+      // 更新状态，添加新的学习字符
+      setState(prev => ({
+        ...prev,
+        newWords: moreCharacters,
+        currentWord: moreCharacters[0],
+        isReviewMode: false
+      }));
+    } catch (error) {
+      console.error('Error loading more characters:', error);
+      Alert.alert(
+        i18n.t('error'),
+        '加载更多汉字失败，请稍后重试。',
+        [{ text: i18n.t('confirm'), style: 'default' }]
+      );
+    }
+  };
+
   return (
     <ResponsiveContainer useSafeArea withPadding>
       <View style={[screenStyles.container, (isDesktop || isTablet) && screenStyles.wideContainer]}>
@@ -537,17 +651,6 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                     </Text>
                   )}
                 </ScrollView>
-
-                <TouchableOpacity
-                  style={[screenStyles.soundButton, (isDesktop || isTablet) && screenStyles.wideSoundButton]}
-                  onPress={() => state.currentWord && playSound(state.currentWord.character)}
-                >
-                  <MaterialCommunityIcons
-                    name="volume-high"
-                    size={(isDesktop || isTablet) ? 28 : 24}
-                    color={theme.colors.primary}
-                  />
-                </TouchableOpacity>
               </View>
             </View>
 
@@ -555,6 +658,17 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
               screenStyles.buttonContainer,
               (isDesktop || isTablet) && screenStyles.wideButtonContainer
             ]}>
+              <TouchableOpacity
+                style={[screenStyles.soundButton, (isDesktop || isTablet) && screenStyles.wideSoundButton]}
+                onPress={() => state.currentWord && playSound(state.currentWord.character)}
+              >
+                <MaterialCommunityIcons
+                  name="volume-high"
+                  size={(isDesktop || isTablet) ? 24 : 20}
+                  color={theme.colors.textLight}
+                />
+              </TouchableOpacity>
+              
               <TouchableOpacity
                 style={[screenStyles.button, { backgroundColor: theme.colors.success }]}
                 onPress={() => handleComplete(true)}
@@ -567,14 +681,40 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
           </>
         ) : (
           <View style={screenStyles.completedContainer}>
-            <Text style={[screenStyles.completedText, { color: theme.colors.textPrimary }]}>
+            <Text style={screenStyles.completedText}>
               {i18n.t('learningCompleted')}
             </Text>
-            <Text style={[screenStyles.statsText, { color: theme.colors.textSecondary }]}>
-              {`${i18n.t('totalLearned')}: ${state.statistics.totalLearned}\n`}
-              {`${i18n.t('mastered')}: ${state.statistics.mastered}\n`}
-              {`${i18n.t('needReview')}: ${state.statistics.needReview}`}
-            </Text>
+            
+            <View style={screenStyles.statsContainer}>
+              <View style={screenStyles.statItem}>
+                <Text style={screenStyles.statValue}>{state.statistics.totalLearned}</Text>
+                <Text style={screenStyles.statLabel}>{i18n.t('totalLearned')}</Text>
+              </View>
+              
+              <View style={screenStyles.statItem}>
+                <Text style={screenStyles.statValue}>{state.statistics.mastered}</Text>
+                <Text style={screenStyles.statLabel}>{i18n.t('mastered')}</Text>
+              </View>
+              
+              <View style={screenStyles.statItem}>
+                <Text style={screenStyles.statValue}>{state.statistics.needReview}</Text>
+                <Text style={screenStyles.statLabel}>{i18n.t('needReview')}</Text>
+              </View>
+            </View>
+            
+            <TouchableOpacity 
+              style={screenStyles.learnMoreButton}
+              onPress={loadMoreCharacters}
+            >
+              <MaterialCommunityIcons 
+                name="book-open-variant" 
+                size={isTablet ? 24 : 20} 
+                color="#fff" 
+              />
+              <Text style={screenStyles.learnMoreText}>
+                {i18n.t('learnMore')}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>

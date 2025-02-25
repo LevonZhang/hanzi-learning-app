@@ -20,6 +20,7 @@ export const zh = {
   reviewCompleted: '已复习完全部生字',
   continueLearning: '继续学习',
   continueNewLearning: '继续学习新字',
+  learnMore: '学习更多汉字',
   totalLearned: '已学习',
   mastered: '已掌握',
   needReview: '需要复习',

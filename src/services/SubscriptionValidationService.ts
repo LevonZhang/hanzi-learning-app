@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { ENV, CONSTANTS, SUBSCRIPTION_ERRORS } from '../config/env';
 import { logger } from '../utils/logger';
+import { Platform } from 'react-native';
 
 interface SubscriptionData {
   productId: string;
@@ -10,10 +11,56 @@ interface SubscriptionData {
   isActive: boolean;
   environment: 'production' | 'sandbox';
   lastUpdated: string;
+  transactionId?: string;
+  jws?: string;
+  isTrialPeriod?: boolean;
+  isInIntroOfferPeriod?: boolean;
+  webOrderLineItemId?: string;
+}
+
+interface VerificationResponse {
+  status: number;
+  environment: string;
+  receipt: {
+    bundle_id: string;
+    application_version: string;
+    in_app: Array<{
+      quantity: string;
+      product_id: string;
+      transaction_id: string;
+      original_transaction_id: string;
+      purchase_date_ms: string;
+      original_purchase_date_ms: string;
+      expires_date_ms: string;
+      web_order_line_item_id: string;
+      is_trial_period: string;
+      is_in_intro_offer_period: string;
+    }>;
+  };
+  latest_receipt_info?: Array<{
+    quantity: string;
+    product_id: string;
+    transaction_id: string;
+    original_transaction_id: string;
+    purchase_date_ms: string;
+    original_purchase_date_ms: string;
+    expires_date_ms: string;
+    web_order_line_item_id: string;
+    is_trial_period: string;
+    is_in_intro_offer_period: string;
+  }>;
+  pending_renewal_info?: Array<{
+    auto_renew_status: string;
+    auto_renew_product_id: string;
+    expiration_intent: string;
+  }>;
 }
 
 class SubscriptionValidationService {
   private static instance: SubscriptionValidationService;
+  private readonly BUNDLE_ID = 'com.itlongbow.hanzilearningapp';
+  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAY = 1000; // 1 second
   
   private constructor() {}
 
@@ -24,149 +71,194 @@ class SubscriptionValidationService {
     return SubscriptionValidationService.instance;
   }
 
-  async verifyReceiptWithApple(receiptData: string, forceSandbox: boolean = false): Promise<any> {
-    const isProduction = !forceSandbox && !ENV.IS_SANDBOX;
+  async verifyTransaction(transactionId: string, jws: string): Promise<any> {
+    const isProduction = !ENV.IS_SANDBOX;
+    let retryCount = 0;
     
     try {
-      const verificationUrl = isProduction ? 
-        CONSTANTS.PROD_VERIFICATION_URL : 
-        CONSTANTS.SANDBOX_VERIFICATION_URL;
-      
-      // 添加更详细的日志
-      logger.subscription('Receipt verification details:', {
-        environment: isProduction ? 'production' : 'sandbox',
-        url: verificationUrl,
-        receiptLength: receiptData.length,
-        receiptStart: receiptData.substring(0, 100),
-        sharedSecretLength: ENV.APP_SHARED_SECRET?.length || 0,
-        forceSandbox
-      });
-      
-      // 验证收据格式
-      if (!receiptData.match(/^[A-Za-z0-9+/=]+$/)) {
-        logger.error('Receipt is not valid base64', {
-          receiptStart: receiptData.substring(0, 100)
-        });
-        throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
+      if (ENV.IS_SANDBOX) {
+        logger.subscription('Development mode: returning mock response');
+        return this.getMockResponse(transactionId);
       }
 
-      // 添加超时处理
-      const response = await axios.post(verificationUrl, {
-        'receipt-data': receiptData,
+      // 构建验证请求数据
+      const requestData = {
+        'receipt-data': jws,
         'password': ENV.APP_SHARED_SECRET,
-        'exclude-old-transactions': false
-      }, {
-        timeout: 15000,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+        'exclude-old-transactions': false // 包含所有历史交易
+      };
 
-      logger.subscription('Apple verification response:', {
-        status: response.data?.status,
-        hasReceipt: !!response.data?.receipt,
-        hasLatestReceiptInfo: !!response.data?.latest_receipt_info,
+      // 记录验证请求详情
+      logger.subscription('Starting transaction verification:', {
         environment: isProduction ? 'production' : 'sandbox',
-        responseData: response.data
+        transactionId,
+        hasJws: !!jws,
+        jwsLength: jws?.length || 0
       });
 
-      if (!response.data) {
-        throw new Error('Empty response from Apple verification server');
-      }
+      while (retryCount < this.MAX_RETRIES) {
+        try {
+          const verificationUrl = isProduction ? 
+            CONSTANTS.PROD_VERIFICATION_URL : 
+            CONSTANTS.SANDBOX_VERIFICATION_URL;
 
-      // 处理特定的状态码
-      switch (response.data.status) {
-        case 0:
-          logger.subscription('Receipt is valid');
-          break;
-        case 21002:
-          logger.error('Receipt data is malformed', {
-            receiptLength: receiptData.length,
-            receiptStart: receiptData.substring(0, 100),
-            environment: isProduction ? 'production' : 'sandbox',
-            sharedSecretLength: ENV.APP_SHARED_SECRET?.length || 0
+          const response = await axios.post<VerificationResponse>(verificationUrl, requestData, {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            timeout: 30000
           });
-          throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
-        case 21003:
-          logger.error('Receipt authentication failed');
-          throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
-        case 21004:
-          logger.error('Shared secret does not match');
-          throw new Error(SUBSCRIPTION_ERRORS.E_VALIDATION_FAILED);
-        case 21007:
-          if (isProduction) {
-            logger.subscription('Retrying with sandbox environment');
-            return this.verifyReceiptWithApple(receiptData, true);
+
+          // 检查响应状态
+          if (response.data.status === 21007) {
+            // 生产环境收据被发送到沙箱环境，重试沙箱验证
+            logger.subscription('Production receipt sent to sandbox, retrying with sandbox URL');
+            const sandboxResponse = await axios.post<VerificationResponse>(
+              CONSTANTS.SANDBOX_VERIFICATION_URL,
+              requestData,
+              {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 30000
+              }
+            );
+            return this.processVerificationResponse(sandboxResponse.data, transactionId);
           }
-          break;
-        default:
-          logger.error('Unknown status code from Apple', { 
-            status: response.data.status,
-            environment: isProduction ? 'production' : 'sandbox'
-          });
-          throw new Error(SUBSCRIPTION_ERRORS.E_VALIDATION_FAILED);
+
+          if (response.data.status === 21008) {
+            // 沙箱收据被发送到生产环境，重试生产验证
+            logger.subscription('Sandbox receipt sent to production, retrying with production URL');
+            const prodResponse = await axios.post<VerificationResponse>(
+              CONSTANTS.PROD_VERIFICATION_URL,
+              requestData,
+              {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 30000
+              }
+            );
+            return this.processVerificationResponse(prodResponse.data, transactionId);
+          }
+
+          // 处理其他状态码
+          if (response.data.status !== 0) {
+            throw new Error(`Receipt validation failed with status ${response.data.status}`);
+          }
+
+          // 验证 bundle ID
+          if (response.data.receipt.bundle_id !== this.BUNDLE_ID) {
+            throw new Error('Bundle ID mismatch');
+          }
+
+          return this.processVerificationResponse(response.data, transactionId);
+
+        } catch (error) {
+          retryCount++;
+          if (retryCount === this.MAX_RETRIES) {
+            throw error;
+          }
+          await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+        }
       }
 
-      return response.data;
     } catch (error) {
-      if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
-        logger.error('Receipt verification timeout', { 
-          error,
-          environment: isProduction ? 'production' : 'sandbox'
-        });
-        throw new Error(SUBSCRIPTION_ERRORS.E_NETWORK);
-      }
-      logger.error('Receipt verification failed:', {
+      logger.error('Transaction verification failed:', {
         error,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        errorResponse: axios.isAxiosError(error) ? error.response?.data : undefined,
         environment: isProduction ? 'production' : 'sandbox',
-        sharedSecretLength: ENV.APP_SHARED_SECRET?.length || 0
+        retryCount,
+        transactionId
       });
+      
+      if (ENV.IS_SANDBOX) {
+        logger.subscription('Development mode: returning mock response after error');
+        return this.getMockResponse(transactionId);
+      }
+      
       throw error;
     }
   }
 
-  private validateReceiptResponse(response: any): any {
-    logger.subscription('Validating receipt response', {
-      hasStatus: typeof response.status === 'number',
-      status: response.status,
-      hasReceipt: !!response.receipt,
-      hasLatestReceiptInfo: !!response.latest_receipt_info
+  private processVerificationResponse(response: VerificationResponse, transactionId: string): any {
+    // 获取最新的交易信息
+    const latestReceipt = response.latest_receipt_info?.[0] || 
+                         response.receipt.in_app.sort((a, b) => 
+                           parseInt(b.purchase_date_ms) - parseInt(a.purchase_date_ms)
+                         )[0];
+
+    if (!latestReceipt) {
+      throw new Error('No valid transaction found in receipt');
+    }
+
+    // 检查是否是自动续订订阅
+    const pendingRenewal = response.pending_renewal_info?.[0];
+    const isAutoRenewActive = pendingRenewal?.auto_renew_status === '1';
+
+    // 构建交易信息
+    const transaction = {
+      originalTransactionId: latestReceipt.original_transaction_id,
+      transactionId: latestReceipt.transaction_id,
+      productId: latestReceipt.product_id,
+      purchaseDate: new Date(parseInt(latestReceipt.purchase_date_ms)),
+      expirationDate: new Date(parseInt(latestReceipt.expires_date_ms)),
+      isTrialPeriod: latestReceipt.is_trial_period === 'true',
+      isInIntroOfferPeriod: latestReceipt.is_in_intro_offer_period === 'true',
+      webOrderLineItemId: latestReceipt.web_order_line_item_id,
+      isAutoRenewActive,
+      environment: response.environment.toLowerCase()
+    };
+
+    logger.subscription('Processed verification response:', {
+      transactionId: transaction.transactionId,
+      originalTransactionId: transaction.originalTransactionId,
+      productId: transaction.productId,
+      purchaseDate: transaction.purchaseDate.toISOString(),
+      expirationDate: transaction.expirationDate.toISOString(),
+      isTrialPeriod: transaction.isTrialPeriod,
+      isInIntroOfferPeriod: transaction.isInIntroOfferPeriod,
+      isAutoRenewActive: transaction.isAutoRenewActive,
+      environment: transaction.environment
     });
 
-    if (!response || typeof response.status !== 'number') {
-      logger.error('Invalid receipt response format', response);
-      throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
-    }
-
-    if (response.status === 0) {
-      if (!response.receipt || !response.latest_receipt_info) {
-        logger.error('Missing required receipt information', {
-          hasReceipt: !!response.receipt,
-          hasLatestReceiptInfo: !!response.latest_receipt_info
-        });
-        throw new Error(SUBSCRIPTION_ERRORS.E_RECEIPT_INVALID);
-      }
-    }
-
-    return response;
+    return {
+      status: 0,
+      environment: response.environment,
+      transaction
+    };
   }
 
-  isSubscriptionActive(latestReceipt: any): boolean {
-    if (!latestReceipt) {
-      logger.warn('No receipt provided for subscription check');
+  private getMockResponse(transactionId: string): any {
+    const now = Date.now();
+    return {
+      status: 0,
+      environment: 'sandbox',
+      transaction: {
+        originalTransactionId: transactionId,
+        transactionId: transactionId,
+        productId: 'com.itlongbow.hanzilearningapp.sub.monthly',
+        purchaseDate: new Date(now),
+        expirationDate: new Date(now + 30 * 24 * 60 * 60 * 1000),
+        isTrialPeriod: false,
+        isInIntroOfferPeriod: false,
+        webOrderLineItemId: 'mock_order_id',
+        isAutoRenewActive: true,
+        environment: 'sandbox'
+      }
+    };
+  }
+
+  isSubscriptionActive(transaction: any): boolean {
+    if (!transaction) {
+      logger.warn('No transaction provided for subscription check');
       return false;
     }
 
     // 检查是否是永久会员
-    if (latestReceipt.product_id.includes('lifetime')) {
+    if (transaction.productId?.includes('lifetime')) {
       logger.subscription('Lifetime subscription detected');
       return true;
     }
 
     // 检查订阅是否过期
-    const expirationDate = new Date(parseInt(latestReceipt.expires_date_ms));
+    const expirationDate = new Date(transaction.expirationDate);
     const now = new Date();
     const isActive = now < expirationDate;
     
@@ -174,24 +266,30 @@ class SubscriptionValidationService {
       expirationDate: expirationDate.toISOString(),
       currentDate: now.toISOString(),
       isActive,
-      productId: latestReceipt.product_id,
+      productId: transaction.productId,
       environment: ENV.IS_SANDBOX ? 'sandbox' : 'production',
-      timeUntilExpiration: Math.round((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) + ' days'
+      timeUntilExpiration: Math.round((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) + ' days',
+      isAutoRenewActive: transaction.isAutoRenewActive
     });
     
     return isActive;
   }
 
-  parseReceiptInfo(receiptInfo: any): SubscriptionData {
+  parseTransactionInfo(transactionInfo: any): SubscriptionData {
     const now = new Date();
     return {
-      productId: receiptInfo.product_id,
-      originalTransactionId: receiptInfo.original_transaction_id,
-      purchaseDate: new Date(parseInt(receiptInfo.purchase_date_ms)),
-      expirationDate: new Date(parseInt(receiptInfo.expires_date_ms)),
-      isActive: this.isSubscriptionActive(receiptInfo),
+      productId: transactionInfo.productId,
+      originalTransactionId: transactionInfo.originalTransactionId,
+      transactionId: transactionInfo.transactionId,
+      purchaseDate: new Date(transactionInfo.purchaseDate),
+      expirationDate: new Date(transactionInfo.expirationDate),
+      isActive: this.isSubscriptionActive(transactionInfo),
       environment: ENV.IS_SANDBOX ? 'sandbox' : 'production',
-      lastUpdated: now.toISOString()
+      lastUpdated: now.toISOString(),
+      isTrialPeriod: transactionInfo.isTrialPeriod,
+      isInIntroOfferPeriod: transactionInfo.isInIntroOfferPeriod,
+      webOrderLineItemId: transactionInfo.webOrderLineItemId,
+      jws: transactionInfo.jws
     };
   }
 }

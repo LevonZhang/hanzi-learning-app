@@ -17,7 +17,7 @@ export const useResponsive = (): ResponsiveInfo => {
   const [dimensions, setDimensions] = useState<ScaledSize>(getWindowDimensions());
   const deviceType = getDeviceType(dimensions.width);
   const theme = getTheme(deviceType);
-  const isIPad = Platform.OS === 'ios' && Platform.isPad;
+  const isIPad = Platform.OS === 'ios' && Platform.isPad === true;
 
   useEffect(() => {
     const subscription = addDimensionsListener((window) => {

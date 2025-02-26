@@ -1111,7 +1111,7 @@ const styles = StyleSheet.create({
   },
   soundButton: {
     padding: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: '#fff',
     borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: {
@@ -1262,7 +1262,7 @@ const styles = StyleSheet.create({
   instructionsBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: '#fff',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 20,
@@ -1294,7 +1294,7 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: '#ffffff',
     paddingVertical: 20,
     paddingHorizontal: 40,
     borderRadius: 20,

@@ -120,8 +120,8 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             touch-action: none;
           }
           #character-target-div {
-            width: ${shouldUseDesktopLayout ? (isIPad ? 240 : 400) : 250}px;
-            height: ${shouldUseDesktopLayout ? (isIPad ? 240 : 400) : 250}px;
+            width: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 250}px;
+            height: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 250}px;
             background-color: transparent;
           }
         </style>
@@ -141,24 +141,26 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
 
           function initWriter(character) {
             if (writer) {
-              writer.quiz?.cancel();
-              writer.animateCharacter?.cancel();
-              writer = null;
+              writer.setCharacter(character);
+              return;
             }
-
+            
             writer = HanziWriter.create('character-target-div', character, {
-              width: ${shouldUseDesktopLayout ? (isIPad ? 240 : 400) : 250},
-              height: ${shouldUseDesktopLayout ? (isIPad ? 240 : 400) : 250},
-              padding: ${shouldUseDesktopLayout ? (isIPad ? 4 : 10) : 5},
+              width: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 250},
+              height: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 250},
+              padding: 5,
               showOutline: true,
               strokeAnimationSpeed: 1,
-              delayBetweenStrokes: 500,
+              delayBetweenStrokes: 100,
+              strokeColor: '#FF0000',
+              outlineColor: '#333333',
+              highlightColor: '#00FF00',
+              drawingColor: '#FF0000',
+              radicalColor: '#168F16',
               showCharacter: false,
-              strokeColor: '#FF4444',
-              outlineColor: '#666666',
-              charColor: '#666666',
               showHintAfterMisses: 3,
-              gridColor: '#DDD'
+              highlightOnComplete: true,
+              leniency: 1.0,
             });
 
             return writer;
@@ -262,7 +264,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       maxWidth: 1000,
       paddingHorizontal: isIPad ? 16 : 20,
       gap: isIPad ? 10 : 8,
-      marginTop: isIPad ? -60 : 0,
+      marginTop: isIPad ? -120 : 0,
     },
     buttonRow: {
       flexDirection: 'row',
@@ -274,15 +276,15 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: shouldUseDesktopLayout ? (isIPad ? 14 : 20) : 10,
+      padding: shouldUseDesktopLayout ? (isIPad ? 10 : 20) : 10,
       borderRadius: 8,
-      gap: shouldUseDesktopLayout ? (isIPad ? 10 : 12) : 8,
-      minWidth: shouldUseDesktopLayout ? (isIPad ? 130 : 150) : 120,
+      gap: shouldUseDesktopLayout ? (isIPad ? 8 : 12) : 8,
+      minWidth: shouldUseDesktopLayout ? (isIPad ? 110 : 150) : 120,
       backgroundColor: '#5B7B9E',
     },
     buttonText: {
       color: '#fff',
-      fontSize: shouldUseDesktopLayout ? (isIPad ? 18 : 24) : 13,
+      fontSize: shouldUseDesktopLayout ? (isIPad ? 15 : 24) : 13,
       fontWeight: '600',
       textAlign: 'center',
       flexShrink: 1,

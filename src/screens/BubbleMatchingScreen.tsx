@@ -30,14 +30,6 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
 const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.6;
 
-// 获取响应式信息
-const { isIPad, isDesktop } = useResponsive();
-
-const BUBBLE_SIZE = Platform.OS === 'macos' ? 100 : isIPad ? 70 : 60;
-const HORIZONTAL_GAP = Platform.OS === 'macos' ? 8 : isIPad ? 6 : 5;
-const VERTICAL_OVERLAP = Platform.OS === 'macos' ? -10 : isIPad ? -7 : -5;
-const TOP_MARGIN = Platform.OS === 'macos' ? 15 : isIPad ? 12 : 10;
-
 const BUBBLE_COLORS: readonly [string, string, string][] = [
   ['#FF6B6B', '#FF8787', '#FFA5A5'],
   ['#4ECDC4', '#45B7AF', '#3CA29A'],
@@ -90,15 +82,13 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreenProps) => {
-  const { theme, isDesktop, isIPad } = useResponsive();
+  const { isIPad, isDesktop, theme } = useResponsive();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   
-  // Calculate bubble size based on screen dimensions
-  const BUBBLE_SIZE = isDesktop
-    ? Math.min(windowWidth / 8, windowHeight / 6)
-    : isIPad
-    ? Math.min(windowWidth / 4, windowHeight / 6)
-    : Math.min(windowWidth / 4, windowHeight / 6);
+  const BUBBLE_SIZE = Platform.OS === 'macos' ? 100 : isIPad ? 70 : 60;
+  const HORIZONTAL_GAP = Platform.OS === 'macos' ? 8 : isIPad ? 6 : 5;
+  const VERTICAL_OVERLAP = Platform.OS === 'macos' ? -10 : isIPad ? -7 : -5;
+  const TOP_MARGIN = Platform.OS === 'macos' ? 15 : isIPad ? 12 : 10;
 
   const [currentLevel, setCurrentLevel] = useState<GameLevel>(1);
   const [score, setScore] = useState(0);
@@ -123,6 +113,8 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   const [canPlay, setCanPlay] = useState(true);
   const [isGameComplete, setIsGameComplete] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [removedBubbleIds, setRemovedBubbleIds] = useState<Set<string>>(new Set());
+  const [visibleBubbles, setVisibleBubbles] = useState<Set<string>>(new Set());
 
   // 在组件加载时加载游戏进度
   useEffect(() => {
@@ -362,6 +354,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
       const newBubbles: Bubble[] = shuffleArray(firstChars);
       setBubbles(newBubbles);
+      setVisibleBubbles(new Set(newBubbles.map(b => b.id)));
       
       if (shuffledSecondChars.length > 0) {
         setCurrentChar(shuffledSecondChars[0].char);
@@ -388,7 +381,13 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
         duration: 300,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]).start(() => {
+      setVisibleBubbles(prev => {
+        const next = new Set(prev);
+        next.delete(bubble.id);
+        return next;
+      });
+    });
   };
 
   // 修改进度条更新函数
@@ -414,42 +413,48 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
   // 处理气泡点击
   const handleBubblePress = async (bubble: Bubble) => {
-    if (!canPlay || isAnimating) return;
+    if (!canPlay || isAnimating || !visibleBubbles.has(bubble.id)) return; // 忽略已消失的气泡
 
-    if (selectedBubble === null) {
-      setSelectedBubble(bubble);
-      playBubblePopAnimation(bubble);
-    } else {
-      if (bubble.matches.includes(selectedBubble.char)) {
-        // 匹配成功
-        const newScore = score + 10;
-        setScore(newScore);
-        updateProgressBar(newScore);
-        await playCorrectSound();
-        
-        // 移除匹配的气泡
-        setBubbles(prev => prev.filter(b => 
-          b.id !== bubble.id && b.id !== selectedBubble.id
-        ));
-        
-        setSelectedBubble(null);
-        
-        // 检查是否完成当前关卡
-        if (bubbles.length <= 2) {
-          if (currentLevel >= 5) {
-            handleGameComplete(newScore);
-          } else {
-            const nextLevel = (currentLevel + 1) as GameLevel;
-            setCurrentLevel(nextLevel);
-            await initializeLevel();
-          }
-        }
-      } else {
-        // 匹配失败
-        setScore(prev => Math.max(0, prev - 5));
-        await playWrongSound();
-        setSelectedBubble(null);
+    // 检查当前点击的气泡是否能与当前字符配对
+    if (!currentChar) return;
+    const isMatch = bubble.matches.includes(currentChar);
+
+    if (isMatch) {
+      // 播放正确音效
+      await playCorrectSound();
+      
+      // 播放消失动画
+      setIsAnimating(true);
+      const matchingBubble = bubbles.find(b => b.char === currentChar);
+      if (!matchingBubble) return;
+
+      await Promise.all([
+        playBubblePopAnimation(bubble),
+        playBubblePopAnimation(matchingBubble)
+      ]);
+      setIsAnimating(false);
+
+      // 更新分数
+      const newScore = score + 10;
+      updateProgressBar(newScore);
+      setScore(newScore);
+
+      // 更新剩余的气泡
+      const remainingBubbles = bubbles.filter(b => visibleBubbles.has(b.id));
+      
+      // 如果所有气泡都已匹配完成
+      if (remainingBubbles.length <= 2) {
+        await handleGameComplete(newScore);
+        return;
       }
+
+      // 选择下一个要匹配的字符
+      const nextChar = remainingBubbles.find(b => !b.isSecondChar)?.char || '';
+      setCurrentChar(nextChar);
+
+    } else {
+      // 播放错误音效
+      await playWrongSound();
     }
   };
 
@@ -516,7 +521,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       } else {
         const nextLevel = (currentLevel + 1) as GameLevel;
         setCurrentLevel(nextLevel);
-        await initializeLevel();
+        initializeLevel();
       }
     } catch (error) {
       console.error('Error handling game completion:', error);
@@ -590,112 +595,254 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   }, [score]);
 
   // 动态样式
-  const dynamicStyles = {
+  const styles = StyleSheet.create({
     container: {
-      padding: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 16,
+      flex: 1,
+      backgroundColor: '#f0f8ff',
+      width: '100%',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      backgroundColor: '#fff',
+      borderBottomWidth: 1,
+      borderBottomColor: '#eee',
+      width: '100%',
+    },
+    desktopHeader: {
+      paddingHorizontal: 24,
+      paddingVertical: 16,
+    },
+    headerButton: {
+      padding: 8,
+      borderRadius: 8,
+    },
+    levelTitleContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     levelTitle: {
       fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 18,
+      fontWeight: '600',
+      color: '#333',
     },
     desktopLevelTitle: {
       fontSize: Platform.OS === 'macos' ? 28 : isIPad ? 24 : 20,
     },
+    progressSection: {
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      backgroundColor: '#fff',
+      borderBottomWidth: 1,
+      borderBottomColor: '#eee',
+      width: '100%',
+    },
+    scoreContainer: {
+      marginBottom: 8,
+    },
     scoreText: {
       fontSize: Platform.OS === 'macos' ? 22 : isIPad ? 19 : 16,
+      fontWeight: '600',
+      color: '#333',
     },
-    bubbleText: {
-      fontSize: Platform.OS === 'macos' ? 32 : isIPad ? 26 : 22,
+    progressBarContainer: {
+      height: 4,
+      backgroundColor: 'rgba(0, 0, 0, 0.1)',
+      borderRadius: 2,
+      overflow: 'hidden',
     },
-    currentCharText: {
-      fontSize: Platform.OS === 'macos' ? 42 : isIPad ? 32 : 28,
+    progressBar: {
+      height: '100%',
+      backgroundColor: '#4CAF50',
     },
-    hintText: {
-      fontSize: Platform.OS === 'macos' ? 48 : isIPad ? 36 : 32,
+    gameArea: {
+      flex: 1,
+      justifyContent: 'space-between',
+      paddingBottom: Platform.OS === 'ios' ? 120 : 90,
+      width: '100%',
     },
-    instructionsText: {
-      fontSize: Platform.OS === 'macos' ? 20 : isIPad ? 16 : 13,
-      lineHeight: Platform.OS === 'macos' ? 28 : isIPad ? 22 : 18,
+    desktopGameArea: {
+      paddingBottom: 140,
+      alignSelf: 'center',
+      width: '100%',
+      maxWidth: 1200,
     },
-    pointsText: {
-      fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 16,
+    bubblesContainer: {
+      flex: 1,
+      position: 'relative',
+      width: '100%',
     },
     targetArea: {
       height: Platform.OS === 'macos' ? 120 : isIPad ? 90 : 80,
+      justifyContent: 'center',
+      alignItems: 'center',
+      position: 'absolute',
       bottom: Platform.OS === 'macos' ? 160 : isIPad ? 130 : 110,
+      left: 0,
+      right: 0,
+      width: '100%',
     },
     desktopTargetArea: {
       height: Platform.OS === 'macos' ? 140 : isIPad ? 100 : 90,
       bottom: Platform.OS === 'macos' ? 180 : isIPad ? 140 : 120,
     },
+    targetControls: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 20,
+      width: '100%',
+    },
     currentCharContainer: {
+      backgroundColor: 'white',
       width: BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10),
       height: BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10),
       borderRadius: (BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10)) / 2,
-    }
-  };
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+    currentCharGradient: {
+      width: '100%',
+      height: '100%',
+      borderRadius: (BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10)) / 2,
+      justifyContent: 'center',
+      alignItems: 'center',
+      overflow: 'hidden',
+    },
+    desktopCurrentCharContainer: {
+      width: BUBBLE_SIZE - 16,
+      height: BUBBLE_SIZE - 16,
+      borderRadius: (BUBBLE_SIZE - 16) / 2,
+    },
+    currentCharText: {
+      fontSize: 28,
+      fontWeight: 'bold',
+      color: '#333',
+      textShadowColor: 'rgba(255, 255, 255, 0.9)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+      zIndex: 2,
+    },
+    desktopCurrentCharText: {
+      fontSize: 36,
+    },
+    bubbleContainer: {
+      position: 'absolute',
+      zIndex: 1,
+    },
+    bubbleShadow: {
+      backgroundColor: 'white',
+      borderRadius: BUBBLE_SIZE / 2,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+    bubble: {
+      width: BUBBLE_SIZE,
+      height: BUBBLE_SIZE,
+      borderRadius: BUBBLE_SIZE / 2,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    bubbleText: {
+      fontSize: BUBBLE_SIZE * 0.4,
+      color: '#fff',
+      fontWeight: '600',
+    },
+    instructionsContainer: {
+      position: 'absolute',
+      bottom: Platform.OS === 'ios' ? 100 : 70,
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      width: '100%',
+    },
+    instructionsBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: 'rgba(76, 175, 80, 0.3)',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 3,
+      gap: 8,
+      width: '98%',
+    },
+    instructionsText: {
+      color: '#444',
+      fontSize: 13,
+      fontWeight: '500',
+      flex: 1,
+      lineHeight: 18,
+      flexWrap: 'nowrap',
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      marginTop: 10,
+      fontSize: 16,
+      color: '#333',
+    },
+  });
 
   const renderBubble = (bubble: Bubble) => {
     return (
       <Animated.View
         key={bubble.id}
         style={[
-          styles.bubble,
+          styles.bubbleContainer,
           {
             transform: [
-              { scale: bubble.scale },
-              {
-                translateY: bubble.floatingAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, -10]
-                })
-              }
+              { translateY: bubble.floatingAnim },
+              { scale: bubble.scale }
             ],
             opacity: bubble.opacity,
-            position: 'absolute',
             left: bubble.position.x,
-            top: bubble.position.y
+            top: bubble.position.y,
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => handleBubblePress(bubble)}
-          style={styles.bubbleContent}
-        >
-          <LinearGradient
-            colors={bubble.colors}
-            style={styles.bubbleGradient}
-            start={{ x: 0.2, y: 0.2 }}
-            end={{ x: 0.8, y: 0.8 }}
+        <View style={styles.bubbleShadow}>
+          <TouchableOpacity
+            onPress={() => handleBubblePress(bubble)}
+            activeOpacity={0.8}
           >
-            {/* 主反光效果 - 右上角 */}
             <LinearGradient
-              colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0)']}
-              style={[styles.reflection, styles.mainReflection]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-            {/* 次要反光效果 - 左下角 */}
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
-              style={[styles.reflection, styles.secondaryReflection]}
-              start={{ x: 1, y: 1 }}
-              end={{ x: 0, y: 0 }}
-            />
-            {/* 彩虹光晕效果 */}
-            <LinearGradient
-              colors={[
-                'rgba(255, 255, 255, 0.4)',
-                'rgba(255, 182, 193, 0.2)',
-                'rgba(173, 216, 230, 0.2)',
-                'rgba(255, 255, 255, 0.1)'
-              ]}
-              style={styles.iridescence}
-              start={{ x: 0.2, y: 0.2 }}
-              end={{ x: 0.8, y: 0.8 }}
-            />
-            <Text style={[styles.bubbleText, dynamicStyles.bubbleText]}>{bubble.char}</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+              colors={bubble.colors}
+              style={styles.bubble}
+            >
+              <Text style={styles.bubbleText}>{bubble.char}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     );
   };
@@ -780,9 +927,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
           <View style={styles.levelTitleContainer}>
             <Text style={[
               styles.levelTitle,
-              dynamicStyles.levelTitle,
-              isDesktop && styles.desktopLevelTitle,
-              isDesktop && dynamicStyles.desktopLevelTitle
+              isDesktop && styles.desktopLevelTitle
             ]}>
               {i18n.t('levelTitle', { current: currentLevel, total: totalLevels })}
             </Text>
@@ -803,7 +948,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
         <View style={styles.progressSection}>
           <View style={styles.scoreContainer}>
-            <Text style={[styles.scoreText, dynamicStyles.scoreText]}>
+            <Text style={[styles.scoreText]}>
               {i18n.t('score', { score })}
             </Text>
           </View>
@@ -843,49 +988,24 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
                   })
                 }]
               }}>
-                <LinearGradient
-                  colors={BUBBLE_COLORS[0]}
-                  style={[
-                    styles.currentCharContainer,
-                    isDesktop && styles.desktopCurrentCharContainer
-                  ]}
-                  start={{ x: 0.2, y: 0.2 }}
-                  end={{ x: 0.8, y: 0.8 }}
-                >
-                  {/* 主反光效果 - 右上角 */}
+                <View style={[
+                  styles.currentCharContainer,
+                  isDesktop && styles.desktopCurrentCharContainer
+                ]}>
                   <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0)']}
-                    style={[styles.reflection, styles.mainReflection]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  />
-                  {/* 次要反光效果 - 左下角 */}
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
-                    style={[styles.reflection, styles.secondaryReflection]}
-                    start={{ x: 1, y: 1 }}
-                    end={{ x: 0, y: 0 }}
-                  />
-                  {/* 彩虹光晕效果 */}
-                  <LinearGradient
-                    colors={[
-                      'rgba(255, 255, 255, 0.4)',
-                      'rgba(255, 182, 193, 0.2)',
-                      'rgba(173, 216, 230, 0.2)',
-                      'rgba(255, 255, 255, 0.1)'
-                    ]}
-                    style={styles.iridescence}
+                    colors={BUBBLE_COLORS[0]}
+                    style={styles.currentCharGradient}
                     start={{ x: 0.2, y: 0.2 }}
                     end={{ x: 0.8, y: 0.8 }}
-                  />
-                  <Text style={[
-                    styles.currentCharText,
-                    dynamicStyles.currentCharText,
-                    isDesktop && styles.desktopCurrentCharText
-                  ]}>
-                    {currentChar}
-                  </Text>
-                </LinearGradient>
+                  >
+                    <Text style={[
+                      styles.currentCharText,
+                      isDesktop && styles.desktopCurrentCharText
+                    ]}>
+                      {currentChar}
+                    </Text>
+                  </LinearGradient>
+                </View>
               </Animated.View>
             </View>
           </View>
@@ -893,267 +1013,4 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       </View>
     </ResponsiveContainer>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f8ff',
-    width: '100%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    width: '100%',
-  },
-  desktopHeader: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  headerButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-  levelTitleContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  levelTitle: {
-    fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  desktopLevelTitle: {
-    fontSize: Platform.OS === 'macos' ? 28 : isIPad ? 24 : 20,
-  },
-  progressSection: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    width: '100%',
-  },
-  scoreContainer: {
-    marginBottom: 8,
-  },
-  scoreText: {
-    fontSize: Platform.OS === 'macos' ? 22 : isIPad ? 19 : 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  progressBarContainer: {
-    height: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-  },
-  gameArea: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingBottom: Platform.OS === 'ios' ? 120 : 90,
-    width: '100%',
-  },
-  desktopGameArea: {
-    paddingBottom: 140,
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: 1200,
-  },
-  bubblesContainer: {
-    flex: 1,
-    position: 'relative',
-    width: '100%',
-  },
-  targetArea: {
-    height: Platform.OS === 'macos' ? 120 : isIPad ? 90 : 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: Platform.OS === 'macos' ? 160 : isIPad ? 130 : 110,
-    left: 0,
-    right: 0,
-    width: '100%',
-  },
-  desktopTargetArea: {
-    height: Platform.OS === 'macos' ? 140 : isIPad ? 100 : 90,
-    bottom: Platform.OS === 'macos' ? 180 : isIPad ? 140 : 120,
-  },
-  targetControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-    width: '100%',
-  },
-  currentCharContainer: {
-    width: BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10),
-    height: BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: (BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10)) / 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 2,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    backgroundColor: 'transparent',
-  },
-  desktopCurrentCharContainer: {
-    width: BUBBLE_SIZE - 16,
-    height: BUBBLE_SIZE - 16,
-    borderRadius: (BUBBLE_SIZE - 16) / 2,
-  },
-  currentCharText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    textShadowColor: 'rgba(255, 255, 255, 0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    zIndex: 2,
-  },
-  desktopCurrentCharText: {
-    fontSize: 36,
-  },
-  bubble: {
-    width: BUBBLE_SIZE,
-    height: BUBBLE_SIZE,
-    borderRadius: BUBBLE_SIZE / 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-  },
-  bubbleContent: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bubbleGradient: {
-    width: BUBBLE_SIZE - 8,
-    height: BUBBLE_SIZE - 8,
-    borderRadius: BUBBLE_SIZE / 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 2,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    backgroundColor: 'transparent',
-  },
-  reflection: {
-    position: 'absolute',
-    width: BUBBLE_SIZE * 0.8,
-    height: BUBBLE_SIZE * 0.8,
-    borderRadius: BUBBLE_SIZE,
-  },
-  mainReflection: {
-    top: BUBBLE_SIZE * 0.1,
-    right: BUBBLE_SIZE * 0.1,
-    opacity: 0.8,
-    transform: [
-      { scale: 0.6 },
-      { rotate: '45deg' }
-    ],
-  },
-  secondaryReflection: {
-    bottom: BUBBLE_SIZE * 0.1,
-    left: BUBBLE_SIZE * 0.1,
-    opacity: 0.4,
-    transform: [
-      { scale: 0.4 },
-      { rotate: '45deg' }
-    ],
-  },
-  iridescence: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.3,
-    transform: [
-      { rotate: '-30deg' }
-    ],
-  },
-  bubbleText: {
-    fontSize: Platform.OS === 'macos' ? 32 : isIPad ? 26 : 22,
-    color: '#fff',
-    fontWeight: '600',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  instructionsContainer: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 100 : 70,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    width: '100%',
-  },
-  instructionsBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-    gap: 8,
-    width: '98%',
-  },
-  instructionsText: {
-    color: '#444',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-    lineHeight: 18,
-    flexWrap: 'nowrap',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#333',
-  },
-}); 
+}; 

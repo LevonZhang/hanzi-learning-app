@@ -32,11 +32,7 @@ export const getDeviceType = (width: number = getWindowDimensions().width): Devi
   }
   
   // 根据屏幕宽度判断设备类型
-  const deviceType = width >= DEVICE_BREAKPOINTS.DESKTOP 
-    ? 'DESKTOP' 
-    : 'PHONE';
-  
-  return deviceType;
+  return width >= DEVICE_BREAKPOINTS.DESKTOP ? 'DESKTOP' : 'PHONE';
 };
 
 // 判断是否为 iPad

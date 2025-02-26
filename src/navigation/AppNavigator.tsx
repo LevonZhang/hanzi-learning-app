@@ -102,7 +102,7 @@ export const AppNavigator = () => {
       left: isMacOS ? 20 : isIPad ? 15 : 10,
       right: isMacOS ? 20 : isIPad ? 15 : 10,
       borderRadius: isMacOS ? 25 : isIPad ? 20 : 15,
-      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+      backgroundColor: '#ffffff',
       shadowColor: '#000',
       shadowOffset: {
         width: 0,

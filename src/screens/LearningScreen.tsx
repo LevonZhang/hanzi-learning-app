@@ -105,8 +105,8 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       borderRadius: 8,
       backgroundColor: '#fff',
       marginTop: -60,
-      height: isIPad ? '70%' : '80%',
-      maxHeight: Platform.OS === 'ios' ? (isIPad ? '70%' : '80%') : (isIPad ? '70%' : '80%'),
+      height: isIPad ? '85%' : '90%',
+      maxHeight: Platform.OS === 'ios' ? (isIPad ? '85%' : '90%') : (isIPad ? '85%' : '90%'),
       ...Platform.select({
         ios: {
           shadowColor: '#000',
@@ -120,11 +120,11 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       }),
     },
     wideMeaningContainer: {
-      width: isIPad ? '32%' : '35%',
+      width: isIPad ? '40%' : '35%',
       alignSelf: 'stretch',
       marginTop: -60,
-      height: '80%',
-      maxHeight: '80%',
+      height: '90%',
+      maxHeight: '90%',
     },
     tabContainer: {
       flexDirection: 'row',
@@ -186,15 +186,17 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     wideButtonContainer: {
       paddingHorizontal: isIPad ? 24 : 32,
       ...(isIPad ? {
-        position: 'relative',
+        position: 'absolute',
         backgroundColor: 'transparent',
         borderTopWidth: 0,
-        bottom: 'auto',
-        marginTop: -420,
-        marginBottom: 32,
-        maxWidth: 200,
+        top: '80%',
         alignSelf: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        maxWidth: 200,
         zIndex: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
       } : {}),
     },
     button: {
@@ -285,6 +287,15 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       fontSize: isIPad ? 17 : 18,
       fontWeight: '600',
       marginLeft: 8,
+    },
+    pinyinText: {
+      fontSize: isIPad ? 18 : 20,
+      lineHeight: isIPad ? 24 : 28,
+      marginBottom: 8,
+    },
+    widePinyinText: {
+      fontSize: isIPad ? 20 : 24,
+      lineHeight: isIPad ? 28 : 32,
     },
   });
 
@@ -631,6 +642,12 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                 <ScrollView style={screenStyles.meaningScroll}>
                   {activeTab === 'zh' ? (
                     <>
+                      <Text style={[
+                        screenStyles.pinyinText,
+                        (isDesktop || isIPad) && screenStyles.widePinyinText
+                      ]}>
+                        {state.currentWord.pinyin.join(', ')}
+                      </Text>
                       <Text style={[
                         screenStyles.meaningText,
                         (isDesktop || isIPad) && screenStyles.wideMeaningText

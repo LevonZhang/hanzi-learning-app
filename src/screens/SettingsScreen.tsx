@@ -68,16 +68,16 @@ interface LearnedCharacter {
 }
 
 const useResponsiveFontSizes = () => {
-  const { isDesktop, isTablet } = useResponsive();
+  const { isDesktop, isIPad } = useResponsive();
   
   const getSize = (size: number) => {
-    if (isTablet) {
-      return Math.round(size * 1.8); // 80% larger on iPad
-    }
     if (isDesktop) {
       return Math.round(size * 1.25); // 25% larger on desktop
     }
-    return size;
+    if (isIPad) {
+      return Math.round(size * 1.1); // 10% larger on iPad
+    }
+    return Math.round(size * 0.9); // 10% smaller on iPhone
   };
 
   return {
@@ -107,7 +107,7 @@ const useResponsiveFontSizes = () => {
 };
 
 export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
-  const { theme, isDesktop, isTablet } = useResponsive();
+  const { theme, isDesktop, isIPad } = useResponsive();
   const fontSizes = useResponsiveFontSizes();
   
   const styles = StyleSheet.create({
@@ -126,11 +126,11 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       width: '100%',
     },
     mobileSidebar: {
-      width: isTablet ? 200 : 100,
+      width: isIPad ? 200 : 100,
       backgroundColor: '#f8f9fa',
       borderRightWidth: 1,
       borderRightColor: '#e0e0e0',
-      padding: isTablet ? 16 : 12,
+      padding: isIPad ? 16 : 12,
     },
     mainContentWrapper: {
       flex: 1,
@@ -146,12 +146,12 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     menuItem: {
       flexDirection: 'column',
       alignItems: 'center',
-      paddingVertical: isTablet ? 16 : 12,
-      paddingHorizontal: isTablet ? 16 : 8,
+      paddingVertical: isIPad ? 16 : 12,
+      paddingHorizontal: isIPad ? 16 : 8,
       borderRadius: 8,
       backgroundColor: '#f8f9fa',
-      marginBottom: isTablet ? 16 : 8,
-      gap: isTablet ? 12 : 8,
+      marginBottom: isIPad ? 16 : 8,
+      gap: isIPad ? 12 : 8,
       width: '100%',
     },
     desktopMenuItem: {
@@ -859,7 +859,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     >
       <MaterialCommunityIcons
         name={icon}
-        size={isTablet ? 32 : 24}
+        size={isIPad ? 32 : 24}
         color={activeSection === section ? theme.colors.textLight : theme.colors.textPrimary}
       />
       <Text

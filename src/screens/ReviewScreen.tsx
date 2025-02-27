@@ -19,9 +19,29 @@ interface ReviewItem {
 }
 
 export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
-  const { theme, isDesktop, isTablet } = useResponsive();
+  const { theme, isDesktop, isIPad } = useResponsive();
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [canReview, setCanReview] = useState(false);
+
+  const dynamicStyles = {
+    characterContainer: {
+      padding: isDesktop ? 20 : 16,
+    },
+    characterText: {
+      fontSize: isDesktop ? 40 : isIPad ? 32 : 22,
+    },
+    mistakesText: {
+      fontSize: isDesktop ? 16 : isIPad ? 14 : 12,
+    },
+    emptyText: {
+      fontSize: isDesktop ? 24 : isIPad ? 20 : 16,
+    },
+    removeButton: {
+      width: isDesktop ? 40 : isIPad ? 36 : 32,
+      height: isDesktop ? 40 : isIPad ? 36 : 32,
+      borderRadius: isDesktop ? 20 : isIPad ? 18 : 16,
+    },
+  };
 
   useEffect(() => {
     loadReviewItems();
@@ -92,20 +112,20 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
   const renderItem = ({ item }: { item: ReviewItem }) => (
     <View style={[styles.itemContainer, isDesktop && styles.desktopItemContainer]}>
       <TouchableOpacity
-        style={[styles.characterContainer, isDesktop && styles.desktopCharacterContainer]}
+        style={[styles.characterContainer, dynamicStyles.characterContainer]}
         onPress={() => startReviewForChar(item)}
       >
-        <Text style={[styles.characterText, isDesktop && styles.desktopCharacterText]}>
+        <Text style={[styles.characterText, dynamicStyles.characterText]}>
           {item.character}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.removeButton, { backgroundColor: theme.colors.error }]}
+        style={[styles.removeButton, dynamicStyles.removeButton, { backgroundColor: theme.colors.error }]}
         onPress={() => removeFromReview(item.character)}
       >
         <MaterialCommunityIcons
-          name="close"
-          size={isDesktop ? 24 : 20}
+          name="trash-can-outline"
+          size={isDesktop ? 24 : isIPad ? 20 : 16}
           color={theme.colors.textLight}
         />
       </TouchableOpacity>
@@ -120,16 +140,13 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
             data={reviewItems}
             renderItem={renderItem}
             keyExtractor={item => item.character}
-            numColumns={isDesktop ? 3 : isTablet ? 2 : 1}
+            numColumns={isDesktop ? 3 : isIPad ? 2 : 1}
             columnWrapperStyle={
-              (isDesktop || isTablet) ? [
-                styles.columnWrapper,
-                isTablet && styles.tabletColumnWrapper
-              ] : undefined
+              (isDesktop || isIPad) ? styles.columnWrapper : undefined
             }
             contentContainerStyle={[
               styles.listContent,
-              (isDesktop || isTablet) && styles.desktopListContent
+              (isDesktop || isIPad) && styles.desktopListContent
             ]}
           />
         ) : (
@@ -139,7 +156,7 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
               size={isDesktop ? 80 : 60}
               color={theme.colors.success}
             />
-            <Text style={[styles.emptyText, isDesktop && styles.desktopEmptyText]}>
+            <Text style={[styles.emptyText, dynamicStyles.emptyText]}>
               {i18n.t('noReviewItems')}
             </Text>
           </View>
@@ -170,10 +187,6 @@ const styles = StyleSheet.create({
     gap: 16,
     width: '100%',
   },
-  tabletColumnWrapper: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
   itemContainer: {
     flex: 1,
     flexDirection: 'row',
@@ -189,31 +202,16 @@ const styles = StyleSheet.create({
   },
   characterContainer: {
     flex: 1,
-    padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  desktopCharacterContainer: {
-    padding: 20,
-  },
   characterText: {
-    fontSize: 32,
     fontWeight: '600',
   },
-  desktopCharacterText: {
-    fontSize: 40,
-  },
   mistakesText: {
-    fontSize: 14,
     color: '#666',
   },
-  desktopMistakesText: {
-    fontSize: 16,
-  },
   removeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -225,12 +223,8 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   emptyText: {
-    fontSize: 18,
     color: '#666',
     marginTop: 16,
     textAlign: 'center',
-  },
-  desktopEmptyText: {
-    fontSize: 24,
   },
 }); 

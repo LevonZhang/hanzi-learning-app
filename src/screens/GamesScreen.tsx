@@ -14,8 +14,8 @@ type GameStackParamList = {
 type GamesScreenProps = NativeStackScreenProps<GameStackParamList, 'GamesList'>;
 
 export const GamesScreen = ({ navigation }: GamesScreenProps) => {
-  const { isTablet } = useResponsive();
-  const screenStyles = styles({ isTablet });
+  const { isIPad } = useResponsive();
+  const screenStyles = styles({ isIPad });
 
   return (
     <SafeAreaView style={screenStyles.container}>
@@ -24,7 +24,7 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
           onPress={() => navigation.goBack()}
           style={screenStyles.backButton}
         >
-          <MaterialCommunityIcons name="arrow-left" size={isTablet ? 32 : 24} color="#666" />
+          <MaterialCommunityIcons name="arrow-left" size={isIPad ? 32 : 24} color="#666" />
         </TouchableOpacity>
         <Text style={screenStyles.title}>{i18n.t('games')}</Text>
       </View>
@@ -34,7 +34,7 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
           style={[screenStyles.gameCard, screenStyles.wordGame]}
           onPress={() => navigation.navigate('WordGame', { mode: 'word' })}
         >
-          <MaterialCommunityIcons name="cards" size={isTablet ? 48 : 32} color="#fff" />
+          <MaterialCommunityIcons name="cards" size={isIPad ? 48 : 32} color="#fff" />
           <View style={screenStyles.gameInfo}>
             <Text style={screenStyles.gameName}>{i18n.t('wordGame')}</Text>
             <Text style={screenStyles.gameDescription}>{i18n.t('wordGameDesc')}</Text>
@@ -45,7 +45,7 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
           style={[screenStyles.gameCard, screenStyles.pronunciationGame]}
           onPress={() => navigation.navigate('PronunciationGame', { mode: 'pronunciation' })}
         >
-          <MaterialCommunityIcons name="microphone" size={isTablet ? 48 : 32} color="#fff" />
+          <MaterialCommunityIcons name="microphone" size={isIPad ? 48 : 32} color="#fff" />
           <View style={screenStyles.gameInfo}>
             <Text style={screenStyles.gameName}>{i18n.t('pronunciationGame')}</Text>
             <Text style={screenStyles.gameDescription}>{i18n.t('pronunciationGameDesc')}</Text>
@@ -56,54 +56,54 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
   );
 };
 
-const styles = ({ isTablet }: { isTablet: boolean }) => StyleSheet.create({
+const styles = ({ isIPad }: { isIPad: boolean }) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: isTablet ? 60 : 50,
-    paddingBottom: isTablet ? 100 : 80,
+    paddingTop: isIPad ? 60 : 50,
+    paddingBottom: isIPad ? 100 : 80,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: isTablet ? 20 : 15,
+    padding: isIPad ? 20 : 15,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    padding: isTablet ? 12 : 8,
+    padding: isIPad ? 12 : 8,
   },
   title: {
-    fontSize: isTablet ? 32 : 20,
+    fontSize: isIPad ? 32 : 20,
     fontWeight: 'bold',
     color: '#333',
-    marginLeft: isTablet ? 15 : 10,
+    marginLeft: isIPad ? 15 : 10,
   },
   content: {
     flex: 1,
-    padding: isTablet ? 20 : 15,
-    gap: isTablet ? 20 : 15,
+    padding: isIPad ? 20 : 15,
+    gap: isIPad ? 20 : 15,
   },
   gameCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: isTablet ? 20 : 12,
-    borderRadius: isTablet ? 16 : 12,
-    gap: isTablet ? 16 : 12,
+    padding: isIPad ? 20 : 12,
+    borderRadius: isIPad ? 16 : 12,
+    gap: isIPad ? 16 : 12,
   },
   gameInfo: {
     flex: 1,
   },
   gameName: {
     color: '#fff',
-    fontSize: isTablet ? 28 : 16,
+    fontSize: isIPad ? 28 : 16,
     fontWeight: '600',
-    marginBottom: isTablet ? 4 : 2,
+    marginBottom: isIPad ? 4 : 2,
   },
   gameDescription: {
     color: '#fff',
     opacity: 0.9,
-    fontSize: isTablet ? 20 : 13,
+    fontSize: isIPad ? 20 : 13,
   },
   wordGame: {
     backgroundColor: '#34C759',

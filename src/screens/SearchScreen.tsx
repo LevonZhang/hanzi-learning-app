@@ -22,22 +22,22 @@ interface SearchResult {
 }
 
 export const SearchScreen = ({ navigation }: any) => {
-  const { isTablet } = useResponsive();
+  const { isIPad } = useResponsive();
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [canSearch, setCanSearch] = useState(false);
   const isAlertShowing = useRef(false);
 
-  // Create dynamic styles based on isTablet
+  // Create dynamic styles based on isIPad
   const dynamicStyles = {
     searchInput: {
-      fontSize: isTablet ? 24 : 16,
+      fontSize: isIPad ? 28 : 16,
     },
     characterText: {
-      fontSize: isTablet ? 36 : 24,
+      fontSize: isIPad ? 44 : 24,
     },
     pinyinText: {
-      fontSize: isTablet ? 24 : 16,
+      fontSize: isIPad ? 28 : 16,
     },
   };
 
@@ -127,9 +127,9 @@ export const SearchScreen = ({ navigation }: any) => {
       <View style={styles.searchContainer}>
         <View style={[
           styles.searchInputContainer,
-          { paddingVertical: isTablet ? 15 : Platform.OS === 'ios' ? 10 : 4 }
+          { paddingVertical: isIPad ? 15 : Platform.OS === 'ios' ? 10 : 4 }
         ]}>
-          <MaterialCommunityIcons name="magnify" size={isTablet ? 32 : 24} color="#666" />
+          <MaterialCommunityIcons name="magnify" size={isIPad ? 32 : 24} color="#666" />
           <TextInput
             style={[styles.searchInput, dynamicStyles.searchInput]}
             value={searchText}
@@ -142,7 +142,7 @@ export const SearchScreen = ({ navigation }: any) => {
               onPress={() => handleSearch('')}
               style={styles.clearButton}
             >
-              <MaterialCommunityIcons name="close-circle" size={isTablet ? 28 : 20} color="#999" />
+              <MaterialCommunityIcons name="close-circle" size={isIPad ? 28 : 20} color="#999" />
             </TouchableOpacity>
           )}
         </View>
@@ -154,7 +154,7 @@ export const SearchScreen = ({ navigation }: any) => {
         keyExtractor={(item) => item.character}
         contentContainerStyle={[
           styles.resultsList,
-          { padding: isTablet ? 20 : 15 }
+          { padding: isIPad ? 20 : 15 }
         ]}
         keyboardShouldPersistTaps="handled"
       />

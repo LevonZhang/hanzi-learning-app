@@ -120,8 +120,8 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             touch-action: none;
           }
           #character-target-div {
-            width: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 200}px;
-            height: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 200}px;
+            width: ${shouldUseDesktopLayout ? (isIPad ? 400 : 400) : 200}px;
+            height: ${shouldUseDesktopLayout ? (isIPad ? 400 : 400) : 200}px;
             background-color: transparent;
             background-image: url('data:image/svg+xml;utf8,\
               <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">\
@@ -156,8 +156,8 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             }
             
             writer = HanziWriter.create('character-target-div', character, {
-              width: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 200},
-              height: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 200},
+              width: ${shouldUseDesktopLayout ? (isIPad ? 400 : 400) : 200},
+              height: ${shouldUseDesktopLayout ? (isIPad ? 400 : 400) : 200},
               padding: ${shouldUseDesktopLayout ? (isIPad ? 5 : 5) : 3},
               showOutline: true,
               strokeAnimationSpeed: 1,
@@ -274,7 +274,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       maxWidth: 1000,
       paddingHorizontal: isIPad ? 16 : 20,
       gap: isIPad ? 10 : 8,
-      marginTop: isIPad ? -120 : 0,
+      marginTop: isIPad ? -40 : 0,
     },
     buttonRow: {
       flexDirection: 'row',
@@ -294,7 +294,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     },
     buttonText: {
       color: '#fff',
-      fontSize: shouldUseDesktopLayout ? (isIPad ? 15 : 24) : 13,
+      fontSize: shouldUseDesktopLayout ? (isIPad ? 22 : 24) : 13,
       fontWeight: '600',
       textAlign: 'center',
       flexShrink: 1,

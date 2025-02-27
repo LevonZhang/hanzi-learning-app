@@ -129,11 +129,11 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       padding: isDesktop ? 24 : isIPad ? 20 : 8,
       borderRadius: 8,
       backgroundColor: '#fff',
-      marginTop: isDesktop ? -70 : isIPad ? -60 : -90,
-      height: isDesktop ? '90%' : isIPad ? '85%' : '45%',
+      marginTop: isDesktop ? -70 : isIPad ? -60 : -70,
+      height: isDesktop ? '90%' : isIPad ? '90%' : '47%',
       maxHeight: Platform.OS === 'ios' ? 
-        (isDesktop ? '90%' : isIPad ? '85%' : '45%') : 
-        (isDesktop ? '90%' : isIPad ? '85%' : '45%'),
+        (isDesktop ? '90%' : isIPad ? '90%' : '47%') : 
+        (isDesktop ? '90%' : isIPad ? '90%' : '45%'),
       ...Platform.select({
         ios: {
           shadowColor: '#000',
@@ -208,7 +208,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       paddingHorizontal: 16,
       paddingBottom: 16,
       marginBottom: Platform.OS === 'ios' && !isIPad ? 30 : 16,
-      marginTop: Platform.OS === 'ios' && !isIPad ? 20 : 0,
+      marginTop: Platform.OS === 'ios' ? (isIPad ? 80 : 20) : 0,
     },
     wideButtonContainer: {
       paddingHorizontal: isIPad ? 24 : 32,

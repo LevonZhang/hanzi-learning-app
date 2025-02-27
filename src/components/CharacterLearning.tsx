@@ -120,9 +120,19 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             touch-action: none;
           }
           #character-target-div {
-            width: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 250}px;
-            height: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 250}px;
+            width: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 200}px;
+            height: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 200}px;
             background-color: transparent;
+            background-image: url('data:image/svg+xml;utf8,\
+              <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">\
+                <rect width="200" height="200" fill="none" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="0" y1="100" x2="200" y2="100" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="100" y1="0" x2="100" y2="200" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="0" y1="0" x2="200" y2="200" stroke="%23DDD" stroke-width="1"/>\
+                <line x1="200" y1="0" x2="0" y2="200" stroke="%23DDD" stroke-width="1"/>\
+              </svg>');
+            background-size: 100% 100%;
+            position: relative;
           }
         </style>
       </head>
@@ -146,9 +156,9 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             }
             
             writer = HanziWriter.create('character-target-div', character, {
-              width: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 250},
-              height: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 250},
-              padding: 5,
+              width: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 200},
+              height: ${shouldUseDesktopLayout ? (isIPad ? 300 : 400) : 200},
+              padding: ${shouldUseDesktopLayout ? (isIPad ? 5 : 5) : 3},
               showOutline: true,
               strokeAnimationSpeed: 1,
               delayBetweenStrokes: 100,
@@ -246,17 +256,17 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       paddingBottom: 20,
     },
     displayContainer: {
-      width: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 90,
-      height: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 90,
+      width: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 140,
+      height: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 140,
       backgroundColor: 'transparent',
       overflow: 'hidden',
-      marginTop: shouldUseDesktopLayout ? (isIPad ? -40 : -60) : -25,
+      marginTop: shouldUseDesktopLayout ? (isIPad ? -40 : -60) : -15,
       marginBottom: shouldUseDesktopLayout ? (isIPad ? -80 : -40) : -5,
       position: 'relative',
     },
     canvas: {
-      width: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 90,
-      height: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 90,
+      width: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 140,
+      height: shouldUseDesktopLayout ? Math.min(width - 100, height - 100) : width - 140,
       backgroundColor: 'transparent',
     },
     buttonContainer: {

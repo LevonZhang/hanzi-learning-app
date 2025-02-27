@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,20 @@ import { useResponsive } from '../hooks/useResponsive';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
 const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.6;
+
+// 根据设备类型设置气球尺寸和间距
+const getBubbleSize = (isDesktop: boolean, isIPad: boolean) => {
+  if (isDesktop) {
+    return 100; // macOS
+  } else if (isIPad) {
+    return 80; // iPad
+  }
+  return 65; // iPhone
+};
+
+const HORIZONTAL_GAP = Platform.OS === 'macos' ? 15 : 10;
+const VERTICAL_OVERLAP = Platform.OS === 'macos' ? -15 : -10;
+const TOP_MARGIN = Platform.OS === 'macos' ? 20 : 15;
 
 const BUBBLE_COLORS: readonly [string, string, string][] = [
   ['#FF6B6B', '#FF8787', '#FFA5A5'],
@@ -82,15 +96,13 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreenProps) => {
-  const { isIPad, isDesktop, theme } = useResponsive();
+  const { theme, isDesktop, isIPad } = useResponsive();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   
-  const BUBBLE_SIZE = Platform.OS === 'macos' ? 100 : isIPad ? 70 : 60;
-  const HORIZONTAL_GAP = Platform.OS === 'macos' ? 8 : isIPad ? 6 : 5;
-  const VERTICAL_OVERLAP = Platform.OS === 'macos' ? -10 : isIPad ? -7 : -5;
-  const TOP_MARGIN = Platform.OS === 'macos' ? 15 : isIPad ? 12 : 10;
+  // 动态计算气球尺寸
+  const BUBBLE_SIZE = getBubbleSize(isDesktop, isIPad);
 
-  const [currentLevel, setCurrentLevel] = useState<GameLevel>(1);
+  const [level, setLevel] = useState<number>(1);
   const [score, setScore] = useState(0);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [currentChar, setCurrentChar] = useState<string | null>(null);
@@ -103,18 +115,12 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   const [successSound, setSuccessSound] = useState<Audio.Sound | null>(null);
   const [failureSound, setFailureSound] = useState<Audio.Sound | null>(null);
   const [maxScore, setMaxScore] = useState(0);
-  const progressWidth = useRef(new Animated.Value(0)).current;
-  const floatingAnimation = useRef(new Animated.Value(0)).current;
-  const levelTransition = useRef(new Animated.Value(1)).current;
-  const scoreTransition = useRef(new Animated.Value(1)).current;
+  const progressWidth = useState(new Animated.Value(0))[0];
+  const floatingAnimation = useState(new Animated.Value(0))[0];
+  const levelTransition = useState(new Animated.Value(1))[0];
+  const scoreTransition = useState(new Animated.Value(1))[0];
   const [isAnimating, setIsAnimating] = useState(false);
   const [wordPairs, setWordPairs] = useState<WordPair[]>([]);
-  const [selectedBubble, setSelectedBubble] = useState<Bubble | null>(null);
-  const [canPlay, setCanPlay] = useState(true);
-  const [isGameComplete, setIsGameComplete] = useState(false);
-  const [isExiting, setIsExiting] = useState(false);
-  const [removedBubbleIds, setRemovedBubbleIds] = useState<Set<string>>(new Set());
-  const [visibleBubbles, setVisibleBubbles] = useState<Set<string>>(new Set());
 
   // 在组件加载时加载游戏进度
   useEffect(() => {
@@ -122,10 +128,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       try {
         const progress = await gameService.loadGameProgress(route.params.mode);
         if (progress) {
-          const level = progress.currentLevel;
-          if (level >= 1 && level <= 5) {
-            setCurrentLevel(level as GameLevel);
-          }
+          setLevel(progress.currentLevel);
           setScore(progress.score);
           setCompletedWords(progress.completedWords);
         }
@@ -139,9 +142,9 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   }, []);
 
   const saveProgress = async () => {
-    const isCompleted = currentLevel > gameService.getTotalLevels();
+    const isCompleted = level > gameService.getTotalLevels();
     await gameService.saveGameProgress({
-      currentLevel: currentLevel,
+      currentLevel: level,
       score,
       completedWords,
       isCompleted
@@ -151,7 +154,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
   useEffect(() => {
     saveProgress();
-  }, [currentLevel, score, completedWords]);
+  }, [level, score, completedWords]);
 
   const getLevelBubbleCount = (level: GameLevel) => {
     if (level <= 3) {
@@ -163,15 +166,13 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   const generateLayeredPositions = (totalBubbles: number) => {
     const positions: { x: number; y: number }[] = [];
     const bubblesPerRow = isDesktop ? 6 : isIPad ? 4 : 3;
-    const effectiveBubbleSize = BUBBLE_SIZE + 10;
+    const effectiveBubbleSize = BUBBLE_SIZE + (isDesktop ? 20 : isIPad ? 15 : 10);
     const rows = Math.ceil(totalBubbles / bubblesPerRow);
     
-    // 计算游戏区域的宽度和起始位置
-    const gameAreaWidth = windowWidth - (isDesktop || isIPad ? 48 : 20);
-    const bubbleAreaWidth = bubblesPerRow * effectiveBubbleSize;
-    const startX = (gameAreaWidth - bubbleAreaWidth) / 2;
-    const startY = 20;
-    const verticalGap = BUBBLE_SIZE - 10;
+    const totalWidth = bubblesPerRow * effectiveBubbleSize;
+    const startX = (windowWidth - totalWidth) / 2;
+    const startY = isDesktop ? 40 : isIPad ? 30 : 20;
+    const verticalGap = BUBBLE_SIZE * (isDesktop ? 0.8 : isIPad ? 0.85 : 0.9);
 
     for (let row = 0; row < rows; row++) {
       const y = startY + row * verticalGap;
@@ -268,10 +269,8 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   }, [bubbles]);
 
   const initializeLevel = async () => {
-    try {
-      // 检查是否超过免费用户关卡限制
       const subscriptionService = SubscriptionService.getInstance();
-      const isLevelLocked = await subscriptionService.checkGameLevelLimit(currentLevel);
+    const isLevelLocked = await subscriptionService.checkGameLevelLimit(level);
       
       if (isLevelLocked) {
         Alert.alert(
@@ -291,8 +290,9 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
         return;
       }
 
-      const bubbleCount = getLevelBubbleCount(currentLevel as GameLevel);
-      const wordPairs = await gameService.getWordPairsForLevel(currentLevel);
+    try {
+      const bubbleCount = getLevelBubbleCount(level as GameLevel);
+      const wordPairs = await gameService.getWordPairsForLevel(level);
       
       const validWordPairs = wordPairs.filter((pair: WordPair) => 
         pair.characters.length === 2 && 
@@ -302,11 +302,11 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       );
       
       if (validWordPairs.length === 0) {
-        if (currentLevel === 5) {
+        if (level === 5) {
           Alert.alert(i18n.t('gameComplete'), i18n.t('gameCompleteMessage'));
           navigation.goBack();
         } else {
-          setCurrentLevel(prev => (prev + 1) as GameLevel);
+          setLevel(prev => (prev + 1) as GameLevel);
         }
         return;
       }
@@ -354,7 +354,6 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
       const newBubbles: Bubble[] = shuffleArray(firstChars);
       setBubbles(newBubbles);
-      setVisibleBubbles(new Set(newBubbles.map(b => b.id)));
       
       if (shuffledSecondChars.length > 0) {
         setCurrentChar(shuffledSecondChars[0].char);
@@ -381,13 +380,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
         duration: 300,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      setVisibleBubbles(prev => {
-        const next = new Set(prev);
-        next.delete(bubble.id);
-        return next;
-      });
-    });
+    ]).start();
   };
 
   // 修改进度条更新函数
@@ -403,58 +396,74 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     }).start();
   };
 
-  // 在组件内更新关卡
-  const updateLevel = (newLevel: number) => {
-    if (newLevel >= 1 && newLevel <= 5) {
-      const nextLevel = newLevel as GameLevel;
-      setCurrentLevel(nextLevel);
-    }
-  };
-
-  // 处理气泡点击
   const handleBubblePress = async (bubble: Bubble) => {
-    if (!canPlay || isAnimating || !visibleBubbles.has(bubble.id)) return; // 忽略已消失的气泡
-
-    // 检查当前点击的气泡是否能与当前字符配对
-    if (!currentChar) return;
+    if (isAnimating || !currentChar) return;
+    
     const isMatch = bubble.matches.includes(currentChar);
-
-    if (isMatch) {
-      // 播放正确音效
+      setIsAnimating(true);
+      
+    try {
+      if (isMatch) {
       await playCorrectSound();
       
-      // 播放消失动画
-      setIsAnimating(true);
-      const matchingBubble = bubbles.find(b => b.char === currentChar);
-      if (!matchingBubble) return;
-
-      await Promise.all([
-        playBubblePopAnimation(bubble),
-        playBubblePopAnimation(matchingBubble)
-      ]);
-      setIsAnimating(false);
-
-      // 更新分数
       const newScore = score + 10;
-      updateProgressBar(newScore);
       setScore(newScore);
-
-      // 更新剩余的气泡
-      const remainingBubbles = bubbles.filter(b => visibleBubbles.has(b.id));
+      updateProgressBar(newScore);
       
-      // 如果所有气泡都已匹配完成
-      if (remainingBubbles.length <= 2) {
-        await handleGameComplete(newScore);
-        return;
-      }
+        setCompletedWords([...completedWords, bubble.word]);
 
-      // 选择下一个要匹配的字符
-      const nextChar = remainingBubbles.find(b => !b.isSecondChar)?.char || '';
-      setCurrentChar(nextChar);
+        // 移除匹配的气球，但保持其他气球位置不变
+        setBubbles(prevBubbles => prevBubbles.filter(b => b.id !== bubble.id));
 
+        // 更新剩余的第一个字符
+        const remainingChars = remainingFirstChars.filter(char => char !== currentChar);
+        setRemainingFirstChars(remainingChars);
+
+        // 检查是否完成当前关卡
+        if (bubbles.length <= 1) { // 因为当前气泡还未从状态中移除，所以用1判断
+          const totalLevels = gameService.getTotalLevels();
+          if (level >= totalLevels) {
+            handleGameComplete(newScore);
+          } else {
+            setLevel(level + 1);
+            await initializeLevel();
+          }
+        } else if (remainingChars.length > 0) {
+          // 如果还有剩余字符，设置下一个当前字符
+          setCurrentChar(remainingChars[0]);
+        }
+
+        playBubblePopAnimation(bubble);
+        
+        // 延迟重置动画状态
+        setTimeout(() => {
+      setIsAnimating(false);
+        }, 500);
     } else {
-      // 播放错误音效
       await playWrongSound();
+        
+        const newScore = Math.max(0, score - 5);
+        setScore(newScore);
+        updateProgressBar(newScore);
+
+        Animated.sequence([
+          Animated.timing(bubble.scale, {
+            toValue: 1.2,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(bubble.scale, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          setIsAnimating(false);
+        });
+      }
+    } catch (error) {
+      console.error('处理气泡点击时出错:', error);
+      setIsAnimating(false);
     }
   };
 
@@ -500,14 +509,11 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     }, 3000);
   };
 
-  // 处理游戏完成
   const handleGameComplete = async (finalScore: number) => {
     try {
       await gameService.updateGameStats(finalScore, true, route.params.mode);
       await gameService.resetGame(route.params.mode);
       
-      if (currentLevel >= 5) {
-        setIsGameComplete(true);
         Alert.alert(
           i18n.t('gameComplete'),
           i18n.t('gameCompleteMessage'),
@@ -518,13 +524,8 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
             }
           ]
         );
-      } else {
-        const nextLevel = (currentLevel + 1) as GameLevel;
-        setCurrentLevel(nextLevel);
-        initializeLevel();
-      }
     } catch (error) {
-      console.error('Error handling game completion:', error);
+      // Silent error handling
     }
   };
 
@@ -556,7 +557,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     return () => {
       isMounted = false;
     };
-  }, [currentLevel]);
+  }, [level]);
 
   // 添加关卡切换动画
   useEffect(() => {
@@ -574,7 +575,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
         easing: Easing.in(Easing.back(2)),
       }),
     ]).start();
-  }, [currentLevel]);
+  }, [level]);
 
   // 添加分数更新动画
   useEffect(() => {
@@ -594,12 +595,139 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     ]).start();
   }, [score]);
 
-  // 动态样式
+  const renderBubble = (bubble: Bubble) => {
+    return (
+      <Animated.View
+        key={bubble.id}
+        style={[
+          styles.bubble,
+          {
+            transform: [
+              { scale: bubble.scale },
+              {
+                translateY: bubble.floatingAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -10]
+                })
+              }
+            ],
+            opacity: bubble.opacity,
+            position: 'absolute',
+            left: bubble.position.x,
+            top: bubble.position.y
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => handleBubblePress(bubble)}
+          style={styles.bubbleContent}
+        >
+          <LinearGradient
+            colors={bubble.colors}
+            style={styles.bubbleGradient}
+            start={{ x: 0.2, y: 0.2 }}
+            end={{ x: 0.8, y: 0.8 }}
+          >
+            {/* 主反光效果 - 右上角 */}
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0)']}
+              style={[styles.reflection, styles.mainReflection]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+            {/* 次要反光效果 - 左下角 */}
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
+              style={[styles.reflection, styles.secondaryReflection]}
+              start={{ x: 1, y: 1 }}
+              end={{ x: 0, y: 0 }}
+            />
+            {/* 彩虹光晕效果 */}
+            <LinearGradient
+              colors={[
+                'rgba(255, 255, 255, 0.4)',
+                'rgba(255, 182, 193, 0.2)',
+                'rgba(173, 216, 230, 0.2)',
+                'rgba(255, 255, 255, 0.1)'
+              ]}
+              style={styles.iridescence}
+              start={{ x: 0.2, y: 0.2 }}
+              end={{ x: 0.8, y: 0.8 }}
+            />
+            <Text style={styles.bubbleText}>{bubble.char}</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  const handleExit = async () => {
+    Alert.alert(
+      i18n.t('exitGame'),
+      i18n.t('exitGameMessage', {
+        score,
+        level,
+        total: gameService.getTotalLevels()
+      }),
+      [
+        {
+          text: i18n.t('cancel'),
+          style: 'cancel'
+        },
+        {
+          text: i18n.t('confirm'),
+          onPress: async () => {
+            try {
+              // 保存游戏进度
+              await gameService.saveGameProgress({
+                currentLevel: level,
+                score,
+                completedWords,
+                isCompleted: false
+              }, route.params.mode);
+              
+              // 更新游戏统计
+              await gameService.updateGameStats(score, false, route.params.mode);
+              
+              // 退出游戏
+              navigation.goBack();
+            } catch (error) {
+              console.error('保存游戏进度失败:', error);
+              navigation.goBack();
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const playCorrectSound = async () => {
+    if (successSound) {
+      try {
+        await successSound.setPositionAsync(0);
+        await successSound.playAsync();
+      } catch (error) {
+        console.error('播放成功音效失败:', error);
+      }
+    }
+  };
+
+  const playWrongSound = async () => {
+    if (failureSound) {
+      try {
+        await failureSound.setPositionAsync(0);
+        await failureSound.playAsync();
+      } catch (error) {
+        console.error('播放失败音效失败:', error);
+      }
+    }
+  };
+
+  // 将样式定义移到组件内部
   const styles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: '#f0f8ff',
-      width: '100%',
     },
     header: {
       flexDirection: 'row',
@@ -610,7 +738,6 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       backgroundColor: '#fff',
       borderBottomWidth: 1,
       borderBottomColor: '#eee',
-      width: '100%',
     },
     desktopHeader: {
       paddingHorizontal: 24,
@@ -626,12 +753,12 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       justifyContent: 'center',
     },
     levelTitle: {
-      fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 18,
+      fontSize: 18,
       fontWeight: '600',
       color: '#333',
     },
     desktopLevelTitle: {
-      fontSize: Platform.OS === 'macos' ? 28 : isIPad ? 24 : 20,
+      fontSize: 24,
     },
     progressSection: {
       paddingHorizontal: 15,
@@ -639,13 +766,12 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       backgroundColor: '#fff',
       borderBottomWidth: 1,
       borderBottomColor: '#eee',
-      width: '100%',
     },
     scoreContainer: {
       marginBottom: 8,
     },
     scoreText: {
-      fontSize: Platform.OS === 'macos' ? 22 : isIPad ? 19 : 16,
+      fontSize: 18,
       fontWeight: '600',
       color: '#333',
     },
@@ -663,69 +789,53 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       flex: 1,
       justifyContent: 'space-between',
       paddingBottom: Platform.OS === 'ios' ? 120 : 90,
-      width: '100%',
     },
     desktopGameArea: {
       paddingBottom: 140,
+      maxWidth: 1200,
       alignSelf: 'center',
       width: '100%',
-      maxWidth: 1200,
     },
     bubblesContainer: {
       flex: 1,
       position: 'relative',
-      width: '100%',
     },
     targetArea: {
-      height: Platform.OS === 'macos' ? 120 : isIPad ? 90 : 80,
+      height: isDesktop ? 140 : isIPad ? 120 : 100,
       justifyContent: 'center',
       alignItems: 'center',
       position: 'absolute',
-      bottom: Platform.OS === 'macos' ? 160 : isIPad ? 130 : 110,
+      bottom: isDesktop ? 180 : isIPad ? 150 : Platform.OS === 'ios' ? 140 : 110,
       left: 0,
       right: 0,
-      width: '100%',
-    },
-    desktopTargetArea: {
-      height: Platform.OS === 'macos' ? 140 : isIPad ? 100 : 90,
-      bottom: Platform.OS === 'macos' ? 180 : isIPad ? 140 : 120,
     },
     targetControls: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 20,
-      width: '100%',
     },
     currentCharContainer: {
-      backgroundColor: 'white',
-      width: BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10),
-      height: BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10),
-      borderRadius: (BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10)) / 2,
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
-      elevation: 5,
-    },
-    currentCharGradient: {
-      width: '100%',
-      height: '100%',
-      borderRadius: (BUBBLE_SIZE - (Platform.OS === 'macos' ? 25 : isIPad ? 15 : 10)) / 2,
+      width: BUBBLE_SIZE - (isDesktop ? 20 : isIPad ? 16 : 12),
+      height: BUBBLE_SIZE - (isDesktop ? 20 : isIPad ? 16 : 12),
       justifyContent: 'center',
       alignItems: 'center',
+      borderRadius: (BUBBLE_SIZE - (isDesktop ? 20 : isIPad ? 16 : 12)) / 2,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 2,
+        height: 4,
+      },
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      elevation: 6,
       overflow: 'hidden',
-    },
-    desktopCurrentCharContainer: {
-      width: BUBBLE_SIZE - 16,
-      height: BUBBLE_SIZE - 16,
-      borderRadius: (BUBBLE_SIZE - 16) / 2,
+      borderWidth: 1.5,
+      borderColor: 'rgba(255, 255, 255, 0.6)',
+      backgroundColor: 'transparent',
     },
     currentCharText: {
-      fontSize: 28,
+      fontSize: isDesktop ? 42 : isIPad ? 36 : 28,
       fontWeight: 'bold',
       color: '#333',
       textShadowColor: 'rgba(255, 255, 255, 0.9)',
@@ -733,36 +843,81 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       textShadowRadius: 3,
       zIndex: 2,
     },
-    desktopCurrentCharText: {
-      fontSize: 36,
-    },
-    bubbleContainer: {
-      position: 'absolute',
-      zIndex: 1,
-    },
-    bubbleShadow: {
-      backgroundColor: 'white',
-      borderRadius: BUBBLE_SIZE / 2,
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
-      elevation: 5,
-    },
     bubble: {
       width: BUBBLE_SIZE,
       height: BUBBLE_SIZE,
-      borderRadius: BUBBLE_SIZE / 2,
+      position: 'absolute',
       justifyContent: 'center',
       alignItems: 'center',
     },
+    bubbleContent: {
+      width: '100%',
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    bubbleGradient: {
+      width: BUBBLE_SIZE - (isDesktop ? 10 : isIPad ? 8 : 6),
+      height: BUBBLE_SIZE - (isDesktop ? 10 : isIPad ? 8 : 6),
+      borderRadius: BUBBLE_SIZE / 2,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 2,
+        height: 4,
+      },
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      elevation: 6,
+      overflow: 'hidden',
+      borderWidth: 1.5,
+      borderColor: 'rgba(255, 255, 255, 0.6)',
+      backgroundColor: 'transparent',
+    },
+    reflection: {
+      position: 'absolute',
+      width: BUBBLE_SIZE * 0.8,
+      height: BUBBLE_SIZE * 0.8,
+      borderRadius: BUBBLE_SIZE,
+    },
+    mainReflection: {
+      top: BUBBLE_SIZE * 0.1,
+      right: BUBBLE_SIZE * 0.1,
+      opacity: 0.8,
+      transform: [
+        { scale: 0.6 },
+        { rotate: '45deg' }
+      ],
+    },
+    secondaryReflection: {
+      bottom: BUBBLE_SIZE * 0.1,
+      left: BUBBLE_SIZE * 0.1,
+      opacity: 0.4,
+      transform: [
+        { scale: 0.4 },
+        { rotate: '45deg' }
+      ],
+    },
+    iridescence: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      opacity: 0.3,
+      transform: [
+        { rotate: '-30deg' }
+      ],
+    },
     bubbleText: {
-      fontSize: BUBBLE_SIZE * 0.4,
-      color: '#fff',
-      fontWeight: '600',
+      fontSize: isDesktop ? 42 : isIPad ? 36 : 28,
+      fontWeight: 'bold',
+      color: '#333',
+      textShadowColor: 'rgba(255, 255, 255, 0.9)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+      zIndex: 2,
     },
     instructionsContainer: {
       position: 'absolute',
@@ -811,103 +966,19 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       fontSize: 16,
       color: '#333',
     },
+    desktopTargetArea: {
+      height: 120,
+      bottom: 160,
+    },
+    desktopCurrentCharContainer: {
+      width: BUBBLE_SIZE - (isDesktop ? 16 : 12),
+      height: BUBBLE_SIZE - (isDesktop ? 16 : 12),
+      borderRadius: (BUBBLE_SIZE - (isDesktop ? 16 : 12)) / 2,
+    },
+    desktopCurrentCharText: {
+      fontSize: 36,
+    },
   });
-
-  const renderBubble = (bubble: Bubble) => {
-    return (
-      <Animated.View
-        key={bubble.id}
-        style={[
-          styles.bubbleContainer,
-          {
-            transform: [
-              { translateY: bubble.floatingAnim },
-              { scale: bubble.scale }
-            ],
-            opacity: bubble.opacity,
-            left: bubble.position.x,
-            top: bubble.position.y,
-          },
-        ]}
-      >
-        <View style={styles.bubbleShadow}>
-          <TouchableOpacity
-            onPress={() => handleBubblePress(bubble)}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={bubble.colors}
-              style={styles.bubble}
-            >
-              <Text style={styles.bubbleText}>{bubble.char}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-    );
-  };
-
-  const handleExit = async () => {
-    Alert.alert(
-      i18n.t('exitGame'),
-      i18n.t('exitGameMessage', {
-        score,
-        level: currentLevel,
-        total: gameService.getTotalLevels()
-      }),
-      [
-        {
-          text: i18n.t('cancel'),
-          style: 'cancel'
-        },
-        {
-          text: i18n.t('confirm'),
-          onPress: async () => {
-            try {
-              // 保存游戏进度
-              await gameService.saveGameProgress({
-                currentLevel: currentLevel,
-                score,
-                completedWords,
-                isCompleted: false
-              }, route.params.mode);
-              
-              // 更新游戏统计
-              await gameService.updateGameStats(score, false, route.params.mode);
-              
-              // 退出游戏
-              navigation.goBack();
-            } catch (error) {
-              console.error('保存游戏进度失败:', error);
-              navigation.goBack();
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const playCorrectSound = async () => {
-    if (successSound) {
-      try {
-        await successSound.setPositionAsync(0);
-        await successSound.playAsync();
-      } catch (error) {
-        console.error('播放成功音效失败:', error);
-      }
-    }
-  };
-
-  const playWrongSound = async () => {
-    if (failureSound) {
-      try {
-        await failureSound.setPositionAsync(0);
-        await failureSound.playAsync();
-      } catch (error) {
-        console.error('播放失败音效失败:', error);
-      }
-    }
-  };
 
   return (
     <ResponsiveContainer>
@@ -925,11 +996,8 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
           </TouchableOpacity>
           
           <View style={styles.levelTitleContainer}>
-            <Text style={[
-              styles.levelTitle,
-              isDesktop && styles.desktopLevelTitle
-            ]}>
-              {i18n.t('levelTitle', { current: currentLevel, total: totalLevels })}
+            <Text style={[styles.levelTitle, isDesktop && styles.desktopLevelTitle]}>
+              {i18n.t('levelTitle', { current: level, total: totalLevels })}
             </Text>
           </View>
 
@@ -948,9 +1016,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
         <View style={styles.progressSection}>
           <View style={styles.scoreContainer}>
-            <Text style={[styles.scoreText]}>
-              {i18n.t('score', { score })}
-            </Text>
+            <Text style={styles.scoreText}>{i18n.t('score', { score })}</Text>
           </View>
 
           <View style={styles.progressBarContainer}>
@@ -968,12 +1034,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
           </View>
         </View>
 
-        <View style={[
-          styles.gameArea,
-          isDesktop && styles.desktopGameArea,
-          isDesktop && { maxWidth: 1200 },
-          !isDesktop && { maxWidth: '100%' }
-        ]}>
+        <View style={[styles.gameArea, isDesktop && styles.desktopGameArea]}>
           <View style={styles.bubblesContainer}>
             {bubbles.map(renderBubble)}
           </View>
@@ -988,16 +1049,41 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
                   })
                 }]
               }}>
-                <View style={[
-                  styles.currentCharContainer,
-                  isDesktop && styles.desktopCurrentCharContainer
-                ]}>
                   <LinearGradient
                     colors={BUBBLE_COLORS[0]}
-                    style={styles.currentCharGradient}
+                  style={[
+                    styles.currentCharContainer,
+                    isDesktop && styles.desktopCurrentCharContainer
+                  ]}
                     start={{ x: 0.2, y: 0.2 }}
                     end={{ x: 0.8, y: 0.8 }}
                   >
+                  {/* 主反光效果 - 右上角 */}
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0)']}
+                    style={[styles.reflection, styles.mainReflection]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                  {/* 次要反光效果 - 左下角 */}
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
+                    style={[styles.reflection, styles.secondaryReflection]}
+                    start={{ x: 1, y: 1 }}
+                    end={{ x: 0, y: 0 }}
+                  />
+                  {/* 彩虹光晕效果 */}
+                  <LinearGradient
+                    colors={[
+                      'rgba(255, 255, 255, 0.4)',
+                      'rgba(255, 182, 193, 0.2)',
+                      'rgba(173, 216, 230, 0.2)',
+                      'rgba(255, 255, 255, 0.1)'
+                    ]}
+                    style={styles.iridescence}
+                    start={{ x: 0.2, y: 0.2 }}
+                    end={{ x: 0.8, y: 0.8 }}
+                  />
                     <Text style={[
                       styles.currentCharText,
                       isDesktop && styles.desktopCurrentCharText
@@ -1005,7 +1091,6 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
                       {currentChar}
                     </Text>
                   </LinearGradient>
-                </View>
               </Animated.View>
             </View>
           </View>

@@ -89,24 +89,51 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       paddingHorizontal: isIPad ? 20 : 32,
       gap: isIPad ? 20 : 32,
     },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: isDesktop ? 24 : isIPad ? 20 : 15,
+      paddingVertical: isDesktop ? 20 : isIPad ? 16 : 12,
+      backgroundColor: '#fff',
+      borderBottomWidth: 1,
+      borderBottomColor: '#eee',
+    },
+    desktopHeader: {
+      paddingHorizontal: isDesktop ? 32 : isIPad ? 28 : 24,
+      paddingVertical: isDesktop ? 24 : isIPad ? 20 : 16,
+    },
+    headerButton: {
+      padding: isDesktop ? 12 : isIPad ? 10 : 8,
+      borderRadius: 8,
+    },
+    progressSection: {
+      paddingHorizontal: isDesktop ? 24 : isIPad ? 20 : 15,
+      paddingVertical: isDesktop ? 16 : isIPad ? 12 : 10,
+      backgroundColor: '#fff',
+      borderBottomWidth: 1,
+      borderBottomColor: '#eee',
+    },
     canvas: {
       width: '100%',
       aspectRatio: 1,
-      marginBottom: Platform.OS === 'ios' ? 80 : 64,
+      marginBottom: isDesktop ? 90 : isIPad ? 80 : Platform.OS === 'ios' ? 40 : 60,
     },
     wideCanvas: {
-      width: isIPad ? '65%' : '60%',
+      width: isDesktop ? '65%' : isIPad ? '60%' : '55%',
       marginBottom: 0,
-      marginTop: isIPad ? -60 : -80,
+      marginTop: isDesktop ? -90 : isIPad ? -70 : -60,
     },
     meaningContainer: {
       width: '100%',
-      padding: isIPad ? 18 : 20,
+      padding: isDesktop ? 24 : isIPad ? 20 : 8,
       borderRadius: 8,
       backgroundColor: '#fff',
-      marginTop: -60,
-      height: isIPad ? '85%' : '90%',
-      maxHeight: Platform.OS === 'ios' ? (isIPad ? '85%' : '90%') : (isIPad ? '85%' : '90%'),
+      marginTop: isDesktop ? -70 : isIPad ? -60 : -90,
+      height: isDesktop ? '90%' : isIPad ? '85%' : '45%',
+      maxHeight: Platform.OS === 'ios' ? 
+        (isDesktop ? '90%' : isIPad ? '85%' : '45%') : 
+        (isDesktop ? '90%' : isIPad ? '85%' : '45%'),
       ...Platform.select({
         ios: {
           shadowColor: '#000',
@@ -120,9 +147,9 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       }),
     },
     wideMeaningContainer: {
-      width: isIPad ? '40%' : '35%',
+      width: isDesktop ? '35%' : isIPad ? '40%' : '45%',
       alignSelf: 'stretch',
-      marginTop: -60,
+      marginTop: isDesktop ? -70 : isIPad ? -60 : -50,
       height: '90%',
       maxHeight: '90%',
     },
@@ -137,7 +164,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       borderBottomWidth: 2,
     },
     tabText: {
-      fontSize: isIPad ? 17 : 18,
+      fontSize: isDesktop ? 18 : isIPad ? 17 : 14,
       fontWeight: '500',
     },
     wideTabText: {
@@ -147,22 +174,22 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       flex: 1,
     },
     meaningText: {
-      fontSize: isIPad ? 20 : 24,
-      lineHeight: isIPad ? 28 : 34,
-      marginBottom: 8,
+      fontSize: isDesktop ? 28 : isIPad ? 24 : 15,
+      lineHeight: isDesktop ? 38 : isIPad ? 32 : 20,
+      marginBottom: 6,
     },
     wideMeaningText: {
-      fontSize: isIPad ? 24 : 28,
-      lineHeight: isIPad ? 32 : 38,
+      fontSize: isDesktop ? 32 : isIPad ? 28 : 24,
+      lineHeight: isDesktop ? 42 : isIPad ? 36 : 32,
     },
     wordsText: {
-      fontSize: isIPad ? 18 : 20,
-      lineHeight: isIPad ? 24 : 28,
-      marginBottom: 8,
+      fontSize: isDesktop ? 24 : isIPad ? 20 : 13,
+      lineHeight: isDesktop ? 32 : isIPad ? 28 : 18,
+      marginBottom: 6,
     },
     wideWordsText: {
-      fontSize: isIPad ? 20 : 24,
-      lineHeight: isIPad ? 28 : 32,
+      fontSize: isDesktop ? 28 : isIPad ? 24 : 20,
+      lineHeight: isDesktop ? 36 : isIPad ? 32 : 28,
     },
     soundButton: {
       width: isIPad ? 55 : 60,
@@ -213,17 +240,17 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     },
     buttonText: {
       color: '#fff',
-      fontSize: isIPad ? 18 : 20,
+      fontSize: isDesktop ? 24 : isIPad ? 20 : 16,
       fontWeight: '600',
     },
     completedContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      padding: isIPad ? 28 : 32,
+      padding: isDesktop ? 40 : isIPad ? 32 : 24,
       flex: 1,
       backgroundColor: '#f9f9f9',
       borderRadius: 16,
-      margin: isIPad ? 20 : 24,
+      margin: isDesktop ? 32 : isIPad ? 24 : 16,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
@@ -231,15 +258,15 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       elevation: 3,
     },
     completedText: {
-      fontSize: isIPad ? 24 : 28,
+      fontSize: isDesktop ? 32 : isIPad ? 28 : 24,
       fontWeight: '700',
       marginBottom: 24,
       textAlign: 'center',
       color: theme.colors.primary,
     },
     statsText: {
-      fontSize: isIPad ? 17 : 18,
-      lineHeight: isIPad ? 26 : 28,
+      fontSize: isDesktop ? 20 : isIPad ? 18 : 16,
+      lineHeight: isDesktop ? 32 : isIPad ? 28 : 24,
       color: theme.colors.textSecondary,
       marginBottom: 24,
       textAlign: 'center',
@@ -252,10 +279,10 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     },
     statItem: {
       alignItems: 'center',
-      padding: isIPad ? 14 : 16,
+      padding: isDesktop ? 20 : isIPad ? 16 : 12,
       backgroundColor: '#fff',
       borderRadius: 12,
-      minWidth: isIPad ? 100 : 120,
+      minWidth: isDesktop ? 140 : isIPad ? 120 : 100,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
@@ -263,19 +290,19 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       elevation: 1,
     },
     statValue: {
-      fontSize: isIPad ? 22 : 24,
+      fontSize: isDesktop ? 28 : isIPad ? 24 : 20,
       fontWeight: '700',
       color: theme.colors.primary,
       marginBottom: 4,
     },
     statLabel: {
-      fontSize: isIPad ? 13 : 14,
+      fontSize: isDesktop ? 16 : isIPad ? 14 : 12,
       color: theme.colors.textSecondary,
     },
     learnMoreButton: {
       backgroundColor: theme.colors.primary,
-      paddingVertical: isIPad ? 14 : 16,
-      paddingHorizontal: isIPad ? 28 : 32,
+      paddingVertical: isDesktop ? 20 : isIPad ? 16 : 14,
+      paddingHorizontal: isDesktop ? 40 : isIPad ? 32 : 28,
       borderRadius: 12,
       marginTop: 16,
       flexDirection: 'row',
@@ -284,18 +311,31 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     },
     learnMoreText: {
       color: '#fff',
-      fontSize: isIPad ? 17 : 18,
+      fontSize: isDesktop ? 20 : isIPad ? 18 : 16,
       fontWeight: '600',
       marginLeft: 8,
     },
     pinyinText: {
-      fontSize: isIPad ? 18 : 20,
-      lineHeight: isIPad ? 24 : 28,
-      marginBottom: 8,
+      fontSize: isDesktop ? 24 : isIPad ? 20 : 14,
+      lineHeight: isDesktop ? 32 : isIPad ? 28 : 18,
+      marginBottom: 6,
     },
     widePinyinText: {
-      fontSize: isIPad ? 20 : 24,
-      lineHeight: isIPad ? 28 : 32,
+      fontSize: isDesktop ? 28 : isIPad ? 24 : 20,
+      lineHeight: isDesktop ? 36 : isIPad ? 32 : 28,
+    },
+    levelTitle: {
+      fontSize: isDesktop ? 24 : isIPad ? 20 : 16,
+      fontWeight: '600',
+      color: '#333',
+    },
+    desktopLevelTitle: {
+      fontSize: isDesktop ? 28 : isIPad ? 24 : 20,
+    },
+    scoreText: {
+      fontSize: isDesktop ? 24 : isIPad ? 20 : 16,
+      fontWeight: '600',
+      color: '#333',
     },
   });
 
@@ -618,7 +658,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                       activeTab === 'zh' && { color: theme.colors.textLight },
                       (isDesktop || isIPad) && screenStyles.wideTabText
                     ]}>
-                      {i18n.t('chinese')}
+                      {i18n.t('Chinese')}
                     </Text>
                   </TouchableOpacity>
 
@@ -634,7 +674,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                       activeTab === 'en' && { color: theme.colors.textLight },
                       (isDesktop || isIPad) && screenStyles.wideTabText
                     ]}>
-                      {i18n.t('english')}
+                      {i18n.t('English')}
                     </Text>
                   </TouchableOpacity>
                 </View>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Platform, useWindowDimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -14,8 +14,30 @@ type GameStackParamList = {
 type GamesScreenProps = NativeStackScreenProps<GameStackParamList, 'GamesList'>;
 
 export const GamesScreen = ({ navigation }: GamesScreenProps) => {
-  const { isIPad } = useResponsive();
-  const screenStyles = styles({ isIPad });
+  const { isIPad, isDesktop } = useResponsive();
+  const { width: windowWidth } = useWindowDimensions();
+  
+  // 添加Mac设备检测
+  const isMacOS = Platform.OS === 'macos' || (Platform.OS === 'web' && navigator?.platform?.includes('Mac'));
+  // 兼容新旧版本 React Native 的 Mac Catalyst 检测
+  const isMacCatalyst = Platform.OS === 'ios' && (
+    Platform.isMacCatalyst || // React Native 0.64+
+    (isIPad && windowWidth > 1024) // 兼容旧版本 RN
+  );
+  const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
+  
+  // 调试输出
+  console.log('游戏页设备信息:', { 
+    Platform: Platform.OS, 
+    isDesktop, 
+    isIPad, 
+    isMacOS,
+    isMacCatalyst,
+    isMacDevice,
+    windowWidth
+  });
+  
+  const screenStyles = styles({ isIPad, isMacDevice });
 
   return (
     <SafeAreaView style={screenStyles.container}>
@@ -24,7 +46,11 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
           onPress={() => navigation.goBack()}
           style={screenStyles.backButton}
         >
-          <MaterialCommunityIcons name="arrow-left" size={isIPad ? 32 : 24} color="#666" />
+          <MaterialCommunityIcons 
+            name="arrow-left" 
+            size={isMacDevice ? 22 : isIPad ? 32 : 24} 
+            color="#666" 
+          />
         </TouchableOpacity>
         <Text style={screenStyles.title}>{i18n.t('games')}</Text>
       </View>
@@ -34,7 +60,11 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
           style={[screenStyles.gameCard, screenStyles.wordGame]}
           onPress={() => navigation.navigate('WordGame', { mode: 'word' })}
         >
-          <MaterialCommunityIcons name="cards" size={isIPad ? 48 : 32} color="#fff" />
+          <MaterialCommunityIcons 
+            name="cards" 
+            size={isMacDevice ? 28 : isIPad ? 48 : 32} 
+            color="#fff" 
+          />
           <View style={screenStyles.gameInfo}>
             <Text style={screenStyles.gameName}>{i18n.t('wordGame')}</Text>
             <Text style={screenStyles.gameDescription}>{i18n.t('wordGameDesc')}</Text>
@@ -45,7 +75,11 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
           style={[screenStyles.gameCard, screenStyles.pronunciationGame]}
           onPress={() => navigation.navigate('PronunciationGame', { mode: 'pronunciation' })}
         >
-          <MaterialCommunityIcons name="microphone" size={isIPad ? 48 : 32} color="#fff" />
+          <MaterialCommunityIcons 
+            name="microphone" 
+            size={isMacDevice ? 28 : isIPad ? 48 : 32} 
+            color="#fff" 
+          />
           <View style={screenStyles.gameInfo}>
             <Text style={screenStyles.gameName}>{i18n.t('pronunciationGame')}</Text>
             <Text style={screenStyles.gameDescription}>{i18n.t('pronunciationGameDesc')}</Text>
@@ -56,54 +90,54 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
   );
 };
 
-const styles = ({ isIPad }: { isIPad: boolean }) => StyleSheet.create({
+const styles = ({ isIPad, isMacDevice }: { isIPad: boolean, isMacDevice: boolean }) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: isIPad ? 60 : 50,
-    paddingBottom: isIPad ? 100 : 80,
+    paddingTop: isMacDevice ? 40 : isIPad ? 60 : 50,
+    paddingBottom: isMacDevice ? 60 : isIPad ? 100 : 80,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: isIPad ? 20 : 15,
+    padding: isMacDevice ? 12 : isIPad ? 20 : 15,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    padding: isIPad ? 12 : 8,
+    padding: isMacDevice ? 8 : isIPad ? 12 : 8,
   },
   title: {
-    fontSize: isIPad ? 32 : 20,
+    fontSize: isMacDevice ? 22 : isIPad ? 32 : 20,
     fontWeight: 'bold',
     color: '#333',
-    marginLeft: isIPad ? 15 : 10,
+    marginLeft: isMacDevice ? 10 : isIPad ? 15 : 10,
   },
   content: {
     flex: 1,
-    padding: isIPad ? 20 : 15,
-    gap: isIPad ? 20 : 15,
+    padding: isMacDevice ? 15 : isIPad ? 20 : 15,
+    gap: isMacDevice ? 15 : isIPad ? 20 : 15,
   },
   gameCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: isIPad ? 20 : 12,
-    borderRadius: isIPad ? 16 : 12,
-    gap: isIPad ? 16 : 12,
+    padding: isMacDevice ? 12 : isIPad ? 20 : 12,
+    borderRadius: isMacDevice ? 12 : isIPad ? 16 : 12,
+    gap: isMacDevice ? 12 : isIPad ? 16 : 12,
   },
   gameInfo: {
     flex: 1,
   },
   gameName: {
     color: '#fff',
-    fontSize: isIPad ? 28 : 16,
+    fontSize: isMacDevice ? 18 : isIPad ? 28 : 16,
     fontWeight: '600',
-    marginBottom: isIPad ? 4 : 2,
+    marginBottom: isMacDevice ? 3 : isIPad ? 4 : 2,
   },
   gameDescription: {
     color: '#fff',
     opacity: 0.9,
-    fontSize: isIPad ? 20 : 13,
+    fontSize: isMacDevice ? 14 : isIPad ? 20 : 13,
   },
   wordGame: {
     backgroundColor: '#34C759',

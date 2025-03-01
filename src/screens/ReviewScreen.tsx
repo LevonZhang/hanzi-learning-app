@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, FlatList, Platform, useWindowDimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import { LearningManager } from '../services/LearningManager';
@@ -20,6 +20,28 @@ interface ReviewItem {
 
 export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
   const { theme, isDesktop, isIPad } = useResponsive();
+  const { width: windowWidth } = useWindowDimensions();
+  
+  // 添加明确的Mac设备检测
+  const isMacOS = Platform.OS === 'macos' || (Platform.OS === 'web' && navigator?.platform?.includes('Mac'));
+  // 兼容新旧版本 React Native 的 Mac Catalyst 检测
+  const isMacCatalyst = Platform.OS === 'ios' && (
+    Platform.isMacCatalyst || // React Native 0.64+
+    (isIPad && windowWidth > 1024) // 兼容旧版本 RN
+  );
+  const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
+  
+  // 调试输出
+  console.log('复习页设备信息:', { 
+    Platform: Platform.OS, 
+    isDesktop, 
+    isIPad, 
+    isMacOS,
+    isMacCatalyst,
+    isMacDevice,
+    windowWidth
+  });
+  
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [canReview, setCanReview] = useState(false);
 
@@ -28,18 +50,18 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
       padding: isDesktop ? 20 : 16,
     },
     characterText: {
-      fontSize: isDesktop ? 40 : isIPad ? 32 : 22,
+      fontSize: isMacDevice ? 22 : isDesktop ? 40 : isIPad ? 32 : 22,
     },
     mistakesText: {
-      fontSize: isDesktop ? 16 : isIPad ? 14 : 12,
+      fontSize: isMacDevice ? 11 : isDesktop ? 16 : isIPad ? 14 : 12,
     },
     emptyText: {
-      fontSize: isDesktop ? 24 : isIPad ? 20 : 16,
+      fontSize: isMacDevice ? 16 : isDesktop ? 24 : isIPad ? 20 : 16,
     },
     removeButton: {
-      width: isDesktop ? 40 : isIPad ? 36 : 32,
-      height: isDesktop ? 40 : isIPad ? 36 : 32,
-      borderRadius: isDesktop ? 20 : isIPad ? 18 : 16,
+      width: isMacDevice ? 28 : isDesktop ? 40 : isIPad ? 36 : 32,
+      height: isMacDevice ? 28 : isDesktop ? 40 : isIPad ? 36 : 32,
+      borderRadius: isMacDevice ? 14 : isDesktop ? 20 : isIPad ? 18 : 16,
     },
   };
 
@@ -125,7 +147,7 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
       >
         <MaterialCommunityIcons
           name="trash-can-outline"
-          size={isDesktop ? 24 : isIPad ? 20 : 16}
+          size={isMacDevice ? 16 : isDesktop ? 24 : isIPad ? 20 : 16}
           color={theme.colors.textLight}
         />
       </TouchableOpacity>

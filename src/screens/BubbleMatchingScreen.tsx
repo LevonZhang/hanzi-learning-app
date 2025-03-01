@@ -31,18 +31,16 @@ const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
 const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.6;
 
 // 根据设备类型设置气球尺寸和间距
-const getBubbleSize = (isDesktop: boolean, isIPad: boolean) => {
-  if (isDesktop) {
-    return 100; // macOS
-  } else if (isIPad) {
-    return 80; // iPad
-  }
-  return 65; // iPhone
+const getBubbleSize = (isDesktop: boolean, isIPad: boolean, isMacDevice: boolean) => {
+  if (isMacDevice) return 85; // Mac设备使用更小尺寸，从100减小到85
+  if (isDesktop) return 120;
+  if (isIPad) return 100;
+  return 80;
 };
 
-const HORIZONTAL_GAP = Platform.OS === 'macos' ? 15 : 10;
-const VERTICAL_OVERLAP = Platform.OS === 'macos' ? -15 : -10;
-const TOP_MARGIN = Platform.OS === 'macos' ? 20 : 15;
+const HORIZONTAL_GAP = 10;
+const VERTICAL_OVERLAP = -10;
+const TOP_MARGIN = 15;
 
 const BUBBLE_COLORS: readonly [string, string, string][] = [
   ['#FF6B6B', '#FF8787', '#FFA5A5'],
@@ -99,8 +97,54 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   const { theme, isDesktop, isIPad } = useResponsive();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   
+  // 添加完整的Mac设备检测
+  const isMacOS = Platform.OS === 'macos' || (Platform.OS === 'web' && navigator?.platform?.includes('Mac'));
+  // 兼容新旧版本 React Native 的 Mac Catalyst 检测
+  const isMacCatalyst = Platform.OS === 'ios' && (
+    Platform.isMacCatalyst || // React Native 0.64+
+    (isIPad && windowWidth > 1024) // 兼容旧版本 RN
+  );
+  const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
+  
+  // 调试输出
+  console.log('游戏气泡页设备信息:', { 
+    Platform: Platform.OS, 
+    isDesktop, 
+    isIPad, 
+    isMacOS,
+    isMacCatalyst,
+    isMacDevice,
+    windowWidth
+  });
+  
   // 动态计算气球尺寸
-  const BUBBLE_SIZE = getBubbleSize(isDesktop, isIPad);
+  const BUBBLE_SIZE = getBubbleSize(isDesktop, isIPad, isMacDevice);
+
+  // 添加动态样式定义，根据设备类型调整文本大小
+  const dynamicStyles = {
+    levelTitle: {
+      fontSize: isMacDevice ? 20 : isIPad ? 24 : 18,
+    },
+    desktopLevelTitle: {
+      fontSize: isMacDevice ? 22 : isIPad ? 28 : 24,
+    },
+    scoreText: {
+      fontSize: isMacDevice ? 18 : isIPad ? 22 : 18,
+    },
+    headerBackButton: {
+      fontSize: isMacDevice ? 20 : isIPad ? 28 : 24,
+    },
+    hintButton: {
+      fontSize: isMacDevice ? 20 : isIPad ? 28 : 24,
+    },
+    instructionsText: {
+      fontSize: isMacDevice ? 14 : isIPad ? 16 : 13,
+      lineHeight: isMacDevice ? 20 : isIPad ? 22 : 18,
+    },
+    bubbleText: {
+      fontSize: isMacDevice ? 28 : isIPad ? 40 : 28,
+    }
+  };
 
   const [level, setLevel] = useState<number>(1);
   const [score, setScore] = useState(0);
@@ -165,21 +209,39 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
 
   const generateLayeredPositions = (totalBubbles: number) => {
     const positions: { x: number; y: number }[] = [];
-    const bubblesPerRow = isDesktop ? 6 : isIPad ? 4 : 3;
-    const effectiveBubbleSize = BUBBLE_SIZE + (isDesktop ? 20 : isIPad ? 15 : 10);
+    const bubblesPerRow = isMacDevice ? 5 : isDesktop ? 6 : isIPad ? 5 : 3;
+    const effectiveBubbleSize = BUBBLE_SIZE + (isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 15 : 10);
     const rows = Math.ceil(totalBubbles / bubblesPerRow);
     
-    const totalWidth = bubblesPerRow * effectiveBubbleSize;
-    const startX = (windowWidth - totalWidth) / 2;
-    const startY = isDesktop ? 40 : isIPad ? 30 : 20;
-    const verticalGap = BUBBLE_SIZE * (isDesktop ? 0.8 : isIPad ? 0.85 : 0.9);
+    // 使用更精确的宽度计算
+    let gameAreaWidth = windowWidth;
+    
+    // iPad和桌面版使用限制的宽度，但确保足够宽
+    if (isDesktop) {
+      gameAreaWidth = Math.min(1200, windowWidth);
+    } else if (isIPad) {
+      // 确保iPad上游戏区域足够宽
+      gameAreaWidth = windowWidth - 48;
+    } else {
+      // 手机上的宽度
+      gameAreaWidth = windowWidth - 20;
+    }
+    
+    // 确保有足够的空间放置气泡
+    const bubbleAreaWidth = Math.min(bubblesPerRow * effectiveBubbleSize, gameAreaWidth);
+    const startY = isMacDevice ? 20 : isDesktop ? 40 : isIPad ? 30 : 20;
+    const verticalGap = BUBBLE_SIZE * (isMacDevice ? 0.95 : isDesktop ? 0.8 : isIPad ? 0.85 : 0.9);
 
     for (let row = 0; row < rows; row++) {
       const y = startY + row * verticalGap;
       const bubblesInThisRow = Math.min(bubblesPerRow, totalBubbles - row * bubblesPerRow);
       
+      // 计算每一行的实际宽度和中心位置
+      const rowWidth = bubblesInThisRow * effectiveBubbleSize;
+      const rowStartX = (gameAreaWidth - rowWidth) / 2;
+      
       for (let col = 0; col < bubblesInThisRow; col++) {
-        const x = startX + col * effectiveBubbleSize;
+        const x = rowStartX + col * effectiveBubbleSize;
         positions.push({ x, y });
       }
     }
@@ -614,49 +676,28 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
             opacity: bubble.opacity,
             position: 'absolute',
             left: bubble.position.x,
-            top: bubble.position.y
+            top: bubble.position.y,
+            zIndex: 10
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => handleBubblePress(bubble)}
-          style={styles.bubbleContent}
-        >
-          <LinearGradient
-            colors={bubble.colors}
-            style={styles.bubbleGradient}
-            start={{ x: 0.2, y: 0.2 }}
-            end={{ x: 0.8, y: 0.8 }}
-          >
-            {/* 主反光效果 - 右上角 */}
+        <View style={styles.bubbleContent}>
+          <View style={styles.bubbleShadow}>
             <LinearGradient
-              colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0)']}
-              style={[styles.reflection, styles.mainReflection]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-            {/* 次要反光效果 - 左下角 */}
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
-              style={[styles.reflection, styles.secondaryReflection]}
-              start={{ x: 1, y: 1 }}
-              end={{ x: 0, y: 0 }}
-            />
-            {/* 彩虹光晕效果 */}
-            <LinearGradient
-              colors={[
-                'rgba(255, 255, 255, 0.4)',
-                'rgba(255, 182, 193, 0.2)',
-                'rgba(173, 216, 230, 0.2)',
-                'rgba(255, 255, 255, 0.1)'
-              ]}
-              style={styles.iridescence}
+              colors={bubble.colors}
+              style={styles.bubbleGradient}
               start={{ x: 0.2, y: 0.2 }}
               end={{ x: 0.8, y: 0.8 }}
-            />
-            <Text style={styles.bubbleText}>{bubble.char}</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            >
+              <TouchableOpacity
+                onPress={() => handleBubblePress(bubble)}
+                style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
+              >
+                <Text style={[styles.bubbleText, dynamicStyles.bubbleText]}>{bubble.char}</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
       </Animated.View>
     );
   };
@@ -728,23 +769,24 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     container: {
       flex: 1,
       backgroundColor: '#f0f8ff',
+      width: '100%',
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 15,
-      paddingVertical: 10,
+      paddingHorizontal: isMacDevice ? 12 : isIPad ? 15 : 15,
+      paddingVertical: isMacDevice ? 8 : isIPad ? 10 : 10,
       backgroundColor: '#fff',
       borderBottomWidth: 1,
       borderBottomColor: '#eee',
     },
     desktopHeader: {
-      paddingHorizontal: 24,
-      paddingVertical: 16,
+      paddingHorizontal: isMacDevice ? 20 : 24,
+      paddingVertical: isMacDevice ? 14 : 16,
     },
     headerButton: {
-      padding: 8,
+      padding: isMacDevice ? 6 : 8,
       borderRadius: 8,
     },
     levelTitleContainer: {
@@ -761,14 +803,14 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       fontSize: 24,
     },
     progressSection: {
-      paddingHorizontal: 15,
-      paddingVertical: 10,
+      paddingHorizontal: isMacDevice ? 12 : 15,
+      paddingVertical: isMacDevice ? 8 : 10,
       backgroundColor: '#fff',
       borderBottomWidth: 1,
       borderBottomColor: '#eee',
     },
     scoreContainer: {
-      marginBottom: 8,
+      marginBottom: isMacDevice ? 6 : 8,
     },
     scoreText: {
       fontSize: 18,
@@ -788,39 +830,54 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     gameArea: {
       flex: 1,
       justifyContent: 'space-between',
-      paddingBottom: Platform.OS === 'ios' ? 120 : 90,
+      width: '100%',
+      alignSelf: 'stretch',
+      paddingBottom: isMacDevice ? 100 : (Platform.OS === 'ios' ? 120 : 90),
+      paddingHorizontal: 0,
     },
     desktopGameArea: {
-      paddingBottom: 140,
-      maxWidth: 1200,
+      paddingBottom: isMacDevice ? 120 : 140,
       alignSelf: 'center',
       width: '100%',
+      maxWidth: 1200,
     },
     bubblesContainer: {
       flex: 1,
       position: 'relative',
+      width: '100%',
+      alignSelf: 'stretch',
     },
     targetArea: {
-      height: isDesktop ? 140 : isIPad ? 120 : 100,
+      height: isMacDevice ? 80 : 100,
       justifyContent: 'center',
       alignItems: 'center',
       position: 'absolute',
-      bottom: isDesktop ? 180 : isIPad ? 150 : Platform.OS === 'ios' ? 140 : 110,
+      bottom: isMacDevice ? 100 : (Platform.OS === 'ios' ? 140 : 110),
       left: 0,
       right: 0,
+      width: '100%',
     },
     targetControls: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 20,
+      gap: isMacDevice ? 15 : 20,
     },
     currentCharContainer: {
-      width: BUBBLE_SIZE - (isDesktop ? 20 : isIPad ? 16 : 12),
-      height: BUBBLE_SIZE - (isDesktop ? 20 : isIPad ? 16 : 12),
+      width: BUBBLE_SIZE - (isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 16 : 12),
+      height: BUBBLE_SIZE - (isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 16 : 12),
       justifyContent: 'center',
       alignItems: 'center',
-      borderRadius: (BUBBLE_SIZE - (isDesktop ? 20 : isIPad ? 16 : 12)) / 2,
+      borderRadius: (BUBBLE_SIZE - (isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 16 : 12)) / 2,
+      overflow: 'hidden',
+      borderWidth: 1.5,
+      borderColor: 'rgba(255, 255, 255, 0.6)',
+      backgroundColor: 'transparent',
+    },
+    currentCharShadow: {
+      width: BUBBLE_SIZE - (isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 16 : 12),
+      height: BUBBLE_SIZE - (isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 16 : 12),
+      borderRadius: (BUBBLE_SIZE - (isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 16 : 12)) / 2,
       shadowColor: '#000',
       shadowOffset: {
         width: 2,
@@ -829,13 +886,21 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       shadowOpacity: 0.2,
       shadowRadius: 12,
       elevation: 6,
+      backgroundColor: '#fff', // 添加实色背景以便高效计算阴影
+      overflow: 'hidden',
+    },
+    currentCharGradient: {
+      width: '100%',
+      height: '100%',
+      borderRadius: (BUBBLE_SIZE - (isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 16 : 12)) / 2,
+      justifyContent: 'center',
+      alignItems: 'center',
       overflow: 'hidden',
       borderWidth: 1.5,
       borderColor: 'rgba(255, 255, 255, 0.6)',
-      backgroundColor: 'transparent',
     },
     currentCharText: {
-      fontSize: isDesktop ? 42 : isIPad ? 36 : 28,
+      fontSize: isMacDevice ? 26 : isDesktop ? 42 : isIPad ? 36 : 28,
       fontWeight: 'bold',
       color: '#333',
       textShadowColor: 'rgba(255, 255, 255, 0.9)',
@@ -856,12 +921,10 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       justifyContent: 'center',
       alignItems: 'center',
     },
-    bubbleGradient: {
-      width: BUBBLE_SIZE - (isDesktop ? 10 : isIPad ? 8 : 6),
-      height: BUBBLE_SIZE - (isDesktop ? 10 : isIPad ? 8 : 6),
+    bubbleShadow: {
+      width: BUBBLE_SIZE - 4,
+      height: BUBBLE_SIZE - 4,
       borderRadius: BUBBLE_SIZE / 2,
-      justifyContent: 'center',
-      alignItems: 'center',
       shadowColor: '#000',
       shadowOffset: {
         width: 2,
@@ -870,10 +933,18 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       shadowOpacity: 0.2,
       shadowRadius: 12,
       elevation: 6,
+      backgroundColor: '#fff',
+      overflow: 'hidden',
+    },
+    bubbleGradient: {
+      width: '100%',
+      height: '100%',
+      borderRadius: BUBBLE_SIZE / 2,
+      justifyContent: 'center',
+      alignItems: 'center',
       overflow: 'hidden',
       borderWidth: 1.5,
       borderColor: 'rgba(255, 255, 255, 0.6)',
-      backgroundColor: 'transparent',
     },
     reflection: {
       position: 'absolute',
@@ -911,7 +982,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       ],
     },
     bubbleText: {
-      fontSize: isDesktop ? 42 : isIPad ? 36 : 28,
+      fontSize: isMacDevice ? 28 : isDesktop ? 42 : isIPad ? 36 : 28,
       fontWeight: 'bold',
       color: '#333',
       textShadowColor: 'rgba(255, 255, 255, 0.9)',
@@ -921,7 +992,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     },
     instructionsContainer: {
       position: 'absolute',
-      bottom: Platform.OS === 'ios' ? 100 : 70,
+      bottom: isMacDevice ? 90 : (Platform.OS === 'ios' ? 100 : 70),
       left: 0,
       right: 0,
       alignItems: 'center',
@@ -932,8 +1003,8 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: 'rgba(255, 255, 255, 0.9)',
-      paddingVertical: 8,
-      paddingHorizontal: 12,
+      paddingVertical: isMacDevice ? 6 : 8,
+      paddingHorizontal: isMacDevice ? 10 : 12,
       borderRadius: 20,
       borderWidth: 1,
       borderColor: 'rgba(76, 175, 80, 0.3)',
@@ -945,7 +1016,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       shadowOpacity: 0.1,
       shadowRadius: 3,
       elevation: 3,
-      gap: 8,
+      gap: isMacDevice ? 6 : 8,
       width: '98%',
     },
     instructionsText: {
@@ -963,26 +1034,26 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     },
     loadingText: {
       marginTop: 10,
-      fontSize: 16,
+      fontSize: isMacDevice ? 12 : 16,
       color: '#333',
     },
     desktopTargetArea: {
-      height: 120,
-      bottom: 160,
+      height: isMacDevice ? 90 : 120,
+      bottom: isMacDevice ? 120 : 160,
     },
     desktopCurrentCharContainer: {
-      width: BUBBLE_SIZE - (isDesktop ? 16 : 12),
-      height: BUBBLE_SIZE - (isDesktop ? 16 : 12),
-      borderRadius: (BUBBLE_SIZE - (isDesktop ? 16 : 12)) / 2,
+      width: BUBBLE_SIZE - (isMacDevice ? 15 : isDesktop ? 16 : 12),
+      height: BUBBLE_SIZE - (isMacDevice ? 15 : isDesktop ? 16 : 12),
+      borderRadius: (BUBBLE_SIZE - (isMacDevice ? 15 : isDesktop ? 16 : 12)) / 2,
     },
     desktopCurrentCharText: {
-      fontSize: 36,
+      fontSize: isMacDevice ? 26 : 36,
     },
   });
 
   return (
-    <ResponsiveContainer>
-      <View style={styles.container}>
+    <ResponsiveContainer style={{ width: '100%' }} withPadding={false} useMaxWidth={false}>
+      <View style={[styles.container, { width: '100%' }]}>
         <View style={[styles.header, isDesktop && styles.desktopHeader]}>
           <TouchableOpacity
             style={styles.headerButton}
@@ -990,13 +1061,18 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
           >
             <MaterialCommunityIcons
               name="arrow-left"
-              size={isDesktop ? 28 : 24}
+              size={dynamicStyles.headerBackButton.fontSize}
               color={theme.colors.textPrimary}
             />
           </TouchableOpacity>
           
           <View style={styles.levelTitleContainer}>
-            <Text style={[styles.levelTitle, isDesktop && styles.desktopLevelTitle]}>
+            <Text style={[
+              styles.levelTitle, 
+              dynamicStyles.levelTitle,
+              isDesktop && styles.desktopLevelTitle,
+              isDesktop && dynamicStyles.desktopLevelTitle
+            ]}>
               {i18n.t('levelTitle', { current: level, total: totalLevels })}
             </Text>
           </View>
@@ -1008,15 +1084,17 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
           >
             <MaterialCommunityIcons
               name="lightbulb"
-              size={isDesktop ? 28 : 24}
+              size={dynamicStyles.hintButton.fontSize}
               color={isShowingHint ? theme.colors.textSecondary : theme.colors.primary}
             />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.progressSection}>
+        <View style={[styles.progressSection, { width: '100%' }]}>
           <View style={styles.scoreContainer}>
-            <Text style={styles.scoreText}>{i18n.t('score', { score })}</Text>
+            <Text style={[styles.scoreText, dynamicStyles.scoreText]}>
+              {i18n.t('score', { score })}
+            </Text>
           </View>
 
           <View style={styles.progressBarContainer}>
@@ -1034,8 +1112,21 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
           </View>
         </View>
 
-        <View style={[styles.gameArea, isDesktop && styles.desktopGameArea]}>
-          <View style={styles.bubblesContainer}>
+        <View style={[
+          styles.gameArea, 
+          isDesktop && styles.desktopGameArea,
+          { 
+            width: isDesktop ? '100%' : isIPad ? windowWidth - 48 : windowWidth - 20,
+            alignSelf: 'center'
+          }
+        ]}>
+          <View style={[
+            styles.bubblesContainer, 
+            { 
+              width: '100%',
+              alignSelf: 'center'
+            }
+          ]}>
             {bubbles.map(renderBubble)}
           </View>
 
@@ -1049,12 +1140,13 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
                   })
                 }]
               }}>
+                <View style={[
+                  styles.currentCharShadow,
+                  isDesktop && styles.desktopCurrentCharContainer
+                ]}>
                   <LinearGradient
                     colors={BUBBLE_COLORS[0]}
-                  style={[
-                    styles.currentCharContainer,
-                    isDesktop && styles.desktopCurrentCharContainer
-                  ]}
+                    style={styles.currentCharGradient}
                     start={{ x: 0.2, y: 0.2 }}
                     end={{ x: 0.8, y: 0.8 }}
                   >
@@ -1086,11 +1178,12 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
                   />
                     <Text style={[
                       styles.currentCharText,
-                      isDesktop && styles.desktopCurrentCharText
+                      dynamicStyles.bubbleText
                     ]}>
                       {currentChar}
                     </Text>
                   </LinearGradient>
+                </View>
               </Animated.View>
             </View>
           </View>

@@ -49,9 +49,9 @@ export const AppNavigator = () => {
 
   const isMacOS = Platform.OS === 'macos';
   
-  const tabBarHeight = isMacOS ? 100 : isIPad ? 65 : Platform.OS === 'ios' ? 70 : 60;
-  const iconSize = isMacOS ? 40 : isIPad ? 26 : 24;
-  const labelSize = isMacOS ? 20 : isIPad ? 13 : 12;
+  const tabBarHeight = isMacOS ? 110 : isIPad ? 80 : Platform.OS === 'ios' ? 70 : 60;
+  const iconSize = isMacOS ? 44 : isIPad ? 32 : 24;
+  const labelSize = isMacOS ? 22 : isIPad ? 16 : 12;
   const bottomPadding = isMacOS ? 25 : isIPad ? 12 : Platform.OS === 'ios' ? 15 : 5;
 
   useEffect(() => {
@@ -116,8 +116,8 @@ export const AppNavigator = () => {
     tabBarLabelStyle: {
       fontSize: labelSize,
       marginBottom: Platform.OS === 'ios' ? 0 : isIPad ? 10 : 5,
-      fontWeight: isIPad ? '600' : '500',
-      lineHeight: isIPad ? 24 : undefined,
+      fontWeight: isIPad ? '700' : '500',
+      lineHeight: isIPad ? 26 : undefined,
     },
     headerShown: false,
     tabBarLabel: route.name === 'Settings' ? i18n.t('profileTab') : i18n.t(route.name.toLowerCase())

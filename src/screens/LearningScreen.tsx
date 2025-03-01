@@ -68,6 +68,27 @@ type StylesProps = {
 export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   const { deviceType, theme, isDesktop, isIPad } = useResponsive();
   const { width: windowWidth } = useWindowDimensions();
+  
+  // 添加明确的Mac设备检测
+  const isMacOS = Platform.OS === 'macos' || (Platform.OS === 'web' && navigator?.platform?.includes('Mac'));
+  // 兼容新旧版本 React Native 的 Mac Catalyst 检测
+  const isMacCatalyst = Platform.OS === 'ios' && (
+    Platform.isMacCatalyst || // React Native 0.64+
+    (isIPad && windowWidth > 1024) // 兼容旧版本 RN
+  );
+  const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
+  
+  // 调试输出
+  console.log('设备信息:', { 
+    Platform: Platform.OS, 
+    deviceType, 
+    isDesktop, 
+    isIPad, 
+    isMacOS,
+    isMacCatalyst,
+    isMacDevice,
+    windowWidth
+  });
 
   const screenStyles = StyleSheet.create({
     container: {
@@ -84,10 +105,13 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     },
     wideDisplayContainer: {
       flexDirection: 'row',
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
       alignItems: 'flex-start',
-      paddingHorizontal: isIPad ? 20 : 32,
-      gap: isIPad ? 20 : 32,
+      paddingHorizontal: isIPad ? 15 : isDesktop && !isIPad ? 15 : 20,
+      gap: isIPad ? 25 : isDesktop && !isIPad ? 25 : 35,
+      height: isDesktop || isIPad ? (isDesktop && !isIPad ? '80%' : '92%') : 'auto',
+      marginBottom: isDesktop || isIPad ? 20 : 0,
+      paddingTop: isDesktop && !isIPad ? 10 : 0,
     },
     header: {
       flexDirection: 'row',
@@ -117,23 +141,26 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     canvas: {
       width: '100%',
       aspectRatio: 1,
-      marginBottom: isDesktop ? 90 : isIPad ? 80 : Platform.OS === 'ios' ? 40 : 60,
+      marginBottom: isDesktop ? 60 : isIPad ? 80 : Platform.OS === 'ios' ? 40 : 60,
     },
     wideCanvas: {
-      width: isDesktop ? '65%' : isIPad ? '60%' : '55%',
+      width: isDesktop ? (isDesktop && !isIPad ? '38%' : '42%') : isIPad ? '48%' : '55%',
       marginBottom: 0,
-      marginTop: isDesktop ? -90 : isIPad ? -70 : -60,
+      marginTop: isDesktop ? (isDesktop && !isIPad ? -5 : 0) : isIPad ? -20 : -60,
+      alignSelf: 'flex-start',
+      marginLeft: isDesktop ? (isDesktop && !isIPad ? '10%' : '8%') : isIPad ? '3%' : 0,
+      marginRight: 'auto',
     },
     meaningContainer: {
       width: '100%',
-      padding: isDesktop ? 24 : isIPad ? 20 : 8,
+      padding: isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 20 : 8,
       borderRadius: 8,
       backgroundColor: '#fff',
-      marginTop: isDesktop ? -70 : isIPad ? -60 : -70,
-      height: isDesktop ? '90%' : isIPad ? '90%' : '47%',
+      marginTop: isDesktop ? 0 : isIPad ? -20 : -70,
+      height: isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '47%',
       maxHeight: Platform.OS === 'ios' ? 
-        (isDesktop ? '90%' : isIPad ? '90%' : '47%') : 
-        (isDesktop ? '90%' : isIPad ? '90%' : '45%'),
+        (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '47%') : 
+        (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '45%'),
       ...Platform.select({
         ios: {
           shadowColor: '#000',
@@ -147,60 +174,61 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       }),
     },
     wideMeaningContainer: {
-      width: isDesktop ? '35%' : isIPad ? '40%' : '45%',
+      width: isDesktop ? (isDesktop && !isIPad ? '40%' : '42%') : isIPad ? '36%' : '45%',
       alignSelf: 'stretch',
-      marginTop: isDesktop ? -70 : isIPad ? -60 : -50,
-      height: '90%',
-      maxHeight: '90%',
+      marginTop: isDesktop ? 0 : isIPad ? -20 : -50,
+      height: isDesktop && !isIPad ? '75%' : '85%',
+      maxHeight: isDesktop && !isIPad ? '75%' : '85%',
+      marginLeft: 'auto',
     },
     tabContainer: {
       flexDirection: 'row',
-      marginBottom: 16,
+      marginBottom: isMacDevice ? 8 : 16,
     },
     tab: {
       flex: 1,
-      paddingVertical: 8,
+      paddingVertical: isMacDevice ? 5 : 8,
       alignItems: 'center',
       borderBottomWidth: 2,
     },
     tabText: {
-      fontSize: isDesktop ? 18 : isIPad ? 17 : 14,
+      fontSize: isMacDevice ? 16 : isDesktop ? 16 : isIPad ? 17 : 14,
       fontWeight: '500',
     },
     wideTabText: {
-      fontSize: isIPad ? 19 : 20,
+      fontSize: isMacDevice ? 18 : isDesktop ? 18 : isIPad ? 19 : 18,
     },
     meaningScroll: {
       flex: 1,
     },
     meaningText: {
-      fontSize: isDesktop ? 28 : isIPad ? 24 : 15,
-      lineHeight: isDesktop ? 38 : isIPad ? 32 : 20,
+      fontSize: isMacDevice ? 18 : isDesktop ? 22 : isIPad ? 24 : 15,
+      lineHeight: isMacDevice ? 24 : isDesktop ? 30 : isIPad ? 32 : 20,
       marginBottom: 6,
     },
     wideMeaningText: {
-      fontSize: isDesktop ? 32 : isIPad ? 28 : 24,
-      lineHeight: isDesktop ? 42 : isIPad ? 36 : 32,
+      fontSize: isMacDevice ? 20 : isDesktop ? 24 : isIPad ? 28 : 24,
+      lineHeight: isMacDevice ? 28 : isDesktop ? 32 : isIPad ? 36 : 32,
     },
     wordsText: {
-      fontSize: isDesktop ? 24 : isIPad ? 20 : 13,
-      lineHeight: isDesktop ? 32 : isIPad ? 28 : 18,
+      fontSize: isMacDevice ? 16 : isDesktop ? 18 : isIPad ? 20 : 13,
+      lineHeight: isMacDevice ? 22 : isDesktop ? 26 : isIPad ? 28 : 18,
       marginBottom: 6,
     },
     wideWordsText: {
-      fontSize: isDesktop ? 28 : isIPad ? 24 : 20,
-      lineHeight: isDesktop ? 36 : isIPad ? 32 : 28,
+      fontSize: isMacDevice ? 18 : isDesktop ? 20 : isIPad ? 24 : 20,
+      lineHeight: isMacDevice ? 26 : isDesktop ? 28 : isIPad ? 32 : 28,
     },
     soundButton: {
-      width: isIPad ? 55 : 60,
-      paddingVertical: isIPad ? 14 : 16,
+      width: isDesktop && !isIPad ? 45 : isIPad ? 55 : 60,
+      paddingVertical: isDesktop && !isIPad ? 10 : isIPad ? 14 : 16,
       borderRadius: 8,
       alignItems: 'center',
       backgroundColor: theme.colors.primary,
       marginHorizontal: 8,
     },
     wideSoundButton: {
-      width: isIPad ? 65 : 70,
+      width: isDesktop && !isIPad ? 50 : isIPad ? 65 : 70,
     },
     buttonContainer: {
       flexDirection: 'row',
@@ -208,15 +236,15 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       paddingHorizontal: 16,
       paddingBottom: 16,
       marginBottom: Platform.OS === 'ios' && !isIPad ? 30 : 16,
-      marginTop: Platform.OS === 'ios' ? (isIPad ? 80 : 20) : 0,
+      marginTop: isDesktop && !isIPad ? 30 : Platform.OS === 'ios' ? (isIPad ? 60 : 20) : 0,
     },
     wideButtonContainer: {
-      paddingHorizontal: isIPad ? 24 : 32,
+      paddingHorizontal: isDesktop && !isIPad ? 24 : isIPad ? 24 : 32,
       ...(isIPad ? {
         position: 'absolute',
         backgroundColor: 'transparent',
         borderTopWidth: 0,
-        top: '80%',
+        top: '82%',
         alignSelf: 'center',
         justifyContent: 'center',
         width: '100%',
@@ -225,22 +253,40 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
         flexDirection: 'row',
         alignItems: 'center',
       } : {}),
+      ...(isDesktop && !isIPad ? {
+        position: 'absolute',
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+        bottom: 80,
+        left: '22%',
+        transform: [{translateX: -100}],
+        alignSelf: 'flex-start',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        width: 'auto',
+        zIndex: 1000,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+      } : {}),
     },
     button: {
       flex: 0,
-      width: isIPad ? 180 : 200,
-      paddingVertical: isIPad ? 14 : 16,
+      width: isDesktop && !isIPad ? 140 : isIPad ? 180 : 200,
+      paddingVertical: isDesktop && !isIPad ? 10 : isIPad ? 14 : 16,
       borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.success,
     },
     wideButton: {
-      width: isIPad ? 180 : 200,
+      width: isDesktop && !isIPad ? 150 : isIPad ? 180 : 200,
     },
     buttonText: {
       color: '#fff',
-      fontSize: isDesktop ? 24 : isIPad ? 20 : 16,
+      fontSize: isDesktop ? 18 : isIPad ? 20 : 16,
       fontWeight: '600',
     },
     completedContainer: {
@@ -258,15 +304,15 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       elevation: 3,
     },
     completedText: {
-      fontSize: isDesktop ? 32 : isIPad ? 28 : 24,
+      fontSize: isDesktop ? 26 : isIPad ? 28 : 24,
       fontWeight: '700',
       marginBottom: 24,
       textAlign: 'center',
       color: theme.colors.primary,
     },
     statsText: {
-      fontSize: isDesktop ? 20 : isIPad ? 18 : 16,
-      lineHeight: isDesktop ? 32 : isIPad ? 28 : 24,
+      fontSize: isDesktop ? 16 : isIPad ? 18 : 16,
+      lineHeight: isDesktop ? 26 : isIPad ? 28 : 24,
       color: theme.colors.textSecondary,
       marginBottom: 24,
       textAlign: 'center',
@@ -290,13 +336,13 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       elevation: 1,
     },
     statValue: {
-      fontSize: isDesktop ? 28 : isIPad ? 24 : 20,
+      fontSize: isDesktop ? 22 : isIPad ? 24 : 20,
       fontWeight: '700',
       color: theme.colors.primary,
       marginBottom: 4,
     },
     statLabel: {
-      fontSize: isDesktop ? 16 : isIPad ? 14 : 12,
+      fontSize: isDesktop ? 14 : isIPad ? 14 : 12,
       color: theme.colors.textSecondary,
     },
     learnMoreButton: {
@@ -311,29 +357,29 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     },
     learnMoreText: {
       color: '#fff',
-      fontSize: isDesktop ? 20 : isIPad ? 18 : 16,
+      fontSize: isDesktop ? 16 : isIPad ? 18 : 16,
       fontWeight: '600',
       marginLeft: 8,
     },
     pinyinText: {
-      fontSize: isDesktop ? 24 : isIPad ? 20 : 14,
-      lineHeight: isDesktop ? 32 : isIPad ? 28 : 18,
+      fontSize: isMacDevice ? 16 : isDesktop ? 18 : isIPad ? 20 : 14,
+      lineHeight: isMacDevice ? 22 : isDesktop ? 26 : isIPad ? 28 : 18,
       marginBottom: 6,
     },
     widePinyinText: {
-      fontSize: isDesktop ? 28 : isIPad ? 24 : 20,
-      lineHeight: isDesktop ? 36 : isIPad ? 32 : 28,
+      fontSize: isMacDevice ? 18 : isDesktop ? 20 : isIPad ? 24 : 20,
+      lineHeight: isMacDevice ? 26 : isDesktop ? 28 : isIPad ? 32 : 28,
     },
     levelTitle: {
-      fontSize: isDesktop ? 24 : isIPad ? 20 : 16,
+      fontSize: isDesktop ? 18 : isIPad ? 20 : 16,
       fontWeight: '600',
       color: '#333',
     },
     desktopLevelTitle: {
-      fontSize: isDesktop ? 28 : isIPad ? 24 : 20,
+      fontSize: isDesktop ? 20 : isIPad ? 24 : 20,
     },
     scoreText: {
-      fontSize: isDesktop ? 24 : isIPad ? 20 : 16,
+      fontSize: isDesktop ? 18 : isIPad ? 20 : 16,
       fontWeight: '600',
       color: '#333',
     },
@@ -639,6 +685,68 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                   isReviewMode={state.isReviewMode}
                   isDesktop={isDesktop || isIPad}
                 />
+                
+                {/* 使用更明确的Mac判断条件 */}
+                {isMacDevice && (
+                  <View style={{
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    paddingVertical: 16,
+                    marginTop: 10,
+                    marginBottom: 0,
+                    backgroundColor: 'rgba(255,255,255,0.98)',
+                    borderRadius: 12,
+                    borderWidth: 2,
+                    borderColor: '#4CAF50',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    zIndex: 5000,
+                    width: '100%',
+                    position: 'absolute',
+                    bottom: -200, // 从 -110 调整为 -200，向下移动更多距离
+                  }}>
+                    <TouchableOpacity
+                      style={[
+                        screenStyles.soundButton, 
+                        { 
+                          width: 60, 
+                          paddingVertical: 12,
+                          borderWidth: 1,
+                          borderColor: 'rgba(255,255,255,0.5)',
+                          marginRight: 16
+                        }
+                      ]}
+                      onPress={() => state.currentWord && playSound(state.currentWord.character)}
+                    >
+                      <MaterialCommunityIcons
+                        name="volume-high"
+                        size={28}
+                        color={theme.colors.textLight}
+                      />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[
+                        screenStyles.button, 
+                        { 
+                          backgroundColor: theme.colors.success, 
+                          width: 140, 
+                          paddingVertical: 12,
+                          borderWidth: 1,
+                          borderColor: 'rgba(255,255,255,0.5)'
+                        }
+                      ]}
+                      onPress={() => handleComplete(true)}
+                    >
+                      <Text style={[screenStyles.buttonText, { color: theme.colors.textLight, fontSize: 18, fontWeight: 'bold' }]}>
+                        {i18n.t('next')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
               
               <View style={[
@@ -690,14 +798,16 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                       </Text>
                       <Text style={[
                         screenStyles.meaningText,
-                        (isDesktop || isIPad) && screenStyles.wideMeaningText
+                        (isDesktop || isIPad) && screenStyles.wideMeaningText,
+                        isMacDevice && { marginTop: -3, marginBottom: 3 }
                       ]}>
                         {state.currentWord.meanings.zh.join('\n')}
                       </Text>
                       {state.currentWord.words && state.currentWord.words.length > 0 && (
                         <Text style={[
                           screenStyles.wordsText,
-                          (isDesktop || isIPad) && screenStyles.wideWordsText
+                          (isDesktop || isIPad) && screenStyles.wideWordsText,
+                          isMacDevice && { marginTop: -3 }
                         ]}>
                           {i18n.t('commonWords')}：{state.currentWord.words.join('、')}
                         </Text>
@@ -706,7 +816,8 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                   ) : (
                     <Text style={[
                       screenStyles.meaningText,
-                      (isDesktop || isIPad) && screenStyles.wideMeaningText
+                      (isDesktop || isIPad) && screenStyles.wideMeaningText,
+                      isMacDevice && { marginTop: -3 }
                     ]}>
                       {state.currentWord.meanings.en.join('\n')}
                     </Text>
@@ -714,31 +825,34 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                 </ScrollView>
               </View>
             </View>
-
-            <View style={[
-              screenStyles.buttonContainer,
-              (isDesktop || isIPad) && screenStyles.wideButtonContainer
-            ]}>
-              <TouchableOpacity
-                style={[screenStyles.soundButton, (isDesktop || isIPad) && screenStyles.wideSoundButton]}
-                onPress={() => state.currentWord && playSound(state.currentWord.character)}
-              >
-                <MaterialCommunityIcons
-                  name="volume-high"
-                  size={(isDesktop || isIPad) ? (isIPad ? 22 : 24) : 20}
-                  color={theme.colors.textLight}
-                />
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[screenStyles.button, { backgroundColor: theme.colors.success }]}
-                onPress={() => handleComplete(true)}
-              >
-                <Text style={[screenStyles.buttonText, { color: theme.colors.textLight }]}>
-                  {i18n.t('next')}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            
+            {/* 仅对非Mac设备显示原有的按钮 */}
+            {!isMacDevice && (
+              <View style={[
+                screenStyles.buttonContainer,
+                isIPad && screenStyles.wideButtonContainer
+              ]}>
+                <TouchableOpacity
+                  style={[screenStyles.soundButton, isIPad && screenStyles.wideSoundButton]}
+                  onPress={() => state.currentWord && playSound(state.currentWord.character)}
+                >
+                  <MaterialCommunityIcons
+                    name="volume-high"
+                    size={isIPad ? 22 : 20}
+                    color={theme.colors.textLight}
+                  />
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[screenStyles.button, { backgroundColor: theme.colors.success }]}
+                  onPress={() => handleComplete(true)}
+                >
+                  <Text style={[screenStyles.buttonText, { color: theme.colors.textLight }]}>
+                    {i18n.t('next')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </>
         ) : (
           <View style={screenStyles.completedContainer}>

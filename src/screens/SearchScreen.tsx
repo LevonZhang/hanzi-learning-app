@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Platform,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
@@ -22,22 +23,43 @@ interface SearchResult {
 }
 
 export const SearchScreen = ({ navigation }: any) => {
-  const { isIPad } = useResponsive();
+  const { isIPad, isDesktop } = useResponsive();
+  const { width: windowWidth } = useWindowDimensions();
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [canSearch, setCanSearch] = useState(false);
   const isAlertShowing = useRef(false);
+  
+  // 添加Mac设备检测
+  const isMacOS = Platform.OS === 'macos' || (Platform.OS === 'web' && navigator?.platform?.includes('Mac'));
+  // 兼容新旧版本 React Native 的 Mac Catalyst 检测
+  const isMacCatalyst = Platform.OS === 'ios' && (
+    Platform.isMacCatalyst || // React Native 0.64+
+    (isIPad && windowWidth > 1024) // 兼容旧版本 RN
+  );
+  const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
+  
+  // 调试输出
+  console.log('搜索页设备信息:', { 
+    Platform: Platform.OS, 
+    isDesktop, 
+    isIPad, 
+    isMacOS,
+    isMacCatalyst,
+    isMacDevice,
+    windowWidth
+  });
 
-  // Create dynamic styles based on isIPad
+  // Create dynamic styles based on device type
   const dynamicStyles = {
     searchInput: {
-      fontSize: isIPad ? 28 : 16,
+      fontSize: isMacDevice ? 14 : isIPad ? 28 : 16,
     },
     characterText: {
-      fontSize: isIPad ? 44 : 24,
+      fontSize: isMacDevice ? 20 : isIPad ? 44 : 24,
     },
     pinyinText: {
-      fontSize: isIPad ? 28 : 16,
+      fontSize: isMacDevice ? 14 : isIPad ? 28 : 16,
     },
   };
 
@@ -129,7 +151,11 @@ export const SearchScreen = ({ navigation }: any) => {
           styles.searchInputContainer,
           { paddingVertical: isIPad ? 15 : Platform.OS === 'ios' ? 10 : 4 }
         ]}>
-          <MaterialCommunityIcons name="magnify" size={isIPad ? 32 : 24} color="#666" />
+          <MaterialCommunityIcons 
+            name="magnify" 
+            size={isMacDevice ? 20 : isIPad ? 32 : 24} 
+            color="#666" 
+          />
           <TextInput
             style={[styles.searchInput, dynamicStyles.searchInput]}
             value={searchText}
@@ -142,7 +168,11 @@ export const SearchScreen = ({ navigation }: any) => {
               onPress={() => handleSearch('')}
               style={styles.clearButton}
             >
-              <MaterialCommunityIcons name="close-circle" size={isIPad ? 28 : 20} color="#999" />
+              <MaterialCommunityIcons 
+                name="close-circle" 
+                size={isMacDevice ? 16 : isIPad ? 28 : 20} 
+                color="#999" 
+              />
             </TouchableOpacity>
           )}
         </View>
@@ -154,7 +184,7 @@ export const SearchScreen = ({ navigation }: any) => {
         keyExtractor={(item) => item.character}
         contentContainerStyle={[
           styles.resultsList,
-          { padding: isIPad ? 20 : 15 }
+          { padding: isMacDevice ? 12 : isIPad ? 20 : 15 }
         ]}
         keyboardShouldPersistTaps="handled"
       />

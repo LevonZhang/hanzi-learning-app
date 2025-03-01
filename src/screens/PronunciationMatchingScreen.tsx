@@ -24,10 +24,24 @@ import { useResponsive } from '../hooks/useResponsive';
 import SubscriptionService from '../services/SubscriptionService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
-const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.6;
-const BUBBLE_SIZE = Math.min(SCREEN_WIDTH / 6, SCREEN_HEIGHT / 5);
-const HORIZONTAL_GAP = 5;
+const GAME_AREA_WIDTH = SCREEN_WIDTH - 10; // 进一步减少边距
+const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.9; // 进一步增加游戏区域高度
+
+// 更新气泡尺寸计算，减小气泡尺寸，增加数量
+const getBubbleSize = (isDesktop: boolean, isIPad: boolean, isMacOS: boolean, isMacCatalyst: boolean) => {
+  const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
+  // 进一步减小气泡尺寸以容纳更多
+  if (isMacDevice) return Math.min(SCREEN_WIDTH / 11, SCREEN_HEIGHT / 11);
+  if (isIPad) return Math.min(SCREEN_WIDTH / 8, SCREEN_HEIGHT / 8);
+  return Math.min(SCREEN_WIDTH / 7, SCREEN_HEIGHT / 8);
+};
+const BUBBLE_SIZE = getBubbleSize(
+  Platform.OS === 'web' || Platform.OS === 'macos', 
+  Platform.OS === 'ios' && Dimensions.get('window').width > 768,
+  Platform.OS === 'macos' || (Platform.OS === 'web' && navigator?.platform?.includes('Mac')),
+  Platform.OS === 'ios' && (Platform.isMacCatalyst || (Platform.OS === 'ios' && Dimensions.get('window').width > 1024))
+);
+const HORIZONTAL_GAP = 0;
 const VERTICAL_OVERLAP = -8;
 const TOP_MARGIN = 20;
 const MAX_HEIGHT = GAME_AREA_HEIGHT * 0.4;
@@ -113,6 +127,26 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   // 添加喇叭动画
   const speakerAnim = useRef(new Animated.Value(0)).current;
 
+  // 添加完整的Mac设备检测
+  const isMacOS = Platform.OS === 'macos' || (Platform.OS === 'web' && navigator?.platform?.includes('Mac'));
+  // 兼容新旧版本 React Native 的 Mac Catalyst 检测
+  const isMacCatalyst = Platform.OS === 'ios' && (
+    Platform.isMacCatalyst || // React Native 0.64+
+    (isIPad && windowWidth > 1024) // 兼容旧版本 RN
+  );
+  const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
+  
+  // 调试输出
+  console.log('发音游戏页设备信息:', { 
+    Platform: Platform.OS, 
+    isDesktop, 
+    isIPad, 
+    isMacOS,
+    isMacCatalyst,
+    isMacDevice,
+    windowWidth
+  });
+
   // 初始化气泡旋转动画
   useEffect(() => {
     bubbles.forEach(bubble => {
@@ -172,28 +206,70 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     return counts[level];
   };
 
-  // 生成分层的气球位置
+  // 完全重写气球位置生成算法，更好利用空间
   const generateLayeredPositions = (totalBubbles: number) => {
     const positions: { x: number; y: number }[] = [];
-    const bubblesPerRow = isDesktop ? 6 : isIPad ? 4 : 3;
-    const effectiveBubbleSize = BUBBLE_SIZE + 10;
+    
+    // 根据设备类型调整每行气泡数量
+    const bubblesPerRow = isMacDevice ? 8 : isDesktop ? 7 : isIPad ? 6 : 4;
+    
+    // 使用更精确的宽度计算 - 参考BubbleMatchingScreen
+    let gameAreaWidth = windowWidth;
+    
+    // 减少边距以充分利用屏幕空间
+    if (isDesktop) {
+      gameAreaWidth = windowWidth - 20;
+    } else if (isIPad) {
+      gameAreaWidth = windowWidth - 20;
+    } else {
+      gameAreaWidth = windowWidth - 10;
+    }
+    
+    // 计算每个气泡的有效尺寸(包括间距)
+    const effectiveBubbleSize = BUBBLE_SIZE + (isMacDevice ? 6 : 10);
+    
     const rows = Math.ceil(totalBubbles / bubblesPerRow);
     
-    // 计算游戏区域的宽度和起始位置
-    const gameAreaWidth = isDesktop ? 1200 : windowWidth - (isIPad ? 48 : 20);
+    // 确保有足够的空间放置气泡
     const bubbleAreaWidth = Math.min(bubblesPerRow * effectiveBubbleSize, gameAreaWidth);
+    
+    // 计算水平偏移量使所有行居中
     const startX = (gameAreaWidth - bubbleAreaWidth) / 2;
-    const startY = 20;
-    const verticalGap = BUBBLE_SIZE - 10;
+    
+    // 设置起始Y坐标和行间距 - 减少垂直间距以容纳更多气泡
+    const startY = isMacDevice ? 0 : 10;
+    const verticalGap = BUBBLE_SIZE * (isMacDevice ? 0.85 : 0.9);
+    
+    console.log('气泡布局参数:', {
+      gameAreaWidth,
+      bubbleAreaWidth,
+      startX,
+      bubblesPerRow,
+      BUBBLE_SIZE,
+      effectiveBubbleSize,
+      totalBubbles,
+      verticalGap
+    });
 
+    // 为每一行创建气泡位置
     for (let row = 0; row < rows; row++) {
       const y = startY + row * verticalGap;
       const bubblesInThisRow = Math.min(bubblesPerRow, totalBubbles - row * bubblesPerRow);
       
-      // 计算每一行的实际宽度和起始位置
+      // 计算当前行的实际宽度
       const rowWidth = bubblesInThisRow * effectiveBubbleSize;
-      const rowStartX = (gameAreaWidth - rowWidth) / 2;
       
+      // 计算当前行的起始X坐标，使行居中
+      const rowStartX = startX + (bubbleAreaWidth - rowWidth) / 2;
+      
+      console.log(`第${row+1}行:`, {
+        bubblesInThisRow,
+        rowWidth,
+        rowStartX,
+        y
+      });
+      
+      // 为这一行的每个气泡创建位置
       for (let col = 0; col < bubblesInThisRow; col++) {
         const x = rowStartX + col * effectiveBubbleSize;
         positions.push({ x, y });
@@ -792,7 +868,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   }, [score]);
 
   // 计算游戏区域尺寸
-  const bubblesPerRow = isDesktop ? 6 : isIPad ? 4 : 3;
+  const bubblesPerRow = isDesktop ? 7 : isIPad ? 5 : 4;
   const gameAreaWidth = windowWidth - (isDesktop || isIPad ? 48 : 20);
   const bubbleSpacing = HORIZONTAL_GAP;
   const availableWidth = gameAreaWidth - (bubblesPerRow + 1) * bubbleSpacing;
@@ -804,32 +880,41 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   // 动态样式
   const dynamicStyles = {
     container: {
-      padding: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 16,
+      padding: isMacDevice ? 10 : Platform.OS === 'macos' ? 16 : isIPad ? 16 : 10,
     },
     levelTitle: {
-      fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 18,
+      fontSize: isMacDevice ? 18 : Platform.OS === 'macos' ? 28 : isIPad ? 24 : 18,
     },
     desktopLevelTitle: {
-      fontSize: Platform.OS === 'macos' ? 28 : isIPad ? 24 : 20,
+      fontSize: isMacDevice ? 20 : Platform.OS === 'macos' ? 32 : isIPad ? 28 : 20,
     },
     scoreText: {
-      fontSize: Platform.OS === 'macos' ? 22 : isIPad ? 19 : 16,
+      fontSize: isMacDevice ? 16 : Platform.OS === 'macos' ? 24 : isIPad ? 22 : 16,
     },
     bubbleText: {
-      fontSize: Platform.OS === 'macos' ? 32 : isIPad ? 26 : 22,
+      fontSize: isMacDevice ? 26 : Platform.OS === 'macos' ? 46 : isIPad ? 40 : 22,
     },
     currentCharText: {
-      fontSize: Platform.OS === 'macos' ? 42 : isIPad ? 32 : 28,
+      fontSize: isMacDevice ? 28 : Platform.OS === 'macos' ? 46 : isIPad ? 40 : 28,
     },
     hintText: {
-      fontSize: Platform.OS === 'macos' ? 48 : isIPad ? 36 : 32,
+      fontSize: isMacDevice ? 30 : Platform.OS === 'macos' ? 48 : isIPad ? 36 : 32,
     },
     instructionsText: {
-      fontSize: Platform.OS === 'macos' ? 20 : isIPad ? 16 : 13,
-      lineHeight: Platform.OS === 'macos' ? 28 : isIPad ? 22 : 18,
+      fontSize: isMacDevice ? 14 : Platform.OS === 'macos' ? 20 : isIPad ? 16 : 13,
+      lineHeight: isMacDevice ? 20 : Platform.OS === 'macos' ? 28 : isIPad ? 22 : 18,
     },
     pointsText: {
-      fontSize: Platform.OS === 'macos' ? 24 : isIPad ? 20 : 16,
+      fontSize: isMacDevice ? 16 : Platform.OS === 'macos' ? 24 : isIPad ? 20 : 16,
+    },
+    headerBackButton: {
+      fontSize: isMacDevice ? 20 : Platform.OS === 'macos' ? 32 : isIPad ? 28 : 24,
+    },
+    hintButton: {
+      fontSize: isMacDevice ? 20 : Platform.OS === 'macos' ? 32 : isIPad ? 28 : 24,
+    },
+    soundButtonIcon: {
+      fontSize: isMacDevice ? 28 : Platform.OS === 'macos' ? 40 : isIPad ? 36 : 28,
     }
   };
 
@@ -844,79 +929,100 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       outputRange: ['-5deg', '5deg']
     }) || '0deg';
 
+    // 修改气泡渲染方式
     return (
       <Animated.View
         key={bubble.id}
         style={[
-          styles.bubble,
           {
+            width: BUBBLE_SIZE,
+            height: BUBBLE_SIZE,
+            position: 'absolute',
+            left: bubble.position.x,
+            top: bubble.position.y,
             transform: [
               { scale: bubble.scale },
               { translateY: floatingTransform },
               { rotate: rotation }
             ],
             opacity: bubble.opacity,
-            position: 'absolute',
-            left: bubble.position.x,
-            top: bubble.position.y
-          },
+            justifyContent: 'center',
+            alignItems: 'center'
+          }
         ]}
       >
         <TouchableOpacity
           onPress={() => handleBubblePress(bubble)}
-          style={styles.bubbleContent}
+          style={{
+            width: '100%',
+            height: '100%',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
           activeOpacity={0.8}
         >
-          <LinearGradient
-            colors={bubble.colors}
-            style={styles.bubbleGradient}
-            start={{ x: 0.2, y: 0.2 }}
-            end={{ x: 0.8, y: 0.8 }}
-          >
-            {/* 主反光效果 - 右上角 */}
+          <View style={[
+            styles.bubbleShadow, 
+            {
+              width: BUBBLE_SIZE * 0.95,
+              height: BUBBLE_SIZE * 0.95,
+              borderRadius: BUBBLE_SIZE / 2
+            }
+          ]}>
             <LinearGradient
-              colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0)']}
-              style={[styles.reflection, styles.mainReflection]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-            {/* 次要反光效果 - 左下角 */}
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
-              style={[styles.reflection, styles.secondaryReflection]}
-              start={{ x: 1, y: 1 }}
-              end={{ x: 0, y: 0 }}
-            />
-            {/* 彩虹光晕效果 */}
-            <LinearGradient
-              colors={[
-                'rgba(255, 255, 255, 0.4)',
-                'rgba(255, 182, 193, 0.2)',
-                'rgba(173, 216, 230, 0.2)',
-                'rgba(255, 255, 255, 0.1)'
+              colors={bubble.colors}
+              style={[
+                styles.bubbleGradient,
+                {
+                  borderRadius: BUBBLE_SIZE / 2
+                }
               ]}
-              style={styles.iridescence}
               start={{ x: 0.2, y: 0.2 }}
               end={{ x: 0.8, y: 0.8 }}
-            />
-            <Text style={[styles.bubbleText, dynamicStyles.bubbleText]}>{bubble.char}</Text>
-          </LinearGradient>
+            >
+              {/* 反光效果 */}
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0)']}
+                style={[styles.reflection, styles.mainReflection]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
+                style={[styles.reflection, styles.secondaryReflection]}
+                start={{ x: 1, y: 1 }}
+                end={{ x: 0, y: 0 }}
+              />
+              <LinearGradient
+                colors={[
+                  'rgba(255, 255, 255, 0.4)',
+                  'rgba(255, 182, 193, 0.2)',
+                  'rgba(173, 216, 230, 0.2)',
+                  'rgba(255, 255, 255, 0.1)'
+                ]}
+                style={styles.iridescence}
+                start={{ x: 0.2, y: 0.2 }}
+                end={{ x: 0.8, y: 0.8 }}
+              />
+              <Text style={[styles.bubbleText, dynamicStyles.bubbleText]}>{bubble.char}</Text>
+            </LinearGradient>
+          </View>
         </TouchableOpacity>
       </Animated.View>
     );
   };
 
   return (
-    <ResponsiveContainer>
-      <View style={[styles.container, dynamicStyles.container]}>
-        <View style={[styles.header, isDesktop && styles.desktopHeader]}>
+    <ResponsiveContainer style={{ width: '100%' }} withPadding={false} useMaxWidth={false}>
+      <View style={[styles.container, { padding: 0, width: '100%' }]}>
+        <View style={[styles.header, isDesktop && styles.desktopHeader, { paddingVertical: isMacDevice ? 4 : 6 }]}>
           <TouchableOpacity
-            style={styles.headerButton}
+            style={[styles.headerButton, { padding: 4 }]}
             onPress={() => navigation.goBack()}
           >
             <MaterialCommunityIcons
               name="arrow-left"
-              size={isDesktop ? 28 : 24}
+              size={dynamicStyles.headerBackButton.fontSize}
               color={theme.colors.textPrimary}
             />
           </TouchableOpacity>
@@ -933,20 +1039,20 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
           </View>
 
           <TouchableOpacity
-            style={styles.headerButton}
+            style={[styles.headerButton, { padding: 4 }]}
             onPress={showHintAnimation}
             disabled={isShowingHint}
           >
             <MaterialCommunityIcons
               name="lightbulb"
-              size={isDesktop ? 28 : 24}
+              size={dynamicStyles.hintButton.fontSize}
               color={isShowingHint ? theme.colors.textSecondary : theme.colors.primary}
             />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.progressSection}>
-          <View style={styles.scoreContainer}>
+        <View style={[styles.progressSection, { paddingVertical: 4, width: '100%' }]}>
+          <View style={[styles.scoreContainer, { marginBottom: 4 }]}>
             <Text style={[styles.scoreText, dynamicStyles.scoreText]}>
               {i18n.t('score', { score })}
             </Text>
@@ -970,22 +1076,50 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
         <View style={[
           styles.gameArea,
           isDesktop && styles.desktopGameArea,
-          isDesktop && { maxWidth: 1200 },
-          !isDesktop && { maxWidth: '100%' }
+          { 
+            width: isDesktop ? '100%' : isIPad ? windowWidth - 20 : windowWidth - 10,
+            alignSelf: 'stretch',
+            paddingHorizontal: 0,
+            paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+            paddingTop: 0
+          }
         ]}>
-          <View style={styles.bubblesContainer}>
+          <View style={[
+            styles.bubblesContainer, 
+            { 
+              width: '100%',
+              height: GAME_AREA_HEIGHT,
+              alignSelf: 'stretch',
+              paddingTop: 0,
+              paddingBottom: 0
+            }
+          ]}>
             {bubbles.map(renderBubble)}
           </View>
 
-          <View style={[styles.targetArea, isDesktop && styles.desktopTargetArea]}>
+          <View style={[
+            styles.targetArea, 
+            isDesktop && styles.desktopTargetArea,
+            { 
+              bottom: Platform.OS === 'ios' ? 100 : 80,
+              width: '100%'
+            }
+          ]}>
             <View style={styles.targetControls}>
               <TouchableOpacity
-                style={[styles.soundButton, isDesktop && styles.desktopSoundButton]}
+                style={[
+                  styles.soundButton, 
+                  isDesktop && styles.desktopSoundButton,
+                  isMacDevice && {
+                    padding: 8,
+                    borderRadius: 18
+                  }
+                ]}
                 onPress={playCurrentCharSound}
               >
                 <MaterialCommunityIcons
                   name="volume-high"
-                  size={isDesktop ? 32 : 28}
+                  size={dynamicStyles.soundButtonIcon.fontSize}
                   color={theme.colors.primary}
                 />
               </TouchableOpacity>
@@ -1002,21 +1136,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f0f8ff',
     width: '100%',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
     width: '100%',
   },
   desktopHeader: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   headerButton: {
     padding: 8,
@@ -1038,33 +1173,38 @@ const styles = StyleSheet.create({
   gameArea: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingBottom: Platform.OS === 'ios' ? 120 : 90,
     width: '100%',
+    alignSelf: 'stretch',
+    paddingBottom: Platform.OS === 'ios' ? 90 : 70,
+    position: 'relative',
   },
   desktopGameArea: {
-    paddingBottom: 140,
+    paddingBottom: 100,
     alignSelf: 'center',
     width: '100%',
-    maxWidth: 1200,
+    maxWidth: '100%', // 移除最大宽度限制
   },
   bubblesContainer: {
     flex: 1,
     position: 'relative',
     width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
   },
   targetArea: {
-    height: 100,
+    height: 90,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 140 : 110,
+    bottom: Platform.OS === 'ios' ? 100 : 80,
     left: 0,
     right: 0,
     width: '100%',
   },
   desktopTargetArea: {
-    height: 120,
-    bottom: 160,
+    height: 100,
+    bottom: 110,
   },
   targetControls: {
     flexDirection: 'row',
@@ -1072,42 +1212,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 20,
     width: '100%',
-  },
-  currentCharContainer: {
-    width: BUBBLE_SIZE - 20,
-    height: BUBBLE_SIZE - 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: (BUBBLE_SIZE - 20) / 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 2,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    backgroundColor: 'transparent',
-  },
-  desktopCurrentCharContainer: {
-    width: BUBBLE_SIZE - 16,
-    height: BUBBLE_SIZE - 16,
-    borderRadius: (BUBBLE_SIZE - 16) / 2,
-  },
-  currentCharText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    textShadowColor: 'rgba(255, 255, 255, 0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    zIndex: 2,
-  },
-  desktopCurrentCharText: {
-    fontSize: 36,
   },
   soundButton: {
     padding: 12,
@@ -1165,12 +1269,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bubbleGradient: {
+  bubbleShadow: {
     width: BUBBLE_SIZE - 4,
     height: BUBBLE_SIZE - 4,
     borderRadius: BUBBLE_SIZE / 2,
-    justifyContent: 'center',
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 2,
@@ -1179,10 +1281,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 6,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+  },
+  bubbleGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: BUBBLE_SIZE / 2,
+    justifyContent: 'center',
+    alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.6)',
-    backgroundColor: 'transparent',
   },
   reflection: {
     position: 'absolute',

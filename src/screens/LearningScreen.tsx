@@ -102,6 +102,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     displayContainer: {
       flex: 1,
       alignItems: 'center',
+      marginTop: Platform.OS === 'ios' && !isIPad && !isMacDevice ? -30 : 0, // 针对iPhone设备，使写字板靠屏幕上方
     },
     wideDisplayContainer: {
       flexDirection: 'row',
@@ -156,10 +157,10 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       padding: isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 20 : 8,
       borderRadius: 8,
       backgroundColor: '#fff',
-      marginTop: isDesktop ? 0 : isIPad ? -20 : -70,
-      height: isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '47%',
+      marginTop: isDesktop ? 0 : isIPad ? -20 : (Platform.OS === 'ios' && !isIPad && !isMacDevice ? -85 : -70), // iPhone设备降低上边距，从-100改为-85
+      height: isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : (Platform.OS === 'ios' && !isIPad && !isMacDevice ? '52%' : '47%'), // 增加iPhone设备高度
       maxHeight: Platform.OS === 'ios' ? 
-        (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '47%') : 
+        (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : (Platform.OS === 'ios' && !isIPad && !isMacDevice ? '52%' : '47%')) : 
         (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '45%'),
       ...Platform.select({
         ios: {
@@ -235,8 +236,8 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       justifyContent: 'center',
       paddingHorizontal: 16,
       paddingBottom: 16,
-      marginBottom: Platform.OS === 'ios' && !isIPad ? 30 : 16,
-      marginTop: isDesktop && !isIPad ? 30 : Platform.OS === 'ios' ? (isIPad ? 60 : 20) : 0,
+      marginBottom: Platform.OS === 'ios' && !isIPad ? 50 : 16,
+      marginTop: isDesktop && !isIPad ? 30 : Platform.OS === 'ios' ? (isIPad ? 60 : 30) : 0,
     },
     wideButtonContainer: {
       paddingHorizontal: isDesktop && !isIPad ? 24 : isIPad ? 24 : 32,

@@ -142,8 +142,8 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             box-sizing: border-box;
           }
           #character-target-div {
-            width: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 200}px;
-            height: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 200}px;
+            width: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220}px;
+            height: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220}px;
             background-color: transparent;
             background-image: url('data:image/svg+xml;utf8,\
               <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">\
@@ -181,8 +181,8 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             }
             
             writer = HanziWriter.create('character-target-div', character, {
-              width: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 200},
-              height: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 200},
+              width: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220},
+              height: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220},
               padding: ${shouldUseDesktopLayout ? (isIPad ? 5 : isDesktop ? 5 : 5) : 3},
               showOutline: true,
               strokeAnimationSpeed: 1,
@@ -277,15 +277,15 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     container: {
       flex: 1,
       position: 'relative',
-      marginTop: shouldUseDesktopLayout ? (isMacDevice ? 20 : isIPad ? 50 : 0) : -30,
+      marginTop: shouldUseDesktopLayout ? (isMacDevice ? 20 : isIPad ? 50 : 0) : 0,
       alignItems: 'center',
       width: '100%',
     },
     displayContainer: {
       width: '100%',
-      aspectRatio: 1,
+      aspectRatio: shouldUseDesktopLayout ? 1 : 0.9,
       maxWidth: shouldUseDesktopLayout ? (isIPad ? 360 : isMacDevice ? 290 : 330) : 280,
-      maxHeight: shouldUseDesktopLayout ? (isIPad ? 360 : isMacDevice ? 290 : 330) : 280,
+      maxHeight: shouldUseDesktopLayout ? (isIPad ? 360 : isMacDevice ? 290 : 330) : 252,
       alignSelf: 'center',
       position: 'relative',
       marginLeft: 0,
@@ -296,11 +296,12 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       height: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 280 : 320) : width - 80,
       backgroundColor: 'transparent',
       overflow: 'visible',
+      alignSelf: 'center',
     },
     buttonContainer: {
       width: '100%',
       paddingHorizontal: shouldUseDesktopLayout ? (isIPad ? 20 : isMacDevice ? 14 : 16) : 10,
-      marginTop: shouldUseDesktopLayout ? (isMacDevice ? 30 : isIPad ? 70 : 60) : -20,
+      marginTop: shouldUseDesktopLayout ? (isMacDevice ? 30 : isIPad ? 70 : 60) : -5,
       marginLeft: 0,
     },
     buttonRow: {

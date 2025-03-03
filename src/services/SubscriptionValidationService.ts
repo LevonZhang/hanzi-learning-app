@@ -16,6 +16,10 @@ interface SubscriptionData {
   isTrialPeriod?: boolean;
   isInIntroOfferPeriod?: boolean;
   webOrderLineItemId?: string;
+  isInGracePeriod?: boolean;
+  gracePeriodExpiresDate?: Date;
+  autoRenewStatus?: boolean;
+  expirationIntent?: string;
 }
 
 interface VerificationResponse {
@@ -76,10 +80,18 @@ class SubscriptionValidationService {
     let retryCount = 0;
     
     try {
-      if (ENV.IS_SANDBOX) {
-        logger.subscription('Development mode: returning mock response');
-        return this.getMockResponse(transactionId);
-      }
+      // 暂时注释掉，强制使用真实验证
+      // if (ENV.IS_SANDBOX) {
+      //   logger.subscription('Development mode: returning mock response');
+      //   return this.getMockResponse(transactionId);
+      // }
+
+      // 添加调试日志
+      logger.subscription('开始验证交易，不使用模拟数据', {
+        environment: isProduction ? 'production' : 'sandbox',
+        transactionId,
+        timestamp: new Date().toISOString()
+      });
 
       // 构建验证请求数据
       const requestData = {
@@ -191,7 +203,11 @@ class SubscriptionValidationService {
     // 检查是否是自动续订订阅
     const pendingRenewal = response.pending_renewal_info?.[0];
     const isAutoRenewActive = pendingRenewal?.auto_renew_status === '1';
-
+    
+    // 处理宽限期信息
+    const expirationIntent = pendingRenewal?.expiration_intent;
+    const isInBillingRetryPeriod = expirationIntent === '1'; // 1表示由于支付问题无法续期
+    
     // 构建交易信息
     const transaction = {
       originalTransactionId: latestReceipt.original_transaction_id,
@@ -203,7 +219,13 @@ class SubscriptionValidationService {
       isInIntroOfferPeriod: latestReceipt.is_in_intro_offer_period === 'true',
       webOrderLineItemId: latestReceipt.web_order_line_item_id,
       isAutoRenewActive,
-      environment: response.environment.toLowerCase()
+      environment: response.environment.toLowerCase(),
+      expirationIntent,
+      isInBillingRetryPeriod,
+      // 在宽限期中，设置默认宽限期为到期后16天
+      gracePeriodExpiresDate: isInBillingRetryPeriod ? 
+        new Date(new Date(parseInt(latestReceipt.expires_date_ms)).getTime() + 16 * 24 * 60 * 60 * 1000) : 
+        undefined
     };
 
     logger.subscription('Processed verification response:', {
@@ -215,7 +237,10 @@ class SubscriptionValidationService {
       isTrialPeriod: transaction.isTrialPeriod,
       isInIntroOfferPeriod: transaction.isInIntroOfferPeriod,
       isAutoRenewActive: transaction.isAutoRenewActive,
-      environment: transaction.environment
+      environment: transaction.environment,
+      expirationIntent: transaction.expirationIntent,
+      isInBillingRetryPeriod: transaction.isInBillingRetryPeriod,
+      gracePeriodExpiresDate: transaction.gracePeriodExpiresDate?.toISOString()
     });
 
     return {
@@ -257,9 +282,22 @@ class SubscriptionValidationService {
       return true;
     }
 
+    // 检查是否在宽限期内
+    const now = new Date();
+    if (transaction.isInBillingRetryPeriod && transaction.gracePeriodExpiresDate) {
+      const gracePeriodExpiry = new Date(transaction.gracePeriodExpiresDate);
+      if (now < gracePeriodExpiry) {
+        logger.subscription('Subscription in grace period', {
+          gracePeriodExpiresDate: gracePeriodExpiry.toISOString(),
+          currentDate: now.toISOString(),
+          timeUntilGraceExpiration: Math.round((gracePeriodExpiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) + ' days'
+        });
+        return true;
+      }
+    }
+
     // 检查订阅是否过期
     const expirationDate = new Date(transaction.expirationDate);
-    const now = new Date();
     const isActive = now < expirationDate;
     
     logger.subscription('Subscription status check', {
@@ -269,7 +307,9 @@ class SubscriptionValidationService {
       productId: transaction.productId,
       environment: ENV.IS_SANDBOX ? 'sandbox' : 'production',
       timeUntilExpiration: Math.round((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) + ' days',
-      isAutoRenewActive: transaction.isAutoRenewActive
+      isAutoRenewActive: transaction.isAutoRenewActive,
+      expirationIntent: transaction.expirationIntent,
+      isInBillingRetryPeriod: transaction.isInBillingRetryPeriod
     });
     
     return isActive;
@@ -289,7 +329,11 @@ class SubscriptionValidationService {
       isTrialPeriod: transactionInfo.isTrialPeriod,
       isInIntroOfferPeriod: transactionInfo.isInIntroOfferPeriod,
       webOrderLineItemId: transactionInfo.webOrderLineItemId,
-      jws: transactionInfo.jws
+      jws: transactionInfo.jws,
+      isInGracePeriod: transactionInfo.isInBillingRetryPeriod,
+      gracePeriodExpiresDate: transactionInfo.gracePeriodExpiresDate,
+      autoRenewStatus: transactionInfo.isAutoRenewActive,
+      expirationIntent: transactionInfo.expirationIntent
     };
   }
 }

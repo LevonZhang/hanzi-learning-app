@@ -20,6 +20,10 @@ interface SubscriptionData {
   gracePeriodExpiresDate?: Date;
   autoRenewStatus?: boolean;
   expirationIntent?: string;
+  offerType?: number;
+  purchaseToken?: string;
+  packageName?: string;
+  paymentState?: number;
 }
 
 interface VerificationResponse {
@@ -80,113 +84,83 @@ class SubscriptionValidationService {
     let retryCount = 0;
     
     try {
-      // 暂时注释掉，强制使用真实验证
-      // if (ENV.IS_SANDBOX) {
-      //   logger.subscription('Development mode: returning mock response');
-      //   return this.getMockResponse(transactionId);
-      // }
-
       // 添加调试日志
-      logger.subscription('开始验证交易，不使用模拟数据', {
-        environment: isProduction ? 'production' : 'sandbox',
-        transactionId,
-        timestamp: new Date().toISOString()
-      });
-
-      // 构建验证请求数据
-      const requestData = {
-        'receipt-data': jws,
-        'password': ENV.APP_SHARED_SECRET,
-        'exclude-old-transactions': false // 包含所有历史交易
-      };
-
-      // 记录验证请求详情
-      logger.subscription('Starting transaction verification:', {
+      logger.subscription('开始验证交易', {
         environment: isProduction ? 'production' : 'sandbox',
         transactionId,
         hasJws: !!jws,
-        jwsLength: jws?.length || 0
+        jwsLength: jws?.length || 0,
+        timestamp: new Date().toISOString()
       });
 
-      while (retryCount < this.MAX_RETRIES) {
-        try {
-          const verificationUrl = isProduction ? 
-            CONSTANTS.PROD_VERIFICATION_URL : 
-            CONSTANTS.SANDBOX_VERIFICATION_URL;
-
-          const response = await axios.post<VerificationResponse>(verificationUrl, requestData, {
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            timeout: 30000
-          });
-
-          // 检查响应状态
-          if (response.data.status === 21007) {
-            // 生产环境收据被发送到沙箱环境，重试沙箱验证
-            logger.subscription('Production receipt sent to sandbox, retrying with sandbox URL');
-            const sandboxResponse = await axios.post<VerificationResponse>(
-              CONSTANTS.SANDBOX_VERIFICATION_URL,
-              requestData,
-              {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 30000
-              }
-            );
-            return this.processVerificationResponse(sandboxResponse.data, transactionId);
-          }
-
-          if (response.data.status === 21008) {
-            // 沙箱收据被发送到生产环境，重试生产验证
-            logger.subscription('Sandbox receipt sent to production, retrying with production URL');
-            const prodResponse = await axios.post<VerificationResponse>(
-              CONSTANTS.PROD_VERIFICATION_URL,
-              requestData,
-              {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 30000
-              }
-            );
-            return this.processVerificationResponse(prodResponse.data, transactionId);
-          }
-
-          // 处理其他状态码
-          if (response.data.status !== 0) {
-            throw new Error(`Receipt validation failed with status ${response.data.status}`);
-          }
-
-          // 验证 bundle ID
-          if (response.data.receipt.bundle_id !== this.BUNDLE_ID) {
-            throw new Error('Bundle ID mismatch');
-          }
-
-          return this.processVerificationResponse(response.data, transactionId);
-
-        } catch (error) {
-          retryCount++;
-          if (retryCount === this.MAX_RETRIES) {
-            throw error;
-          }
-          await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
-        }
-      }
-
-    } catch (error) {
-      logger.error('Transaction verification failed:', {
-        error,
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        environment: isProduction ? 'production' : 'sandbox',
-        retryCount,
-        transactionId
+      // 验证iOS交易
+      return await this.verifyIosTransaction(transactionId, jws, isProduction, retryCount);
+    } catch (error: any) {
+      logger.error('验证交易失败:', {
+        error: error.message,
+        stack: error.stack,
+        transactionId,
+        retryCount
       });
-      
-      if (ENV.IS_SANDBOX) {
-        logger.subscription('Development mode: returning mock response after error');
-        return this.getMockResponse(transactionId);
-      }
-      
       throw error;
     }
+  }
+
+  // iOS交易验证
+  private async verifyIosTransaction(transactionId: string, jws: string, isProduction: boolean, retryCount: number): Promise<any> {
+    // 构建验证请求数据
+    const requestData = {
+      'receipt-data': jws,
+      'password': ENV.APP_SHARED_SECRET,
+      'exclude-old-transactions': false // 包含所有历史交易
+    };
+
+    while (retryCount < this.MAX_RETRIES) {
+      try {
+        const verificationUrl = isProduction ? 
+          CONSTANTS.PROD_VERIFICATION_URL : 
+          CONSTANTS.SANDBOX_VERIFICATION_URL;
+
+        const response = await axios.post<VerificationResponse>(verificationUrl, requestData, {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000 // 10秒超时
+        });
+
+        logger.subscription('收到验证响应:', {
+          status: response.status,
+          statusText: response.statusText,
+          verificationStatus: response.data?.status,
+          environment: response.data?.environment || 'unknown'
+        });
+
+        // 处理验证响应
+        if (response.data) {
+          const result = this.processVerificationResponse(response.data, transactionId);
+          return result;
+        } else {
+          throw new Error('验证响应数据为空');
+        }
+      } catch (error: any) {
+        retryCount++;
+        logger.error(`iOS验证尝试 ${retryCount}/${this.MAX_RETRIES} 失败:`, {
+          error: error.message,
+          code: error.code,
+          transactionId
+        });
+
+        if (retryCount < this.MAX_RETRIES) {
+          // 等待一段时间后重试
+          await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+        } else {
+          // 达到最大重试次数，抛出错误
+          throw error;
+        }
+      }
+    }
+
+    throw new Error('验证交易失败: 超过最大重试次数');
   }
 
   private processVerificationResponse(response: VerificationResponse, transactionId: string): any {
@@ -320,22 +294,29 @@ class SubscriptionValidationService {
     return {
       productId: transactionInfo.productId,
       originalTransactionId: transactionInfo.originalTransactionId,
+      purchaseDate: new Date(parseInt(transactionInfo.purchaseDate)),
+      expirationDate: new Date(parseInt(transactionInfo.expirationDate)),
+      isActive: transactionInfo.isActive,
+      environment: transactionInfo.environment,
+      lastUpdated: new Date().toISOString(),
       transactionId: transactionInfo.transactionId,
-      purchaseDate: new Date(transactionInfo.purchaseDate),
-      expirationDate: new Date(transactionInfo.expirationDate),
-      isActive: this.isSubscriptionActive(transactionInfo),
-      environment: ENV.IS_SANDBOX ? 'sandbox' : 'production',
-      lastUpdated: now.toISOString(),
+      jws: transactionInfo.jws,
       isTrialPeriod: transactionInfo.isTrialPeriod,
       isInIntroOfferPeriod: transactionInfo.isInIntroOfferPeriod,
       webOrderLineItemId: transactionInfo.webOrderLineItemId,
-      jws: transactionInfo.jws,
-      isInGracePeriod: transactionInfo.isInBillingRetryPeriod,
+      isInGracePeriod: transactionInfo.isInGracePeriod,
       gracePeriodExpiresDate: transactionInfo.gracePeriodExpiresDate,
       autoRenewStatus: transactionInfo.isAutoRenewActive,
-      expirationIntent: transactionInfo.expirationIntent
+      expirationIntent: transactionInfo.expirationIntent,
+      offerType: transactionInfo.offerType,
+      purchaseToken: transactionInfo.purchaseToken,
+      packageName: transactionInfo.packageName,
+      paymentState: transactionInfo.paymentState
     };
   }
 }
 
-export default SubscriptionValidationService.getInstance(); 
+// 导出单例实例和类型
+export { SubscriptionValidationService };
+export type { SubscriptionData };
+export default SubscriptionValidationService; 

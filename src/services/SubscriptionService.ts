@@ -12,9 +12,11 @@ import {
   clearProductsIOS,
   getSubscriptions,
   getProducts,
+  setup,
+  endConnection,
 } from 'react-native-iap';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SubscriptionValidationService from './SubscriptionValidationService';
+import { SubscriptionValidationService } from './SubscriptionValidationService';
 import { LearningManager } from './LearningManager';
 import { ENV, CONSTANTS, SUBSCRIPTION_ERRORS } from '../config/env';
 import { logger } from '../utils/logger';
@@ -61,20 +63,21 @@ export default class SubscriptionService {
 
   async initialize() {
     if (this.isInitialized) {
-      logger.subscription('Subscription service already initialized');
+      logger.subscription('订阅服务已初始化');
       return;
     }
     
     try {
-      logger.subscription('Initializing subscription service', {
+      logger.subscription('初始化订阅服务', {
         timestamp: new Date().toISOString(),
         environment: ENV.IS_SANDBOX ? 'sandbox' : 'production',
         checkSubscription: ENV.CHECK_SUBSCRIPTION
       });
       
       // 详细记录要使用的产品IDs
+      const skus = Object.values(IOS_SKUS);
       logger.subscription('将要获取的产品ID列表', {
-        productIds: Object.values(IOS_SKUS),
+        productIds: skus,
         timestamp: new Date().toISOString()
       });
       
@@ -85,6 +88,10 @@ export default class SubscriptionService {
         await clearProductsIOS();
         logger.subscription('StoreKit缓存清除完成');
       }
+      
+      // 设置StoreKit2模式
+      logger.subscription('设置IAP配置');
+      setup({ storekitMode: 'STOREKIT2_MODE' });
       
       logger.subscription('初始化StoreKit连接');
       await initConnection();
@@ -117,17 +124,17 @@ export default class SubscriptionService {
       
       // 启动前强制从StoreKit获取最新订阅状态
       try {
-        logger.subscription('Force checking StoreKit subscription status on startup');
+        logger.subscription('启动时强制检查StoreKit订阅状态');
         await this.performServerSubscriptionCheck();
       } catch (error) {
-        logger.error('Failed to check StoreKit subscription on startup:', error);
+        logger.error('启动时检查StoreKit订阅失败:', error);
         // 继续初始化流程，不阻止应用启动
       }
       
       // 启动定期检查订阅状态
       this.startPeriodicSubscriptionCheck();
     } catch (err) {
-      logger.error('Failed to initialize IAP:', {
+      logger.error('初始化IAP失败:', {
         error: err,
         errorMessage: err instanceof Error ? err.message : 'Unknown error',
         environment: ENV.IS_SANDBOX ? 'sandbox' : 'production'
@@ -138,70 +145,72 @@ export default class SubscriptionService {
   }
 
   private handlePurchaseError(error: PurchaseError) {
-    logger.error('Purchase error occurred:', {
+    if (!error) return;
+    
+    logger.error('购买过程中出错:', {
       code: error.code,
-      message: error.message
+      message: error.message,
+      responseCode: error.responseCode,
+      debugMessage: error.debugMessage,
+      timestamp: new Date().toISOString()
     });
-
-    // 防止重复抛出错误
-    if (error instanceof Error) {
-      return error;
+    
+    // 如果不是用户取消，则显示错误提示
+    if (error.code !== 'E_USER_CANCELLED') {
+      Alert.alert(
+        i18n.t('subscription.purchaseErrorTitle'),
+        i18n.t('subscription.purchaseErrorMessage', { errorCode: error.code })
+      );
     }
-
-    let errorMessage: string;
-    switch (error.code) {
-      case 'E_USER_CANCELLED':
-        errorMessage = i18n.t('subscription.errors.userCancelled');
-        break;
-      case 'E_ALREADY_OWNED':
-        errorMessage = i18n.t('subscription.errors.alreadyOwned');
-        break;
-      case 'E_NETWORK_ERROR':
-        errorMessage = i18n.t('subscription.errors.network');
-        break;
-      default:
-        errorMessage = i18n.t('subscription.errors.unknown');
-    }
-
-    return new Error(errorMessage);
   }
 
   async validatePurchase(purchase: ProductPurchase): Promise<boolean> {
+    if (!purchase) {
+      logger.error('无效的购买对象');
+      return false;
+    }
+    
     try {
-      const transaction = {
-        transactionId: purchase.transactionId || '',
-        originalTransactionId: purchase.originalTransactionDateIOS || '',
+      logger.subscription('开始验证购买:', {
         productId: purchase.productId,
-        purchaseDate: purchase.transactionDate,
-        jws: purchase.transactionReceipt || ''
-      };
-
-      if (!transaction.transactionId || !transaction.jws) {
-        throw new Error('Missing transaction data');
-      }
-
-      const result = await SubscriptionValidationService.verifyTransaction(
-        transaction.transactionId,
-        transaction.jws
-      );
-
-      // 成功从服务器验证后，清除本地缓存
-      logger.subscription('服务器验证成功，清除本地缓存并更新订阅数据', {
-        productId: transaction.productId,
-        transactionId: transaction.transactionId
+        transactionId: purchase.transactionId,
+        transactionDate: purchase.transactionDate
       });
       
-      // 清除旧的订阅数据缓存
-      await AsyncStorage.removeItem(SUBSCRIPTION_KEY);
-      await AsyncStorage.removeItem('isPremium');
+      // 获取交易凭证 - 只保留iOS部分
+      const receipt = purchase.transactionReceipt;
       
-      // 解析并保存新的订阅数据
-      const subscriptionData = SubscriptionValidationService.parseTransactionInfo(result.transaction);
-      await this.updateSubscriptionStatus(subscriptionData);
+      if (!receipt) {
+        logger.error('购买凭证为空');
+        return false;
+      }
       
-      return subscriptionData.isActive;
+      // 使用静态方法获取实例
+      const validationInstance = SubscriptionValidationService.getInstance();
+      const validationResult = await validationInstance.verifyTransaction(
+        purchase.transactionId || '',  // 添加空字符串作为默认值，避免undefined
+        receipt
+      );
+      
+      logger.subscription('购买验证结果:', {
+        isValid: !!validationResult,
+        productId: purchase.productId,
+        transactionId: purchase.transactionId
+      });
+      
+      if (validationResult) {
+        // 更新订阅状态
+        await this.updateSubscriptionStatus(validationResult);
+        return true;
+      }
+      
+      return false;
     } catch (error) {
-      logger.error('Purchase validation failed:', error);
+      logger.error('验证购买失败:', {
+        error,
+        productId: purchase.productId,
+        transactionId: purchase.transactionId
+      });
       return false;
     }
   }
@@ -580,7 +589,7 @@ export default class SubscriptionService {
 
   async purchaseSubscription(planId: string) {
     if (!planId) {
-      logger.error('No plan ID provided for purchase');
+      logger.error('未提供订阅计划ID');
       return false;
     }
     
@@ -650,67 +659,57 @@ export default class SubscriptionService {
         }
       }
       
-      // 尝试购买订阅
-      logger.subscription('开始请求购买', {
-        fullProductId,
-        timestamp: new Date().toISOString()
+      // 发起购买请求
+      logger.subscription('正在发起订阅购买请求', { fullProductId });
+      await requestSubscription({
+        sku: fullProductId
       });
       
-      const purchaseResult = await requestSubscription({
-        sku: fullProductId,
-        andDangerouslyFinishTransactionAutomaticallyIOS: false
-      });
-      
-      // 检查购买结果
-      if (purchaseResult) {
-        // 如果是数组，取第一个元素
-        const purchase = Array.isArray(purchaseResult) ? purchaseResult[0] : purchaseResult;
-        
-        logger.subscription('购买请求结果', {
-          success: true,
-          purchaseDetails: purchase ? {
-            productId: purchase.productId,
-            transactionId: purchase.transactionId,
-            transactionDate: purchase.transactionDate ? new Date(purchase.transactionDate).toISOString() : null,
-            hasReceipt: !!purchase.transactionReceipt
-          } : 'No purchase details available',
-          timestamp: new Date().toISOString()
-        });
-        
-        return true;
-      } else {
-        logger.subscription('购买请求没有返回结果', {
-          timestamp: new Date().toISOString()
-        });
-        return false;
-      }
+      logger.subscription('订阅购买请求已发送', { fullProductId });
+      return true;
     } catch (error) {
-      const err = this.handlePurchaseError(error as PurchaseError);
+      logger.error('发起订阅购买失败:', {
+        error,
+        planId,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      });
       
-      // 只有在不是用户取消操作时才显示错误消息
-      if (err.message !== i18n.t('subscription.errors.userCancelled')) {
-        Alert.alert(
-          i18n.t('error'),
-          err.message,
-          [{ text: i18n.t('ok') }]
-        );
-      }
+      // 显示用户友好的错误消息
+      Alert.alert(
+        i18n.t('subscription.purchaseErrorTitle'),
+        i18n.t('subscription.purchaseErrorMessage', { errorCode: 'UNKNOWN' })
+      );
       
-      throw err;
+      return false;
     }
   }
 
-  cleanup() {
-    if (this.purchaseUpdateSubscription) {
-      this.purchaseUpdateSubscription.remove();
+  async cleanup() {
+    try {
+      logger.subscription('清理订阅服务资源');
+      
+      // 停止定期检查
+      this.stopPeriodicSubscriptionCheck();
+      
+      // 移除监听器
+      if (this.purchaseUpdateSubscription) {
+        this.purchaseUpdateSubscription.remove();
+        this.purchaseUpdateSubscription = null;
+      }
+      
+      if (this.purchaseErrorSubscription) {
+        this.purchaseErrorSubscription.remove();
+        this.purchaseErrorSubscription = null;
+      }
+      
+      // 关闭连接
+      await endConnection();
+      
+      this.isInitialized = false;
+      logger.subscription('订阅服务资源已清理');
+    } catch (error) {
+      logger.error('清理订阅服务资源时出错:', error);
     }
-    if (this.purchaseErrorSubscription) {
-      this.purchaseErrorSubscription.remove();
-    }
-    this.subscriptionUpdateListeners.clear();
-    
-    // 清除订阅检查定时器
-    this.stopPeriodicSubscriptionCheck();
   }
 
   // 检查是否达到免费用户字数限制
@@ -947,139 +946,71 @@ export default class SubscriptionService {
 
   // 更新订阅监听器
   private async updateSubscriptionListeners() {
-    // 移除旧的监听器
-    if (this.purchaseUpdateSubscription) {
-      this.purchaseUpdateSubscription.remove();
-    }
-    if (this.purchaseErrorSubscription) {
-      this.purchaseErrorSubscription.remove();
-    }
-
-    // 添加新的监听器
-    this.purchaseUpdateSubscription = purchaseUpdatedListener(
-      async (purchase: ProductPurchase) => {
-        logger.subscription('购买更新', {
+    try {
+      // 移除旧的事件监听器
+      if (this.purchaseUpdateSubscription) {
+        this.purchaseUpdateSubscription.remove();
+        this.purchaseUpdateSubscription = null;
+      }
+      
+      if (this.purchaseErrorSubscription) {
+        this.purchaseErrorSubscription.remove();
+        this.purchaseErrorSubscription = null;
+      }
+      
+      // 添加购买更新监听器
+      this.purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase: ProductPurchase) => {
+        logger.subscription('收到购买更新事件:', {
           productId: purchase.productId,
           transactionId: purchase.transactionId,
-          transactionDate: purchase.transactionDate
-            ? new Date(purchase.transactionDate).toISOString()
-            : 'undefined'
+          transactionDate: purchase.transactionDate,
+          timestamp: new Date().toISOString()
         });
-
-        // 检查是否为已跟踪的交易ID，避免重复处理
-        if (this.processedTransactions.has(purchase.transactionId || '')) {
-          logger.subscription('跳过已处理的交易', { transactionId: purchase.transactionId });
+        
+        // 确保transactionId不为undefined
+        const transactionId = purchase.transactionId || '';
+        
+        // 避免重复处理相同交易
+        if (this.processedTransactions.has(transactionId)) {
+          logger.subscription('跳过已处理的交易:', transactionId);
           return;
         }
         
-        // 添加到已处理交易列表
-        this.processedTransactions.add(purchase.transactionId || '');
-
-        // 验证交易，提取验证令牌（JWS）
-        const jws = purchase.transactionReceipt;
-        if (!jws) {
-          logger.error('缺少交易收据 (JWS)', { productId: purchase.productId });
-          return;
-        }
-
-        // 处理订阅激活
-        const subscriptionData = {
-          productId: purchase.productId,
-          expirationDate: '', // 将通过验证设置
-          isActive: true,     // 初始值，将通过验证确认
-          transactionId: purchase.transactionId || '',
-          originalTransactionId: purchase.originalTransactionIdentifierIOS || '',
-          environment: ENV.IS_SANDBOX ? 'sandbox' : 'production'
-        };
-
-        // 调用服务器验证
-        try {
-          // 检查是否为订阅升级或变更
-          const currentSubscriptionData = await AsyncStorage.getItem('subscriptionData');
-          let isUpgrade = false;
-          let previousProductId = null;
-          
-          if (currentSubscriptionData) {
-            const parsedCurrentData = JSON.parse(currentSubscriptionData);
-            
-            // 如果是相同的订阅但产品ID不同，可能是升级/降级
-            if (parsedCurrentData.originalTransactionId === 
-                (purchase.originalTransactionIdentifierIOS || '') && 
-                parsedCurrentData.productId !== purchase.productId) {
-                
-              isUpgrade = true;
-              previousProductId = parsedCurrentData.productId;
-              
-              logger.subscription('检测到订阅变更/升级', {
-                from: previousProductId,
-                to: purchase.productId,
-                originalTransactionId: purchase.originalTransactionIdentifierIOS
-              });
-            }
+        // 标记为已处理
+        this.processedTransactions.add(transactionId);
+        
+        // 验证购买
+        const isValid = await this.validatePurchaseWithAlert(purchase);
+        
+        // 如果验证成功，或环境为非正式环境，完成交易
+        if (isValid || ENV.IS_SANDBOX) {
+          try {
+            // 消耗型商品设置为 true，订阅设置为 false
+            await finishTransaction({
+              purchase,
+              isConsumable: false
+            });
+            logger.subscription('交易已完成:', transactionId);
+          } catch (finishError) {
+            logger.error('完成交易失败:', {
+              error: finishError,
+              transactionId
+            });
           }
-
-          // 验证交易
-          const result = await SubscriptionValidationService.verifyTransaction(
-            purchase.transactionId || '',
-            jws
-          );
-
-          // 成功从服务器验证后，清除本地缓存
-          logger.subscription('交易监听器: 服务器验证成功，清除本地缓存并更新订阅数据', {
-            productId: purchase.productId,
-            transactionId: purchase.transactionId,
-            isUpgrade: isUpgrade,
-            previousProductId: previousProductId
-          });
-          
-          // 清除旧的订阅数据缓存
-          await AsyncStorage.removeItem(SUBSCRIPTION_KEY);
-          await AsyncStorage.removeItem('isPremium');
-          
-          // 解析交易信息
-          const validatedData = SubscriptionValidationService.parseTransactionInfo(result.transaction);
-          
-          // 合并并保存经过验证的订阅数据
-          const mergedData = {
-            ...subscriptionData,
-            ...validatedData,
-            isUpgrade: isUpgrade,
-            previousProductId: previousProductId
-          };
-
-          logger.subscription('订阅交易验证成功', {
-            productId: mergedData.productId,
-            expirationDate: mergedData.expirationDate,
-            isActive: mergedData.isActive,
-            isUpgrade: isUpgrade,
-            previousProductId: previousProductId
-          });
-
-          // 更新状态并通知
-          await this.updateSubscriptionStatus(mergedData);
-          this.notifySubscriptionUpdate(mergedData);
-          
-          // 完成交易
-          await finishTransaction({ purchase });
-          
-          // 执行诊断以确保数据一致性
-          await this.debugSubscriptionStatus();
-        } catch (error: any) {
-          logger.error('订阅交易验证失败', { 
-            error: error.message,
-            productId: purchase.productId,
-            transactionId: purchase.transactionId 
+        } else {
+          logger.error('购买验证失败，不完成交易:', {
+            transactionId
           });
         }
-      }
-    );
-
-    this.purchaseErrorSubscription = purchaseErrorListener(
-      (error: PurchaseError) => {
-        logger.error('Purchase error:', error);
-        this.handlePurchaseError(error);
-      }
-    );
+      });
+      
+      // 添加购买错误监听器
+      this.purchaseErrorSubscription = purchaseErrorListener(this.handlePurchaseError.bind(this));
+      
+      logger.subscription('订阅监听器已更新');
+    } catch (error) {
+      logger.error('更新订阅监听器失败:', error);
+    }
   }
 
   // 启动定期检查订阅状态
@@ -1472,12 +1403,7 @@ export default class SubscriptionService {
       let products = [];
       try {
         products = await getProducts({
-          skus: [
-            'com.itlongbow.hanzilearningapp.sub.monthly',
-            'com.itlongbow.hanzilearningapp.sub.quarterly',
-            'com.itlongbow.hanzilearningapp.sub.yearly',
-            'com.itlongbow.hanzilearningapp.sub.lifetime'
-          ]
+          skus: Object.values(IOS_SKUS)
         });
         logger.subscription('Available products:', products);
       } catch (error: any) {

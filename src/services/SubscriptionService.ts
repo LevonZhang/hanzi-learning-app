@@ -207,17 +207,13 @@ export default class SubscriptionService {
         transactionDate: purchase.transactionDate
       });
       
-      // 获取交易凭证 - 只保留iOS部分
       const receipt = purchase.transactionReceipt;
       
       if (!receipt) {
         logger.error('购买凭证为空', purchase.productId);
         
-        // 特殊处理：在某些情况下StoreKit可能不提供凭证但交易仍有效
-        // 例如：billing issues处理、订阅恢复、Ask to Buy审批等
         if (purchase.transactionId && purchase.productId && 
             Object.values(IOS_SKUS).includes(purchase.productId as any)) {
-          
           logger.subscription('凭证为空但交易看起来有效，尝试基于交易信息创建订阅', {
             productId: purchase.productId,
             transactionId: purchase.transactionId,
@@ -225,7 +221,6 @@ export default class SubscriptionService {
           });
           
           try {
-            // 直接创建有效的订阅数据
             const subscriptionData: SubscriptionDataType = {
               isActive: true,
               productId: purchase.productId,
@@ -233,11 +228,10 @@ export default class SubscriptionService {
               originalTransactionId: purchase.originalTransactionDateIOS || purchase.transactionId,
               transactionId: purchase.transactionId,
               transactionDate: purchase.transactionDate,
-              validatedByServer: false, // 标记为未经服务器验证
+              validatedByServer: false,
               createdAt: new Date().toISOString()
             };
             
-            // 更新订阅状态
             await this.updateSubscriptionStatus(subscriptionData);
             
             logger.subscription('已基于有效交易（无凭证）创建订阅', {
@@ -251,38 +245,35 @@ export default class SubscriptionService {
               error: updateError instanceof Error ? updateError.message : 'Unknown error',
               productId: purchase.productId
             });
+            return false;
           }
         }
-        
         return false;
       }
       
-      // 使用静态方法获取实例
       const subscriptionValidator = SubscriptionValidationService.getInstance();
       const validationResult = await subscriptionValidator.verifyTransaction(
-        purchase.transactionId || '',  // 添加空字符串作为默认值，避免undefined
+        purchase.transactionId || '',
         receipt
       );
-      
-      logger.subscription('购买验证结果:', {
-        isValid: !!validationResult,
-        productId: purchase.productId,
-        transactionId: purchase.transactionId
-      });
-      
-      if (validationResult) {
-        // 更新订阅状态
-        await this.updateSubscriptionStatus(validationResult);
+
+      if (validationResult.status === -1) {
+        logger.error('验证交易失败', {
+          error: validationResult.error,
+          transactionId: purchase.transactionId
+        });
+        return false;
+      }
+
+      if (validationResult.transaction) {
+        const subscriptionData = subscriptionValidator.parseTransactionInfo(validationResult.transaction);
+        await this.updateSubscriptionStatus(subscriptionData);
         return true;
       }
-      
+
       return false;
     } catch (error) {
-      logger.error('验证购买失败:', {
-        error,
-        productId: purchase.productId,
-        transactionId: purchase.transactionId
-      });
+      logger.error('Purchase validation failed:', error);
       return false;
     }
   }
@@ -323,13 +314,11 @@ export default class SubscriptionService {
           environment: data.environment
         });
         
-        // 使用事务性更新
         await AsyncStorage.multiSet([
           ['subscriptionData', JSON.stringify(data)],
           ['isPremium', data.isActive.toString()]
         ]);
 
-        // 读取回来验证是否正确保存
         const [savedData, savedIsPremium] = await AsyncStorage.multiGet(['subscriptionData', 'isPremium']);
         logger.subscription('Verified saved subscription data', {
           subscriptionDataSaved: !!savedData[1],
@@ -338,7 +327,6 @@ export default class SubscriptionService {
           savedIsPremiumMatches: savedIsPremium[1] === data.isActive.toString()
         });
         
-        // 安全地通知监听器
         this.safeNotifySubscriptionUpdate(data);
         
         logger.subscription('Subscription status updated successfully', data);
@@ -412,22 +400,6 @@ export default class SubscriptionService {
         logger.error('Error in subscription update listener:', error);
       }
     });
-    
-    // 如果订阅状态不活跃，显示过期提醒
-    // 添加防止重复显示的安全检查
-    if (data.isActive === false && 
-        !this.isShowingExpirationAlert && 
-        (Date.now() - this.lastAlertTime > this.ALERT_COOLDOWN)) {
-      
-      this.isShowingExpirationAlert = true;
-      this.lastAlertTime = Date.now();
-      
-      Alert.alert(
-        i18n.t('subscription.expired'),
-        i18n.t('subscription.expiredMessage'),
-        [{ text: i18n.t('ok'), onPress: () => this.isShowingExpirationAlert = false }]
-      );
-    }
   }
 
   // 检查订阅状态
@@ -1097,16 +1069,6 @@ export default class SubscriptionService {
   // 检查订阅是否即将到期
   async checkSubscriptionExpiration() {
     try {
-      // 如果当前正在显示提醒，或者距离上次显示不到冷却时间，则不再显示
-      const now = Date.now();
-      if (this.isShowingExpirationAlert || (now - this.lastAlertTime < this.ALERT_COOLDOWN)) {
-        logger.subscription('跳过订阅过期提醒: 冷却中或已在显示', {
-          isShowingAlert: this.isShowingExpirationAlert,
-          timeSinceLastAlert: now - this.lastAlertTime
-        });
-        return;
-      }
-
       const subscriptionData = await AsyncStorage.getItem('subscriptionData');
       if (subscriptionData) {
         const parsedData = JSON.parse(subscriptionData);
@@ -1114,28 +1076,15 @@ export default class SubscriptionService {
         const currentTime = new Date();
         const daysUntilExpiration = Math.ceil((expirationDate.getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24));
 
-        if (daysUntilExpiration <= 3 && daysUntilExpiration > 0) {
-          this.isShowingExpirationAlert = true;
-          this.lastAlertTime = now;
-          
-          Alert.alert(
-            i18n.t('subscription.expiringSoon'),
-            i18n.t('subscription.expiringSoonMessage', { days: daysUntilExpiration }),
-            [{ text: i18n.t('ok'), onPress: () => this.isShowingExpirationAlert = false }]
-          );
-        } else if (daysUntilExpiration <= 0) {
-          this.isShowingExpirationAlert = true;
-          this.lastAlertTime = now;
-          
-          Alert.alert(
-            i18n.t('subscription.expired'),
-            i18n.t('subscription.expiredMessage'),
-            [{ text: i18n.t('ok'), onPress: () => this.isShowingExpirationAlert = false }]
-          );
-        }
+        // 只记录日志，不显示提醒
+        logger.subscription('Subscription expiration check', {
+          daysUntilExpiration,
+          expirationDate: expirationDate.toISOString(),
+          currentTime: currentTime.toISOString(),
+          isExpired: daysUntilExpiration <= 0
+        });
       }
     } catch (error) {
-      this.isShowingExpirationAlert = false;
       logger.error('Failed to check subscription expiration:', error);
     }
   }
@@ -1273,28 +1222,21 @@ export default class SubscriptionService {
   async performServerSubscriptionCheck() {
     try {
       logger.subscription('开始强制订阅状态检查', {
-        timestamp: new Date().toISOString(),
-        environment: ENV.IS_SANDBOX ? 'sandbox' : 'production'
+        timestamp: new Date().toISOString()
       });
       
       // 在沙盒环境中清除缓存以确保获取最新状态
       if (ENV.IS_SANDBOX) {
-        logger.subscription('沙盒环境：清除StoreKit缓存');
         await clearTransactionIOS();
-        // 不再使用clearProductsIOS，改为重新初始化连接
-        logger.subscription('重新初始化IAP连接');
         await this.initializeConnection();
-        logger.subscription('StoreKit缓存清除完成');
       }
       
       // 获取可用购买记录 - 使用增强版方法，强制刷新
-      logger.subscription('使用增强方法从StoreKit获取购买记录');
-      const purchases = await this.getAvailablePurchasesFromStoreKit(true, 3);
+      const purchases = await this.getAvailablePurchasesFromStoreKit(true);
       
       if (!purchases || purchases.length === 0) {
         // 如果没有找到购买记录，即StoreKit认为没有有效订阅
         // 获取本地订阅数据以便我们可以更新它
-        logger.subscription('StoreKit未返回购买记录，检查本地数据');
         const subscriptionData = await AsyncStorage.getItem('subscriptionData');
         if (subscriptionData) {
           const parsedData = JSON.parse(subscriptionData);
@@ -1308,18 +1250,12 @@ export default class SubscriptionService {
           });
           
           // 清除旧的订阅数据缓存
-          logger.subscription('准备清除本地缓存');
-          
           try {
             await AsyncStorage.removeItem(SUBSCRIPTION_KEY);
             await AsyncStorage.removeItem('isPremium');
-            logger.subscription('本地缓存清除成功', {
-              timestamp: new Date().toISOString()
-            });
           } catch (clearError: any) {
             logger.error('清除本地缓存失败', {
-              error: clearError.message,
-              timestamp: new Date().toISOString()
+              error: clearError.message
             });
           }
           
@@ -1344,12 +1280,6 @@ export default class SubscriptionService {
             newStatus: 'inactive',
             timestamp: new Date().toISOString()
           });
-          
-          // 通知应用其他部分订阅已过期 - 防止多次通知导致多个提醒
-          // 增加安全检查，避免过于频繁地显示过期提醒
-          if (!this.isShowingExpirationAlert && (Date.now() - this.lastAlertTime > this.ALERT_COOLDOWN)) {
-            this.notifySubscriptionUpdate(updatedData);
-          }
           
           // 执行一次checkSubscriptionStatus以验证状态是否正确更新
           const newStatus = await this.checkSubscriptionStatus();
@@ -2073,13 +2003,9 @@ export default class SubscriptionService {
   }
   
   // 辅助方法：从StoreKit获取可用购买记录 - 增强版
-  async getAvailablePurchasesFromStoreKit(forceRefresh: boolean = false, maxRetries: number = 3): Promise<any[]> {
-    let retryCount = 0;
-    const retryDelay = 1000; // 1秒延迟
-    
-    logger.subscription('从StoreKit获取可用购买记录 - 增强版', {
+  async getAvailablePurchasesFromStoreKit(forceRefresh: boolean = false): Promise<any[]> {
+    logger.subscription('从StoreKit获取可用购买记录', {
       forceRefresh,
-      maxRetries,
       timestamp: new Date().toISOString()
     });
     
@@ -2103,60 +2029,32 @@ export default class SubscriptionService {
       }
     }
     
-    while (retryCount <= maxRetries) {
-      try {
-        logger.subscription(`尝试获取StoreKit购买记录 (尝试 ${retryCount + 1}/${maxRetries + 1})`);
-        
-        // 尝试获取购买记录
-        const purchases = await getAvailablePurchases();
-        
-        logger.subscription('StoreKit购买记录查询结果', {
-          success: true,
-          attemptNumber: retryCount + 1,
-          hasPurchases: purchases && purchases.length > 0,
-          purchaseCount: purchases?.length || 0,
-          purchases: purchases?.map(p => ({
-            productId: p.productId,
-            transactionId: p.transactionId,
-            transactionDate: new Date(p.transactionDate).toISOString()
-          }))
-        });
-        
-        if (purchases && purchases.length > 0) {
-          return purchases;
-        }
-        
-        // 如果是最后一次尝试且没有找到购买记录
-        if (retryCount === maxRetries) {
-          logger.subscription('所有尝试均未找到StoreKit购买记录');
-          return [];
-        }
-        
-        // 否则等待后重试
-        logger.subscription(`未找到购买记录，${retryDelay}ms后重试`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        retryCount++;
-        
-      } catch (error: any) {
-        logger.error('从StoreKit获取购买记录失败', {
-          error: error.message,
-          stack: error.stack,
-          attemptNumber: retryCount + 1
-        });
-        
-        // 如果是最后一次尝试
-        if (retryCount === maxRetries) {
-          logger.subscription('所有尝试均失败，无法从StoreKit获取购买记录');
-          return [];
-        }
-        
-        // 否则等待后重试
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        retryCount++;
-      }
+    try {
+      logger.subscription('尝试获取StoreKit购买记录');
+      
+      // 尝试获取购买记录
+      const purchases = await getAvailablePurchases();
+      
+      logger.subscription('StoreKit购买记录查询结果', {
+        success: true,
+        hasPurchases: purchases && purchases.length > 0,
+        purchaseCount: purchases?.length || 0,
+        purchases: purchases?.map(p => ({
+          productId: p.productId,
+          transactionId: p.transactionId,
+          transactionDate: new Date(p.transactionDate).toISOString()
+        }))
+      });
+      
+      return purchases || [];
+    } catch (error: any) {
+      logger.error('从StoreKit获取购买记录失败', {
+        error: error.message,
+        stack: error.stack
+      });
+      
+      return [];
     }
-    
-    return [];
   }
   
   // 辅助方法：获取最新的购买记录
@@ -2190,7 +2088,7 @@ export default class SubscriptionService {
       
       // 使用增强版方法查询，强制刷新，多次尝试
       logger.subscription('开始查询StoreKit购买记录');
-      const purchases = await this.getAvailablePurchasesFromStoreKit(true, 5);
+      const purchases = await this.getAvailablePurchasesFromStoreKit(true);
       
       if (purchases && purchases.length > 0) {
         logger.subscription('✅ 从StoreKit成功获取到购买记录', {

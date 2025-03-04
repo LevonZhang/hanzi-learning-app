@@ -427,32 +427,11 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   }, [route?.params]);
 
   const loadTodayLearning = async () => {
-    const subscriptionService = SubscriptionService.getInstance();
-    const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
-    
-    if (reachedLimit) {
-      Alert.alert(
-        i18n.t('characterLimitReached'),
-        i18n.t('characterLimitDesc'),
-        [
-          { text: i18n.t('cancel'), style: 'cancel' },
-          { 
-            text: i18n.t('getPremium'),
-            onPress: () => navigation.navigate('Settings', { screen: 'premium' })
-          }
-        ]
-      );
-      setState(prev => ({
-        ...prev,
-        currentWord: null,
-      }));
-      return;
-    }
-
+    // 获取学习列表
     const learningManager = LearningManager.getInstance();
     const { newWords, reviewWords } = await learningManager.getTodayLearningList();
     const statistics = await learningManager.getStatistics();
-    
+
     // 这里的判断应该只看 newWords
     if (newWords.length === 0) {  // 修改这里，不需要考虑 reviewWords
       setState(prev => ({
@@ -509,10 +488,33 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
     console.log('[handleComplete] Start - Current character:', state.currentWord.character, 'isCorrect:', isCorrect);
 
-    const learningManager = LearningManager.getInstance();
-    await learningManager.recordProgress(state.currentWord.character, isCorrect);
-    console.log('[handleComplete] Recorded progress for character:', state.currentWord.character);
+    // 如果不是复习模式，检查会员权限
+    if (!state.isReviewMode) {
+      const subscriptionService = SubscriptionService.getInstance();
+      const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
+      
+      if (reachedLimit) {
+        Alert.alert(
+          i18n.t('characterLimitReached'),
+          i18n.t('characterLimitDesc'),
+          [
+            { text: i18n.t('cancel'), style: 'cancel' },
+            { 
+              text: i18n.t('getPremium'),
+              onPress: () => {
+                navigation.navigate('Settings', { screen: 'premium' });
+                return;
+              }
+            }
+          ]
+        );
+        return;
+      }
+    }
 
+    // 只有在通过会员检查后才继续
+    const learningManager = LearningManager.getInstance();
+    
     // 如果练习正确，记录为已掌握
     if (isCorrect) {
       console.log('[handleComplete] Character written correctly, marking as mastered');
@@ -524,6 +526,10 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
     const nextIndex = currentIndex + 1;
     console.log('[handleComplete] Current index:', currentIndex, 'Next index:', nextIndex, 'List length:', currentList.length);
+
+    // 记录当前字的进度
+    await learningManager.recordProgress(state.currentWord.character, isCorrect);
+    console.log('[handleComplete] Recorded progress for character:', state.currentWord.character);
 
     if (nextIndex < currentList.length) {
       // 记录下一个字为已学习

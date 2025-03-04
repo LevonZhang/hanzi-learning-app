@@ -27,8 +27,7 @@ export const SearchScreen = ({ navigation }: any) => {
   const { width: windowWidth } = useWindowDimensions();
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [canSearch, setCanSearch] = useState(false);
-  const isAlertShowing = useRef(false);
+  const [isAlertShowing, setIsAlertShowing] = useState(false);
   
   // 添加Mac设备检测
   const isMacOS = Platform.OS === 'macos' || (Platform.OS === 'web' && navigator?.platform?.includes('Mac'));
@@ -63,21 +62,6 @@ export const SearchScreen = ({ navigation }: any) => {
     },
   };
 
-  useEffect(() => {
-    checkSearchPermission();
-  }, []);
-
-  const checkSearchPermission = async () => {
-    try {
-      const subscriptionService = SubscriptionService.getInstance();
-      const hasPermission = await subscriptionService.canUseSearch();
-      setCanSearch(hasPermission);
-    } catch (error) {
-      console.error('Failed to check search permission:', error);
-      setCanSearch(false);
-    }
-  };
-
   const handleSearch = async (text: string) => {
     setSearchText(text);
     
@@ -86,8 +70,12 @@ export const SearchScreen = ({ navigation }: any) => {
       return;
     }
 
-    if (!canSearch && !isAlertShowing.current) {
-      isAlertShowing.current = true;
+    // 检查会员权限
+    const subscriptionService = SubscriptionService.getInstance();
+    const canSearch = await subscriptionService.canUseSearch();
+
+    if (!canSearch && !isAlertShowing) {
+      setIsAlertShowing(true);
       Alert.alert(
         i18n.t('premiumFeature'),
         i18n.t('searchPremiumDesc'),
@@ -97,14 +85,14 @@ export const SearchScreen = ({ navigation }: any) => {
             style: 'cancel',
             onPress: () => {
               setSearchText('');
-              isAlertShowing.current = false;
+              setIsAlertShowing(false);
             }
           },
           { 
             text: i18n.t('getPremium'),
             onPress: () => {
               setSearchText('');
-              isAlertShowing.current = false;
+              setIsAlertShowing(false);
               navigation.navigate('Settings', { screen: 'premium' });
             }
           }
@@ -113,7 +101,7 @@ export const SearchScreen = ({ navigation }: any) => {
           cancelable: true,
           onDismiss: () => {
             setSearchText('');
-            isAlertShowing.current = false;
+            setIsAlertShowing(false);
           }
         }
       );

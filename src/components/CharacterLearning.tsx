@@ -8,6 +8,7 @@ import { StrokeOrderCard } from './StrokeOrderCard';
 import { i18n } from '../i18n/i18n';
 import { LearningManager } from '../services/LearningManager';
 import { useResponsive } from '../hooks/useResponsive';
+import { logger } from '../utils/logger';
 
 const hanziDict = importedHanziDict as HanziDict;
 
@@ -54,24 +55,12 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
   const { width, height } = Dimensions.get('window');
   const { isIPad, isDesktop: isResponsiveDesktop } = useResponsive();
   
-  // 添加 Mac Catalyst 检测
   const isMacOS = Platform.OS === 'macos' || (Platform.OS === 'web' && navigator?.platform?.includes('Mac'));
   const isMacCatalyst = Platform.OS === 'ios' && (
     Platform.isMacCatalyst || // React Native 0.64+
     (isIPad && width > 1024) // 兼容旧版本 RN
   );
   const isMacDevice = (isResponsiveDesktop && !isIPad) || isMacOS || isMacCatalyst;
-  
-  // 输出调试信息
-  console.log('CharacterLearning 设备检测:', {
-    Platform: Platform.OS,
-    isIPad,
-    isResponsiveDesktop,
-    isMacOS,
-    isMacCatalyst,
-    isMacDevice,
-    width
-  });
   
   // 使用传入的 isDesktop 属性或通过响应式检测到的桌面设备
   const shouldUseDesktopLayout = isDesktop || width > 768;
@@ -252,26 +241,32 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     </html>
   `;
 
-  useEffect(() => {
-    if (isReady && webViewRef.current) {
-      // 初始化后自动开始演示笔画
-      webViewRef.current.postMessage(JSON.stringify({
-        type: 'init',
-        character
-      }));
-      
-      // 发送汉字信息
-      const info = getHanziInfo(character);
-      onHanziInfo?.(info);
-      
-      // 短暂延迟后开始动画，确保初始化完成
-      setTimeout(() => {
-        webViewRef.current?.postMessage(JSON.stringify({
-          type: 'animate'
-        }));
-      }, 500);
+  const onError = (event: any) => {
+    logger.error('WebView error:', {
+      description: event.nativeEvent?.description,
+      code: event.nativeEvent?.code
+    });
+    setLoadError(true);
+    setIsLoading(false);
+  };
+
+  const onMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'ready') {
+        setIsReady(true);
+        setLoadError(false);
+      } else if (data.type === 'quizComplete') {
+        onComplete?.(true);
+      } else if (data.type === 'hanziInfo') {
+        onHanziInfo?.(data.data);
+      }
+    } catch (error) {
+      logger.error('WebView message error:', error);
+      setLoadError(true);
+      setIsLoading(false);
     }
-  }, [character, isReady]);
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -464,29 +459,8 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               setIsLoading(false);
             }, 500);
           }}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error('WebView error:', nativeEvent);
-            setLoadError(true);
-            setIsLoading(false);
-          }}
-          onMessage={(event) => {
-            try {
-              const data = JSON.parse(event.nativeEvent.data);
-              if (data.type === 'ready') {
-                setIsReady(true);
-                setLoadError(false);
-              } else if (data.type === 'quizComplete') {
-                onComplete?.(true);
-              } else if (data.type === 'hanziInfo') {
-                onHanziInfo?.(data.data);
-              }
-            } catch (error) {
-              console.error('WebView message error:', error);
-              setLoadError(true);
-              setIsLoading(false);
-            }
-          }}
+          onError={onError}
+          onMessage={onMessage}
         />
         {isLoading && (
           <View style={[styles.loadingContainer, styles.overlayContainer]}>

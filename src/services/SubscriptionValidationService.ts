@@ -84,7 +84,6 @@ class SubscriptionValidationService {
     let retryCount = 0;
     
     try {
-      // 添加调试日志
       logger.subscription('开始验证交易', {
         environment: isProduction ? 'production' : 'sandbox',
         transactionId,
@@ -93,7 +92,6 @@ class SubscriptionValidationService {
         timestamp: new Date().toISOString()
       });
 
-      // 验证iOS交易
       return await this.verifyIosTransaction(transactionId, jws, isProduction, retryCount);
     } catch (error: any) {
       logger.error('验证交易失败:', {
@@ -102,17 +100,19 @@ class SubscriptionValidationService {
         transactionId,
         retryCount
       });
-      throw error;
+      return {
+        status: -1,
+        error: error.message,
+        transaction: null
+      };
     }
   }
 
-  // iOS交易验证
   private async verifyIosTransaction(transactionId: string, jws: string, isProduction: boolean, retryCount: number): Promise<any> {
-    // 构建验证请求数据
     const requestData = {
       'receipt-data': jws,
       'password': ENV.APP_SHARED_SECRET,
-      'exclude-old-transactions': false // 包含所有历史交易
+      'exclude-old-transactions': false
     };
 
     while (retryCount < this.MAX_RETRIES) {
@@ -125,7 +125,7 @@ class SubscriptionValidationService {
           headers: {
             'Content-Type': 'application/json'
           },
-          timeout: 10000 // 10秒超时
+          timeout: 10000
         });
 
         logger.subscription('收到验证响应:', {
@@ -135,12 +135,16 @@ class SubscriptionValidationService {
           environment: response.data?.environment || 'unknown'
         });
 
-        // 处理验证响应
         if (response.data) {
           const result = this.processVerificationResponse(response.data, transactionId);
           return result;
         } else {
-          throw new Error('验证响应数据为空');
+          logger.error('验证响应数据为空');
+          return {
+            status: -1,
+            error: '验证响应数据为空',
+            transaction: null
+          };
         }
       } catch (error: any) {
         retryCount++;
@@ -151,38 +155,44 @@ class SubscriptionValidationService {
         });
 
         if (retryCount < this.MAX_RETRIES) {
-          // 等待一段时间后重试
           await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
         } else {
-          // 达到最大重试次数，抛出错误
-          throw error;
+          return {
+            status: -1,
+            error: `验证交易失败: ${error.message}`,
+            transaction: null
+          };
         }
       }
     }
 
-    throw new Error('验证交易失败: 超过最大重试次数');
+    return {
+      status: -1,
+      error: '验证交易失败: 超过最大重试次数',
+      transaction: null
+    };
   }
 
   private processVerificationResponse(response: VerificationResponse, transactionId: string): any {
-    // 获取最新的交易信息
     const latestReceipt = response.latest_receipt_info?.[0] || 
                          response.receipt.in_app.sort((a, b) => 
                            parseInt(b.purchase_date_ms) - parseInt(a.purchase_date_ms)
                          )[0];
 
     if (!latestReceipt) {
-      throw new Error('No valid transaction found in receipt');
+      logger.error('No valid transaction found in receipt');
+      return {
+        status: -1,
+        error: '未找到有效的交易记录',
+        transaction: null
+      };
     }
 
-    // 检查是否是自动续订订阅
     const pendingRenewal = response.pending_renewal_info?.[0];
     const isAutoRenewActive = pendingRenewal?.auto_renew_status === '1';
-    
-    // 处理宽限期信息
     const expirationIntent = pendingRenewal?.expiration_intent;
-    const isInBillingRetryPeriod = expirationIntent === '1'; // 1表示由于支付问题无法续期
+    const isInBillingRetryPeriod = expirationIntent === '1';
     
-    // 构建交易信息
     const transaction = {
       originalTransactionId: latestReceipt.original_transaction_id,
       transactionId: latestReceipt.transaction_id,
@@ -196,7 +206,6 @@ class SubscriptionValidationService {
       environment: response.environment.toLowerCase(),
       expirationIntent,
       isInBillingRetryPeriod,
-      // 在宽限期中，设置默认宽限期为到期后16天
       gracePeriodExpiresDate: isInBillingRetryPeriod ? 
         new Date(new Date(parseInt(latestReceipt.expires_date_ms)).getTime() + 16 * 24 * 60 * 60 * 1000) : 
         undefined

@@ -22,6 +22,7 @@ import StatisticsService from '../services/StatisticsService';
 import { ResponsiveContainer } from '../components/ResponsiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
 import SubscriptionService from '../services/SubscriptionService';
+import { CONSTANTS } from '../config/env';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_AREA_WIDTH = SCREEN_WIDTH - 10; // 进一步减少边距
@@ -381,26 +382,29 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     setIsGameStarted(false);
     gameStartAnim.setValue(0);
     
-    // Add subscription check
-    const subscriptionService = SubscriptionService.getInstance();
-    const isLevelLocked = await subscriptionService.checkGameLevelLimit(currentLevel);
-    if (isLevelLocked) {
-      Alert.alert(
-        i18n.t('premiumFeature'),
-        i18n.t('levelLockedDesc'),
-        [
-          {
-            text: i18n.t('cancel'),
-            style: 'cancel',
-            onPress: () => navigation.goBack()
-          },
-          {
-            text: i18n.t('subscribe'),
-            onPress: () => navigation.getParent()?.navigate('Settings', { screen: 'premium' })
-          }
-        ]
-      );
-      return;
+    // 只有在进入新关卡时才检查限制
+    if (currentLevel > CONSTANTS.FREE_GAME_LEVEL_LIMIT) {
+      // Add subscription check
+      const subscriptionService = SubscriptionService.getInstance();
+      const isLevelLocked = await subscriptionService.checkGameLevelLimit(currentLevel);
+      if (isLevelLocked) {
+        Alert.alert(
+          i18n.t('premiumFeature'),
+          i18n.t('levelLockedDesc'),
+          [
+            {
+              text: i18n.t('cancel'),
+              style: 'cancel',
+              onPress: () => navigation.goBack()
+            },
+            {
+              text: i18n.t('subscribe'),
+              onPress: () => navigation.getParent()?.navigate('Settings', { screen: 'premium' })
+            }
+          ]
+        );
+        return;
+      }
     }
     
     const bubbleCount = getLevelBubbleCount(currentLevel);

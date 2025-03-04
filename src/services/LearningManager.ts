@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HanziService from './HanziService';
+import { logger } from '../utils/logger';
 
 interface LearningProgress {
   character: string;
@@ -178,46 +179,41 @@ export class LearningManager {
   }
 
   // 记录学习进度
-  public async recordProgress(character: string, isCorrect: boolean) {
-    console.log('[LearningManager.recordProgress] Start -', { character, isCorrect });
-    const progress = await this.getAllProgress();
-    console.log('[LearningManager.recordProgress] Current progress for character:', progress[character]);
-    
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-
-    if (!progress[character]) {
-      // 新字的初始进度，设置为已学习状态（等级1）
-      console.log('[LearningManager.recordProgress] New character, initializing progress');
-      progress[character] = {
-        character,
-        lastReviewDate: todayStr,
-        nextReviewDate: this.getNextReviewDate(today, 0),
-        mistakes: 0,
-        masteryLevel: 1  // 已学习状态
-      };
-      console.log('[LearningManager.recordProgress] Initial progress:', progress[character]);
-    } else {
-      // 更新已有字的进度
-      console.log('[LearningManager.recordProgress] Updating existing character progress');
-      const item = progress[character];
-      
-      // 只有在写对了的情况下才更新掌握状态
-      if (isCorrect) {
-        // 写对了设置为已掌握（等级2）
-        console.log('[LearningManager.recordProgress] Character written correctly, setting mastery level to 2');
-        item.masteryLevel = 2;
-        item.mistakes = 0;
-      }
-      // 如果写错了或者只是记录学习，保持当前状态不变
-      
-      item.lastReviewDate = todayStr;
-      item.nextReviewDate = this.getNextReviewDate(today, item.masteryLevel);
-      console.log('[LearningManager.recordProgress] Updated progress:', item);
+  async handleCharacterLearned(character: string, isCorrect: boolean): Promise<void> {
+    try {
+      await this.recordProgress(character, isCorrect);
+    } catch (error) {
+      logger.error('记录学习进度失败:', error);
     }
+  }
 
-    await this.saveProgress(progress);
-    console.log('[LearningManager.recordProgress] Progress saved successfully');
+  async recordProgress(character: string, isCorrect: boolean): Promise<void> {
+    try {
+      const progress = await this.getAllProgress();
+      
+      if (!progress[character]) {
+        // 新字符，初始化进度
+        const initialProgress = {
+          character,
+          lastReviewDate: new Date().toISOString().split('T')[0],
+          masteryLevel: 1,
+          mistakes: 0,
+          nextReviewDate: this.getNextReviewDate(new Date(), 1)
+        };
+        progress[character] = initialProgress;
+      } else {
+        // 更新进度
+        const item = progress[character];
+        item.lastReviewDate = new Date().toISOString().split('T')[0];
+        item.masteryLevel = isCorrect ? Math.min(item.masteryLevel + 1, 5) : Math.max(item.masteryLevel - 1, 1);
+        item.mistakes = isCorrect ? item.mistakes : item.mistakes + 1;
+        item.nextReviewDate = this.getNextReviewDate(new Date(), item.masteryLevel);
+      }
+
+      await this.saveProgress(progress);
+    } catch (error) {
+      logger.error('记录学习进度失败:', error);
+    }
   }
 
   // 获取所有需要复习的字
@@ -252,8 +248,6 @@ export class LearningManager {
 
   private async saveProgress(progress: Record<string, LearningProgress>) {
     try {
-      console.log('[LearningManager.saveProgress] 正在保存进度');
-      
       // 验证数据完整性
       if (!progress || typeof progress !== 'object') {
         throw new Error('无效的进度数据');
@@ -271,10 +265,8 @@ export class LearningManager {
       if (savedData !== progressJson) {
         throw new Error('数据保存验证失败');
       }
-      
-      console.log('[LearningManager.saveProgress] 进度保存成功');
     } catch (error) {
-      console.error('[LearningManager.saveProgress] 保存进度失败:', error);
+      logger.error('保存进度失败:', error);
       throw error;
     }
   }
@@ -295,7 +287,7 @@ export class LearningManager {
         await this.saveProgress(progress);
       }
     } catch (error) {
-      console.error('Error removing from review:', error);
+      logger.error('从错字本删除失败:', error);
       throw error;
     }
   }
@@ -303,14 +295,12 @@ export class LearningManager {
   // 重置所有学习进度
   public async resetAllProgress(): Promise<void> {
     try {
-      console.log('[LearningManager.resetAllProgress] Resetting all learning progress');
       await AsyncStorage.removeItem('learningProgress');
       await AsyncStorage.removeItem('todayLearningList');
       this.reviewWords.clear();
       this.learningProgress.clear();
-      console.log('[LearningManager.resetAllProgress] Successfully reset all progress');
     } catch (error) {
-      console.error('[LearningManager.resetAllProgress] Error resetting progress:', error);
+      logger.error('重置进度失败:', error);
       throw error;
     }
   }
@@ -322,18 +312,11 @@ export class LearningManager {
       const today = new Date().toISOString().split('T')[0];
       
       // 计算今天学习的字数
-      const todayLearned = Object.values(progress).filter(item => 
+      return Object.values(progress).filter(item => 
         item.lastReviewDate === today
       ).length;
-
-      console.log('[LearningManager.getTodayLearnedCount]', {
-        date: today,
-        count: todayLearned
-      });
-
-      return todayLearned;
     } catch (error) {
-      console.error('[LearningManager.getTodayLearnedCount] Error:', error);
+      logger.error('获取今日学习数量失败:', error);
       return 0;
     }
   }
@@ -375,7 +358,7 @@ export class LearningManager {
       // 返回指定数量的新字符
       return availableChars.slice(0, count);
     } catch (error) {
-      console.error('[LearningManager.getMoreCharactersToLearn] Error:', error);
+      logger.error('获取更多学习字符失败:', error);
       return [];
     }
   }

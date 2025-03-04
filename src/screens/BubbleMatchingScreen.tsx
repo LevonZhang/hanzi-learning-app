@@ -25,6 +25,7 @@ import StatisticsService from '../services/StatisticsService';
 import SubscriptionService from '../services/SubscriptionService';
 import { ResponsiveContainer } from '../components/ResponsiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
+import { CONSTANTS } from '../config/env';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_AREA_WIDTH = SCREEN_WIDTH - 20;
@@ -331,8 +332,10 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   }, [bubbles]);
 
   const initializeLevel = async () => {
+    // 只有在进入新关卡时才检查限制
+    if (level > CONSTANTS.FREE_GAME_LEVEL_LIMIT) {
       const subscriptionService = SubscriptionService.getInstance();
-    const isLevelLocked = await subscriptionService.checkGameLevelLimit(level);
+      const isLevelLocked = await subscriptionService.checkGameLevelLimit(level);
       
       if (isLevelLocked) {
         Alert.alert(
@@ -351,6 +354,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
         navigation.goBack();
         return;
       }
+    }
 
     try {
       const bubbleCount = getLevelBubbleCount(level as GameLevel);

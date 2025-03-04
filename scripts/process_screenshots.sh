@@ -15,20 +15,19 @@ then
 fi
 
 # 创建目录结构
-mkdir -p screenshots/{iphone,ipad,mac}/{original,processed}
-mkdir -p screenshots/iphone/processed/{iphone_15_pro_max_portrait,iphone_15_pro_max_landscape,iphone_14_pro_portrait,iphone_14_pro_landscape}
-mkdir -p screenshots/ipad/processed/{ipad_pro_portrait,ipad_pro_landscape,ipad_portrait,ipad_landscape}
-mkdir -p screenshots/mac/processed/{macbook,imac}
+SCREENSHOTS_DIR="/Volumes/worlk/HanziLearning/screenshots"
+mkdir -p ${SCREENSHOTS_DIR}/{iphone,ipad,mac}/processed
+mkdir -p ${SCREENSHOTS_DIR}/iphone/processed/{iphone_15_pro_max_portrait,iphone_15_pro_max_landscape,iphone_14_pro_portrait,iphone_14_pro_landscape}
+mkdir -p ${SCREENSHOTS_DIR}/ipad/processed/{ipad_pro_portrait,ipad_pro_landscape,ipad_portrait,ipad_landscape}
+mkdir -p ${SCREENSHOTS_DIR}/mac/processed/{macbook,imac}
 
 echo -e "${BLUE}=== App Store Screenshot Processor ===${NC}"
 echo -e "${BLUE}This script will process screenshots for different devices${NC}"
 
 # 定义设备和尺寸
-declare -A DEVICE_CONFIGS=(
-    ["iphone"]="iphone_15_pro_max_portrait:1290x2796 iphone_15_pro_max_landscape:2796x1290 iphone_14_pro_portrait:1320x2868 iphone_14_pro_landscape:2868x1320"
-    ["ipad"]="ipad_pro_portrait:2048x2732 ipad_pro_landscape:2732x2048 ipad_portrait:2048x2732 ipad_landscape:2732x2048"
-    ["mac"]="macbook:2880x1800 imac:2880x1800"
-)
+IPHONE_CONFIGS="iphone_15_pro_max_portrait:1290x2796 iphone_15_pro_max_landscape:2796x1290 iphone_14_pro_portrait:1320x2868 iphone_14_pro_landscape:2868x1320"
+IPAD_CONFIGS="ipad_pro_portrait:2048x2732 ipad_pro_landscape:2732x2048 ipad_portrait:2048x2732 ipad_landscape:2732x2048"
+MAC_CONFIGS="macbook:2880x1800 imac:2880x1800"
 
 # 处理函数
 process_image() {
@@ -36,7 +35,7 @@ process_image() {
     local size=$2
     local device_type=$3
     local device_subtype=$4
-    local output="screenshots/${device_type}/processed/${device_subtype}/$(basename "${input%.*}")_${size}.png"
+    local output="${SCREENSHOTS_DIR}/${device_type}/processed/${device_subtype}/$(basename "${input%.*}")_${size}.png"
     
     echo -e "${BLUE}Processing ${input} for ${device_type}/${device_subtype} (${size})...${NC}"
     
@@ -60,21 +59,34 @@ process_image() {
 # 处理特定设备类型的图片
 process_device_type() {
     local device_type=$1
-    local configs=${DEVICE_CONFIGS[$device_type]}
+    local configs=""
+    
+    case $device_type in
+        "iphone")
+            configs="$IPHONE_CONFIGS"
+            ;;
+        "ipad")
+            configs="$IPAD_CONFIGS"
+            ;;
+        "mac")
+            configs="$MAC_CONFIGS"
+            ;;
+    esac
+    
     local count=0
     local total=0
     
     # 检查原始目录是否为空
-    if [ -z "$(ls -A screenshots/${device_type}/original 2>/dev/null)" ]
+    if [ -z "$(ls -A ${SCREENSHOTS_DIR}/${device_type}/original 2>/dev/null)" ]
     then
-        echo -e "${RED}No files found in screenshots/${device_type}/original/${NC}"
+        echo -e "${RED}No files found in ${SCREENSHOTS_DIR}/${device_type}/original/${NC}"
         return 0
     fi
     
     # 计算总文件数
     for ext in png jpg jpeg
     do
-        for file in screenshots/${device_type}/original/*.$ext
+        for file in ${SCREENSHOTS_DIR}/${device_type}/original/*.$ext
         do
             if [ -f "$file" ]
             then
@@ -94,7 +106,7 @@ process_device_type() {
     # 处理每个文件
     for ext in png jpg jpeg
     do
-        for file in screenshots/${device_type}/original/*.$ext
+        for file in ${SCREENSHOTS_DIR}/${device_type}/original/*.$ext
         do
             if [ -f "$file" ]
             then
@@ -120,7 +132,7 @@ process_device_type() {
 
 # 创建使用说明
 create_readme() {
-    cat > screenshots/README.md << 'EOF'
+    cat > ${SCREENSHOTS_DIR}/README.md << 'EOF'
 # Screenshot Processing Guide
 
 ## Directory Structure
@@ -174,7 +186,7 @@ init() {
     create_readme
     echo -e "${GREEN}Initialization complete${NC}"
     echo -e "${BLUE}Current directory structure:${NC}"
-    ls -R screenshots/
+    ls -R ${SCREENSHOTS_DIR}/
     echo -e "${BLUE}Please place your original screenshots in the corresponding device's original directory${NC}"
 }
 
@@ -185,7 +197,7 @@ main() {
     echo -e "${BLUE}Starting screenshot processing...${NC}"
     
     # 处理每种设备类型
-    for device_type in "${!DEVICE_CONFIGS[@]}"
+    for device_type in "iphone" "ipad" "mac"
     do
         process_device_type "$device_type"
     done

@@ -43,7 +43,6 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
   });
   
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
-  const [canReview, setCanReview] = useState(false);
 
   const dynamicStyles = {
     characterContainer: {
@@ -67,19 +66,7 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
 
   useEffect(() => {
     loadReviewItems();
-    checkReviewPermission();
   }, []);
-
-  const checkReviewPermission = async () => {
-    try {
-      const subscriptionService = SubscriptionService.getInstance();
-      const hasPermission = await subscriptionService.canUseReview();
-      setCanReview(hasPermission);
-    } catch (error) {
-      console.error('Failed to check review permission:', error);
-      setCanReview(false);
-    }
-  };
 
   const loadReviewItems = async () => {
     const learningManager = LearningManager.getInstance();
@@ -87,7 +74,11 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
     setReviewItems(items);
   };
 
-  const startReviewForChar = (item: ReviewItem) => {
+  const startReviewForChar = async (item: ReviewItem) => {
+    // 检查会员权限
+    const subscriptionService = SubscriptionService.getInstance();
+    const canReview = await subscriptionService.canUseReview();
+    
     if (!canReview) {
       Alert.alert(
         i18n.t('premiumFeature'),

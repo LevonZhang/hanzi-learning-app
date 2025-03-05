@@ -110,23 +110,13 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     };
   };
 
-  const getWriterConfig = () => {
-    const size = shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220;
-    const padding = shouldUseDesktopLayout ? (isIPad ? 15 : isDesktop ? 12 : 15) : 10;
-    return { size, padding };
-  };
-
-  const { size, padding } = getWriterConfig();
-
   const htmlContent = `
     <!DOCTYPE html>
     <html>
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <script>
-          ${require('../../assets/js/hanzi-writer.min.js')}
-        </script>
+        <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
         <style>
           body {
             margin: 0;
@@ -141,8 +131,8 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             box-sizing: border-box;
           }
           #character-target-div {
-            width: ${size}px;
-            height: ${size}px;
+            width: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220}px;
+            height: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220}px;
             background-color: transparent;
             background-image: url('data:image/svg+xml;utf8,\
               <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">\
@@ -156,7 +146,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             position: relative;
             margin: 0 auto;
             box-sizing: border-box;
-            padding: ${padding}px;
+            padding: 5px;
           }
         </style>
       </head>
@@ -180,9 +170,9 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             }
             
             writer = HanziWriter.create('character-target-div', character, {
-              width: ${size - padding * 2},
-              height: ${size - padding * 2},
-              padding: 0,
+              width: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220},
+              height: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220},
+              padding: ${shouldUseDesktopLayout ? (isIPad ? 5 : isDesktop ? 5 : 5) : 3},
               showOutline: true,
               strokeAnimationSpeed: 1,
               delayBetweenStrokes: 100,
@@ -195,6 +185,9 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               showHintAfterMisses: 3,
               highlightOnComplete: true,
               leniency: 1.0,
+              onLoadCharDataSuccess: () => {
+                writer.animateCharacter();
+              }
             });
 
             return writer;
@@ -216,7 +209,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               highlightOnComplete: true,
               showCharacter: true,
               strokeHighlightSpeed: 2,
-              drawingWidth: ${shouldUseDesktopLayout ? (isIPad ? 12 : isDesktop ? 10 : 12) : 10},
+              drawingWidth: ${shouldUseDesktopLayout ? (isIPad ? 8 : isDesktop ? 10 : 12) : 12},
               showHintAfterMisses: 3,
               onComplete: () => {
                 window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -289,16 +282,16 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     displayContainer: {
       width: '100%',
       aspectRatio: shouldUseDesktopLayout ? 1 : 0.9,
-      maxWidth: size,
-      maxHeight: size,
+      maxWidth: shouldUseDesktopLayout ? (isIPad ? 360 : isMacDevice ? 290 : 330) : 280,
+      maxHeight: shouldUseDesktopLayout ? (isIPad ? 360 : isMacDevice ? 290 : 330) : 252,
       alignSelf: 'center',
       position: 'relative',
       marginLeft: 0,
       padding: 0,
     },
     canvas: {
-      width: size,
-      height: size,
+      width: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 280 : 320) : width - 80,
+      height: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 280 : 320) : width - 80,
       backgroundColor: 'transparent',
       overflow: 'visible',
       alignSelf: 'center',
@@ -402,11 +395,11 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       top: '50%',
       left: '50%',
       transform: [
-        { translateX: -size / 2 },
-        { translateY: -size / 2 }
+        { translateX: -(shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90) / 2 },
+        { translateY: -(shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90) / 2 }
       ],
-      width: size,
-      height: size,
+      width: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90,
+      height: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90,
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: '#fff',
@@ -432,6 +425,19 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       color: '#FF3B30',
       textAlign: 'center',
       paddingHorizontal: 15,
+    },
+    overlayContainer: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: [
+        { translateX: -(shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90) / 2 },
+        { translateY: -(shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90) / 2 }
+      ],
+      width: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90,
+      height: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90,
+      zIndex: 1,
+      borderRadius: 12,
     },
     hidden: {
       opacity: 0,
@@ -460,9 +466,9 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
           onMessage={onMessage}
         />
         {isLoading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4CAF50" />
-            <Text style={styles.loadingText}>{i18n.t('loading')}</Text>
+          <View style={[styles.loadingContainer, styles.overlayContainer]}>
+            <ActivityIndicator size="small" color="#4CAF50" />
+            <Text style={[styles.loadingText, { fontSize: shouldUseDesktopLayout ? (isIPad ? 13 : 12) : 12 }]}>{i18n.t('loading')}</Text>
           </View>
         )}
       </View>

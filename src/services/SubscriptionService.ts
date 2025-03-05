@@ -718,79 +718,13 @@ export default class SubscriptionService {
         await this.initialize();
       }
       
-      // 重置StoreKit连接
-      logger.subscription('重置StoreKit连接');
-      try {
-      await clearTransactionIOS();
-        logger.subscription('StoreKit交易缓存已清除');
-        
-        // 重新初始化连接
-        await this.initializeConnection();
-        logger.subscription('StoreKit连接已重新初始化');
-      } catch (resetError: any) {
-        logger.error('重置StoreKit连接时出错', {
-          error: resetError instanceof Error ? resetError.message : String(resetError),
-          stack: resetError instanceof Error ? resetError.stack : undefined
-        });
-        // 继续流程，不要因为重置失败而中断购买
-      }
-      
-      // 获取可用产品，确认产品是否有效
-      logger.subscription('获取可用产品');
-      let products;
-      try {
-        products = await getSubscriptions({
-          skus: Object.values(IOS_SKUS)
-        });
-        
-        logger.subscription('获取到的可用产品', {
-          count: products.length,
-          products: products.map(p => ({
-            productId: p.productId,
-            title: p.title,
-            description: p.description
-          }))
-        });
-        
-        const isProductAvailable = products.some(p => p.productId === fullProductId);
-        if (!isProductAvailable) {
-          logger.error('要购买的产品不在可用产品列表中', {
-            productId: fullProductId,
-            availableProducts: products.map(p => p.productId)
-          });
-          
-          if (!ENV.IS_SANDBOX) {
-            Alert.alert(
-              '产品不可用',
-              '无法购买所选订阅，该产品不可用。请稍后再试。',
-              [{ text: '确定' }]
-            );
-            return false;
-          }
-        }
-      } catch (productsError: any) {
-        logger.error('获取产品列表失败', {
-          error: productsError.message,
-          stack: productsError.stack
-        });
-        // 在沙盒环境中继续尝试，生产环境则报错
-        if (!ENV.IS_SANDBOX) {
-          Alert.alert(
-            '无法获取产品信息',
-            '获取订阅产品信息失败，请检查网络连接并稍后再试。',
-            [{ text: '确定' }]
-          );
-          return false;
-        }
-      }
-      
       // 开始购买流程
       logger.subscription('开始请求购买', { fullProductId });
       try {
         const purchase = await requestSubscription({
-        sku: fullProductId,
-        andDangerouslyFinishTransactionAutomaticallyIOS: false
-      });
+          sku: fullProductId,
+          andDangerouslyFinishTransactionAutomaticallyIOS: false
+        });
       
         if (!purchase) {
           logger.error('购买请求返回空结果');
@@ -840,8 +774,8 @@ export default class SubscriptionService {
         // 处理常见错误
         if (errorCode === 'E_USER_CANCELLED') {
           logger.subscription('用户取消了购买');
-        return false;
-      }
+          return false;
+        }
         
         if (errorCode === 'E_ALREADY_OWNED') {
           logger.subscription('用户已拥有此产品，尝试恢复购买');

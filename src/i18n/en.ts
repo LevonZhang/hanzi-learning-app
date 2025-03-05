@@ -195,4 +195,57 @@ export const en = {
   resetGameConfirm: 'Reset Game',
   resetGameConfirmMessage: 'Are you sure you want to reset the game progress? This will clear your current score and level progress, and start from level 1.',
   points: 'points',
+
+  // Subscription Messages
+  subscription: {
+    // Subscription Status
+    active: 'Subscription Active',
+    expired: 'Subscription Expired',
+    canceled: 'Subscription Canceled',
+    restored: 'Subscription Restored',
+    alreadySubscribed: 'Already Subscribed',
+    alreadySubscribedDesc: 'You already have an active subscription. To change plans, please wait for your current subscription to expire or cancel it first.',
+    noActiveSubscription: 'No Active Subscription',
+    subscribeNow: 'Would you like to subscribe to access all features?',
+    noSubscriptionFound: 'No Subscription Found',
+    
+    // Subscription Actions
+    subscribe: 'Subscribe',
+    unsubscribe: 'Unsubscribe',
+    restore: 'Restore Purchase',
+    manage: 'Manage Subscription',
+    
+    // Subscription Prompts
+    confirmCancel: 'Confirm Cancellation',
+    confirmCancelMessage: 'After canceling, you can still use all features until your current subscription period ends.',
+    cancelSuccess: 'Subscription Successfully Canceled',
+    cancelError: 'Failed to cancel subscription, please try again later',
+    
+    restoreSuccess: 'Subscription Successfully Restored',
+    restoreError: 'Failed to restore subscription, please check if you have any previous subscriptions',
+    
+    expiringSoon: 'Your Subscription is Expiring Soon',
+    expiringSoonMessage: 'Your subscription will expire in {{days}} days. Please renew to continue using all features.',
+    
+    expired: 'Your Subscription has Expired',
+    expiredMessage: 'Please renew your subscription to continue using all features.',
+    
+    // Subscription Management
+    manageSubscription: 'Manage Subscription',
+    manageInstructions: 'To manage or cancel your subscription, go to:\nSettings > Apple ID > Subscriptions',
+    
+    // Subscription Status Changes
+    statusChanged: 'Subscription Status Updated',
+    willExpireOn: 'Your subscription will expire on {{date}}',
+    renewedUntil: 'Your subscription has been renewed until {{date}}',
+    
+    // Feature Restrictions
+    featureRestricted: 'Feature Restricted',
+    subscriptionRequired: 'Subscription required to use this feature',
+    
+    // Other Prompts
+    processingPurchase: 'Processing subscription request...',
+    verifyingReceipt: 'Verifying subscription status...',
+    contactSupport: 'If you have any issues, please contact support',
+  },
 }; 

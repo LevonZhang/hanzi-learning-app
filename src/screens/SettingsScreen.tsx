@@ -892,7 +892,13 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                   {subscriptionStatus.isLifetime 
                     ? i18n.t('lifetimeName')
                     : subscriptionStatus.isActive 
-                      ? i18n.t('premiumActiveStatus')
+                      ? subscriptionStatus.productId?.includes('monthly')
+                        ? i18n.t('monthlyName')
+                        : subscriptionStatus.productId?.includes('quarterly')
+                          ? i18n.t('quarterlyName')
+                          : subscriptionStatus.productId?.includes('yearly')
+                            ? i18n.t('yearlyName')
+                            : i18n.t('premiumActiveStatus')
                       : i18n.t('getPremium')
                   }
                 </Text>

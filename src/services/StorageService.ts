@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
 interface GameScore {
   score: number;
@@ -33,7 +34,7 @@ class StorageService {
       }
       return false;
     } catch (error) {
-      console.error('保存游戏分数失败:', error);
+      logger.error('保存游戏分数失败:', error);
       return false;
     }
   }
@@ -52,7 +53,7 @@ class StorageService {
       }
       return 0;
     } catch (error) {
-      console.error('获取游戏最高分失败:', error);
+      logger.error('获取游戏最高分失败:', error);
       return 0;
     }
   }
@@ -69,7 +70,7 @@ class StorageService {
         await AsyncStorage.setItem(StorageService.LEARNING_RECORDS_KEY, JSON.stringify(records));
       }
     } catch (error) {
-      console.error('记录学习汉字失败:', error);
+      logger.error('记录学习汉字失败:', error);
     }
   }
 
@@ -79,7 +80,7 @@ class StorageService {
       const records = await AsyncStorage.getItem(StorageService.LEARNING_RECORDS_KEY);
       return records ? JSON.parse(records) : [];
     } catch (error) {
-      console.error('获取学习记录失败:', error);
+      logger.error('获取学习记录失败:', error);
       return [];
     }
   }
@@ -107,7 +108,7 @@ class StorageService {
         }
       });
     } catch (error) {
-      console.error('获取时间范围内的学习记录失败:', error);
+      logger.error('获取时间范围内的学习记录失败:', error);
       return [];
     }
   }
@@ -134,7 +135,7 @@ class StorageService {
         year: yearRecords.length,
       };
     } catch (error) {
-      console.error('获取学习统计数据失败:', error);
+      logger.error('获取学习统计数据失败:', error);
       return {
         total: 0,
         week: 0,

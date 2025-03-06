@@ -78,18 +78,6 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   );
   const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
   
-  // 调试输出
-  console.log('设备信息:', { 
-    Platform: Platform.OS, 
-    deviceType, 
-    isDesktop, 
-    isIPad, 
-    isMacOS,
-    isMacCatalyst,
-    isMacDevice,
-    windowWidth
-  });
-
   const screenStyles = StyleSheet.create({
     container: {
       flex: 1,
@@ -486,8 +474,6 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   const handleComplete = async (isCorrect: boolean) => {
     if (!state.currentWord) return;
 
-    console.log('[handleComplete] Start - Current character:', state.currentWord.character, 'isCorrect:', isCorrect);
-
     // 如果不是复习模式，检查会员权限
     if (!state.isReviewMode) {
       const subscriptionService = SubscriptionService.getInstance();
@@ -517,7 +503,6 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     
     // 如果练习正确，记录为已掌握
     if (isCorrect) {
-      console.log('[handleComplete] Character written correctly, marking as mastered');
       await handleCharacterMastered(state.currentWord.character);
     }
 
@@ -525,25 +510,20 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
     const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
     const nextIndex = currentIndex + 1;
-    console.log('[handleComplete] Current index:', currentIndex, 'Next index:', nextIndex, 'List length:', currentList.length);
 
     // 记录当前字的进度
     await learningManager.recordProgress(state.currentWord.character, isCorrect);
-    console.log('[handleComplete] Recorded progress for character:', state.currentWord.character);
 
     if (nextIndex < currentList.length) {
       // 记录下一个字为已学习
       if (!state.isReviewMode) {
-        console.log('[handleComplete] Not in review mode, marking next character as learned:', currentList[nextIndex].character);
         await handleCharacterLearned(currentList[nextIndex].character);
       }
       setState(prev => ({
         ...prev,
         currentWord: currentList[nextIndex]
       }));
-      console.log('[handleComplete] Updated current word to:', currentList[nextIndex].character);
     } else {
-      console.log('[handleComplete] Reached end of list, updating statistics');
       const statistics = await learningManager.getStatistics();
       setState(prev => ({
         ...prev,
@@ -583,12 +563,10 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
   const handleCharacterLearned = async (character: string) => {
     try {
-      console.log('[handleCharacterLearned] Start - Character:', character);
       // 记录学习的汉字（仅设置为已学习状态，不标记为已掌握）
       const learningManager = LearningManager.getInstance();
       await learningManager.recordProgress(character, false);  // 设置 isCorrect 为 false，确保不会被标记为已掌握
       await StatisticsService.recordLearnedCharacter(character, false);
-      console.log('[handleCharacterLearned] Successfully recorded character as learned');
     } catch (error) {
       console.error('[handleCharacterLearned] Failed to record learned character:', error);
     }
@@ -596,12 +574,10 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
   const handleCharacterMastered = async (character: string) => {
     try {
-      console.log('[handleCharacterMastered] Start - Character:', character);
       // 记录掌握的汉字（设置为已掌握状态）
       const learningManager = LearningManager.getInstance();
       await learningManager.recordProgress(character, true);
       await StatisticsService.recordLearnedCharacter(character, true);
-      console.log('[handleCharacterMastered] Successfully recorded character as mastered');
     } catch (error) {
       console.error('[handleCharacterMastered] Failed to record mastered character:', error);
     }

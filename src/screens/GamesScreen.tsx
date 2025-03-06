@@ -26,17 +26,6 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
   );
   const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
   
-  // 调试输出
-  console.log('游戏页设备信息:', { 
-    Platform: Platform.OS, 
-    isDesktop, 
-    isIPad, 
-    isMacOS,
-    isMacCatalyst,
-    isMacDevice,
-    windowWidth
-  });
-  
   const screenStyles = styles({ isIPad, isMacDevice });
 
   return (

@@ -31,17 +31,6 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
   );
   const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
   
-  // 调试输出
-  console.log('复习页设备信息:', { 
-    Platform: Platform.OS, 
-    isDesktop, 
-    isIPad, 
-    isMacOS,
-    isMacCatalyst,
-    isMacDevice,
-    windowWidth
-  });
-  
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
 
   const dynamicStyles = {

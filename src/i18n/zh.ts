@@ -221,12 +221,14 @@ export const zh = {
     cancelError: '取消订阅失败，请稍后重试',
     
     restoreSuccess: '订阅已成功恢复',
+    restoreSuccessDesc: '您的订阅已成功恢复，现在可以使用所有会员功能。',
+    restoreFailed: '恢复订阅失败',
     restoreError: '恢复订阅失败，请确认您之前是否有订阅记录',
     
     expiringSoon: '您的订阅即将到期',
     expiringSoonMessage: '您的订阅将在 {{days}} 天后到期，请及时续订以继续使用所有功能。',
     
-    expired: '您的订阅已过期',
+    expiredStatus: '您的订阅已过期',
     expiredMessage: '您的订阅已过期，请重新订阅以继续使用所有功能。',
     
     // 订阅管理

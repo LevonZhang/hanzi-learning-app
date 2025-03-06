@@ -8,6 +8,8 @@ import SubscriptionService from '../services/SubscriptionService';
 import GameService from '../services/GameService';
 import { ResponsiveContainer } from '../components/ResponsiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
+import { logger } from '../utils/logger';
+import { SUBSCRIPTION_PLANS, SubscriptionPlanId } from '../services/SubscriptionService';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -16,7 +18,7 @@ interface SettingsScreenProps {
 type MenuSection = 'premium' | 'settings' | 'learningStats' | 'gameStats';
 
 interface SubscriptionPlan {
-  id: string;
+  id: SubscriptionPlanId;
   title: string;
   price: number;
   period: string;
@@ -526,14 +528,6 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     loadStats();
     loadLearnedCharacters();
     initializeSubscription();
-    
-    // 检查语言和翻译
-    console.log('Current language:', i18n.language);
-    console.log('Monthly plan translation:', {
-      name: i18n.t('monthlyName'),
-      duration: i18n.t('monthlyDuration'),
-      plan: i18n.t('monthlyPlan')
-    });
   }, []);
 
   useEffect(() => {
@@ -580,48 +574,20 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   }, [navigation]);
 
   const updateSubscriptionPlans = () => {
-    const plans: SubscriptionPlan[] = [
-      {
-        id: 'monthly',
-        title: i18n.t('monthlyPlan'),
-        price: 4.99,
-        period: i18n.t('perMonth'),
-        description: i18n.t('monthlyDesc'),
-        icon: 'star' as const,
-        name: i18n.t('monthlyName'),
-        duration: i18n.t('monthlyDuration'),
-      },
-      {
-        id: 'quarterly',
-        title: i18n.t('quarterlyPlan'),
-        price: 12.99,
-        period: i18n.t('perQuarter'),
-        description: i18n.t('quarterlyDesc'),
-        icon: 'star-shooting' as const,
-        name: i18n.t('quarterlyName'),
-        duration: i18n.t('quarterlyDuration'),
-      },
-      {
-        id: 'yearly',
-        title: i18n.t('yearlyPlan'),
-        price: 39.99,
-        period: i18n.t('perYear'),
-        description: i18n.t('yearlyDesc'),
-        icon: 'star-circle' as const,
-        name: i18n.t('yearlyName'),
-        duration: i18n.t('yearlyDuration'),
-      },
-      {
-        id: 'lifetime',
-        title: i18n.t('lifetimePlan'),
-        price: 99.99,
-        period: i18n.t('oneTime'),
-        description: i18n.t('lifetimeDesc'),
-        icon: 'crown' as const,
-        name: i18n.t('lifetimeName'),
-        duration: i18n.t('lifetimeDuration'),
-      },
-    ];
+    const plans: SubscriptionPlan[] = Object.entries(SUBSCRIPTION_PLANS).map(([id, plan]) => {
+      // 从完整的产品ID中提取简短标识符用于本地化键
+      const shortId = id.split('.').pop()?.replace('sub.', '') || '';
+      return {
+        id: id as SubscriptionPlanId,
+        title: i18n.t(`${shortId}Plan`),
+        price: plan.price,
+        period: i18n.t(`per${shortId.charAt(0).toUpperCase() + shortId.slice(1)}`),
+        description: i18n.t(`${shortId}Desc`),
+        icon: plan.icon,
+        name: i18n.t(`${shortId}Name`),
+        duration: i18n.t(`${shortId}Duration`),
+      };
+    });
     setSubscriptionPlansState(plans);
   };
 
@@ -631,8 +597,17 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       await subscriptionService.initialize();
       // 获取订阅状态
       const subscriptionData = await AsyncStorage.getItem('subscriptionData');
+      console.log('从本地存储获取的会员信息:', subscriptionData);
+      
       if (subscriptionData) {
         const parsedData = JSON.parse(subscriptionData);
+        console.log('解析后的会员信息:', {
+          isActive: parsedData.isActive,
+          isLifetime: parsedData.productId?.includes('lifetime'),
+          expirationDate: parsedData.expirationDate,
+          productId: parsedData.productId
+        });
+        
         setSubscriptionStatus({
           isActive: parsedData.isActive,
           isLifetime: parsedData.productId?.includes('lifetime') || false,
@@ -640,6 +615,8 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           productId: parsedData.productId,
         });
         setIsPremium(parsedData.isActive);
+      } else {
+        console.log('未找到本地存储的会员信息');
       }
     } catch (error) {
       console.error('初始化订阅服务失败:', error);
@@ -661,7 +638,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       
       updateSubscriptionPlans(); // 确保在加载设置后更新订阅计划
     } catch (error) {
-      console.error('加载设置失败:', error);
+      logger.error('加载设置失败:', error);
     }
   };
 
@@ -913,9 +890,30 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                 onPress={async () => {
                   try {
                     const subscriptionService = SubscriptionService.getInstance();
-                    await subscriptionService.restoreSubscriptions();
+                    const restored = await subscriptionService.restoreSubscriptions();
+                    
+                    if (restored) {
+                      // 恢复成功
+                      Alert.alert(
+                        i18n.t('subscription.restoreSuccess'),
+                        i18n.t('subscription.restoreSuccessDesc'),
+                        [{ text: i18n.t('ok'), style: 'default' }]
+                      );
+                    } else {
+                      // 没有找到可恢复的订阅
+                      Alert.alert(
+                        i18n.t('subscription.restoreFailed'),
+                        i18n.t('subscription.noSubscriptionFound'),
+                        [{ text: i18n.t('ok'), style: 'default' }]
+                      );
+                    }
                   } catch (error) {
                     console.error('恢复订阅失败:', error);
+                    Alert.alert(
+                      i18n.t('errorTitle'),
+                      i18n.t('subscription.restoreError'),
+                      [{ text: i18n.t('ok'), style: 'default' }]
+                    );
                   }
                 }}
               >

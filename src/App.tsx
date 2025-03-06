@@ -3,36 +3,41 @@ import { withIAPContext, setup, initConnection, endConnection } from 'react-nati
 import { ENV } from './config/env';
 import { logger } from './utils/logger';
 import SubscriptionService from './services/SubscriptionService';
+import { AppNavigator } from './navigation/AppNavigator';
 
-// 导入您的主要应用组件，这可能需要根据您的项目结构调整
-import MainApp from './MainApp';
+logger.info('App组件加载');
 
 const App = () => {
+  logger.info('App组件渲染');
+  
   useEffect(() => {
+    logger.info('App useEffect 触发');
+    
     const initializeApp = async () => {
       try {
-        // 初始化IAP
+        // 首先初始化IAP
         logger.subscription('初始化IAP配置');
-        
-        // 设置StoreKit2模式
         setup({ storekitMode: 'STOREKIT2_MODE' });
-        
-        // 初始化连接
         await initConnection();
         logger.subscription('IAP连接初始化完成');
-        
-        // 初始化订阅服务
+
+        // 然后初始化订阅服务（这会检查服务器订阅状态）
         const subscriptionService = SubscriptionService.getInstance();
         await subscriptionService.initialize();
+        logger.subscription('订阅服务初始化完成');
       } catch (error) {
         logger.error('初始化应用时出错:', error);
       }
     };
     
-    initializeApp();
+    // 立即执行初始化
+    initializeApp().catch(error => {
+      logger.error('初始化过程发生错误:', error);
+    });
     
     // 清理函数
     return () => {
+      logger.info('App组件清理');
       const cleanup = async () => {
         try {
           // 清理订阅服务
@@ -51,8 +56,10 @@ const App = () => {
     };
   }, []);
   
-  return <MainApp />;
+  return <AppNavigator />;
 };
 
 // 导出带有IAP上下文的应用组件
-export default withIAPContext(App); 
+const WrappedApp = withIAPContext(App);
+logger.info('App组件包装完成');
+export default WrappedApp; 

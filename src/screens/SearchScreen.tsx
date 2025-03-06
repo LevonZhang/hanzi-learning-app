@@ -37,17 +37,6 @@ export const SearchScreen = ({ navigation }: any) => {
     (isIPad && windowWidth > 1024) // 兼容旧版本 RN
   );
   const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
-  
-  // 调试输出
-  console.log('搜索页设备信息:', { 
-    Platform: Platform.OS, 
-    isDesktop, 
-    isIPad, 
-    isMacOS,
-    isMacCatalyst,
-    isMacDevice,
-    windowWidth
-  });
 
   // Create dynamic styles based on device type
   const dynamicStyles = {

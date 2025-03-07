@@ -885,40 +885,6 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                   {i18n.t('daysRemaining', { days: formatRemainingDays(subscriptionStatus.expirationDate) })}
                 </Text>
               )}
-              <TouchableOpacity
-                style={[styles.restoreButton, { marginTop: 12 }]}
-                onPress={async () => {
-                  try {
-                    const subscriptionService = SubscriptionService.getInstance();
-                    const restored = await subscriptionService.restoreSubscriptions();
-                    
-                    if (restored) {
-                      // 恢复成功
-                      Alert.alert(
-                        i18n.t('subscription.restoreSuccess'),
-                        i18n.t('subscription.restoreSuccessDesc'),
-                        [{ text: i18n.t('ok'), style: 'default' }]
-                      );
-                    } else {
-                      // 没有找到可恢复的订阅
-                      Alert.alert(
-                        i18n.t('subscription.restoreFailed'),
-                        i18n.t('subscription.noSubscriptionFound'),
-                        [{ text: i18n.t('ok'), style: 'default' }]
-                      );
-                    }
-                  } catch (error) {
-                    console.error('恢复订阅失败:', error);
-                    Alert.alert(
-                      i18n.t('errorTitle'),
-                      i18n.t('subscription.restoreError'),
-                      [{ text: i18n.t('ok'), style: 'default' }]
-                    );
-                  }
-                }}
-              >
-                <Text style={styles.restoreButtonText}>{i18n.t('subscription.restore')}</Text>
-              </TouchableOpacity>
             </View>
 
             {!subscriptionStatus.isLifetime && (

@@ -223,6 +223,8 @@ export const en = {
     
     restoreSuccess: 'Subscription Successfully Restored',
     restoreError: 'Failed to restore subscription, please check if you have any previous subscriptions',
+    noSubscriptionToRestore: 'No subscriptions found to restore',
+    restoreFailed: 'Failed to restore subscription',
     
     expiringSoon: 'Your Subscription is Expiring Soon',
     expiringSoonMessage: 'Your subscription will expire in {{days}} days. Please renew to continue using all features.',

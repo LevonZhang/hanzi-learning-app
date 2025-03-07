@@ -212,6 +212,7 @@ export const ja = {
     restoreSuccess: '購読の復元が完了しました',
     restoreError: '購読の復元に失敗しました。以前の購読記録を確認してください',
     noSubscriptionToRestore: '復元可能な購読が見つかりません',
+    restoreFailed: '購読の復元に失敗しました',
     
     expiringSoon: '購読の期限が近づいています',
     expiringSoonMessage: '購読は{{days}}日後に期限切れとなります。継続して全ての機能を使用するには更新してください。',

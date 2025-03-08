@@ -441,29 +441,32 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
 
   const loadTodayLearning = async () => {
     try {
-      // 首先检查会员权限
+      // 获取会员状态
       const subscriptionService = SubscriptionService.getInstance();
+      
+      // 获取学习列表
+      const learningManager = LearningManager.getInstance();
+      const { newWords, reviewWords } = await learningManager.getTodayLearningList();
+      const statistics = await learningManager.getStatistics();
+      
+      // 检查是否有新字要学习
+      if (newWords.length === 0) {
+        setState(prev => ({
+          ...prev,
+          newWords: [],
+          reviewWords,
+          currentWord: null,
+          statistics
+        }));
+        return;
+      }
+      
+      // 检查免费用户字符限制
       const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
       
       if (reachedLimit) {
         // 如果达到限制，只设置空状态，不弹出提示
         // 仅在用户点击"下一个"按钮时才会显示提示（在handleComplete中处理）
-        setState(prev => ({
-          ...prev,
-          newWords: [],
-          reviewWords: [],
-          currentWord: null
-        }));
-        return;
-      }
-
-      // 获取学习列表
-      const learningManager = LearningManager.getInstance();
-      const { newWords, reviewWords } = await learningManager.getTodayLearningList();
-      const statistics = await learningManager.getStatistics();
-
-      // 这里的判断应该只看 newWords
-      if (newWords.length === 0) {  // 修改这里，不需要考虑 reviewWords
         setState(prev => ({
           ...prev,
           newWords: [],
@@ -475,14 +478,14 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       }
 
       // 设置当前要学习的字
-      const currentWord = newWords[0];  // 直接使用 newWords[0]，不需要考虑 reviewWords
+      const currentWord = newWords[0];
       
       setState(prev => ({
         ...prev,
         newWords,
         reviewWords,
         currentWord,
-        isReviewMode: false,  // 这里应该始终是 false，因为我们只关注学习
+        isReviewMode: false,
         statistics
       }));
 

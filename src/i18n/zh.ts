@@ -79,6 +79,7 @@ export const zh = {
   addToReviewFailed: '添加失败',
   removedFromReview: '已从复习列表移除',
   removeFromReviewFailed: '移除失败',
+  noReviewItems: '没有需要复习的汉字',
 
   // Settings
   learningSettings: '基本设置',

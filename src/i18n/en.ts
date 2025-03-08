@@ -78,6 +78,7 @@ export const en = {
   addToReviewFailed: 'Failed to add',
   removedFromReview: 'Removed from review list',
   removeFromReviewFailed: 'Failed to remove',
+  noReviewItems: 'No characters to review',
 
   // Settings
   learningSettings: 'Learning Settings',

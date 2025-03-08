@@ -79,6 +79,7 @@ export const ja = {
   addToReviewFailed: '追加に失敗しました',
   removedFromReview: '復習リストから削除しました',
   removeFromReviewFailed: '削除に失敗しました',
+  noReviewItems: '復習する文字がありません',
 
   // Settings
   learningSettings: '学習設定',

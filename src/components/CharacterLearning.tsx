@@ -519,7 +519,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
               onPress={async () => {
                 try {
                   const learningManager = LearningManager.getInstance();
-                  await learningManager.recordProgress(character, false);
+                  await learningManager.recordProgress(character, false, true);
                   await onComplete?.(false);
                   Alert.alert(
                     i18n.t('success'),

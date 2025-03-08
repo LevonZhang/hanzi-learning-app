@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, FlatList, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { i18n } from '../i18n/i18n';
@@ -104,7 +104,6 @@ const useResponsiveFontSizes = () => {
     expirationText: getSize(14),
     sectionTitle: getSize(18),
     noDataText: getSize(16),
-    loadMoreText: getSize(14),
   };
 };
 
@@ -417,18 +416,6 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       fontSize: fontSizes.characterText,
       fontWeight: 'bold',
     },
-    loadMoreButton: {
-      alignItems: 'center',
-      padding: 15,
-      backgroundColor: '#f5f5f5',
-      borderRadius: 8,
-      marginTop: 10,
-      marginBottom: 20,
-    },
-    loadMoreText: {
-      color: '#666',
-      fontSize: fontSizes.loadMoreText,
-    },
     gameStatsContainer: {
       width: '100%',
       gap: 16,
@@ -494,6 +481,11 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       fontSize: fontSizes.resetButtonText,
       fontWeight: 'bold',
     },
+    loadingFooter: {
+      padding: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });
 
   const [dailyWords, setDailyWords] = useState(5);
@@ -519,6 +511,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   const [learnedCharacters, setLearnedCharacters] = useState<LearnedCharacter[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [gameProgress, setGameProgress] = useState<GameProgress | null>(null);
   const [pronunciationGameProgress, setPronunciationGameProgress] = useState<GameProgress | null>(null);
   const ITEMS_PER_PAGE = isDesktop ? 24 : 18;
@@ -532,7 +525,6 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     // 添加订阅状态监听器
     const subscriptionService = SubscriptionService.getInstance();
     const removeListener = subscriptionService.addSubscriptionUpdateListener((subscriptionData) => {
-      console.log('收到订阅状态更新:', subscriptionData);
       if (subscriptionData) {
         setSubscriptionStatus({
           isActive: subscriptionData.isActive,
@@ -635,16 +627,9 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       
       // 获取订阅状态
       const subscriptionData = await AsyncStorage.getItem('subscriptionData');
-      console.log('从本地存储获取的会员信息:', subscriptionData);
       
       if (subscriptionData) {
         const parsedData = JSON.parse(subscriptionData);
-        console.log('解析后的会员信息:', {
-          isActive: parsedData.isActive,
-          isLifetime: parsedData.productId?.includes('lifetime'),
-          expirationDate: parsedData.expirationDate,
-          productId: parsedData.productId
-        });
         
         setSubscriptionStatus({
           isActive: parsedData.isActive,
@@ -739,10 +724,17 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   };
 
   const handleLoadMore = () => {
+    if (isLoading) return;
+    
+    setIsLoading(true);
     const nextPage = currentPage + 1;
     const nextEndIndex = (nextPage + 1) * ITEMS_PER_PAGE;
-    setCurrentPage(nextPage);
-    setHasMore(nextEndIndex < learnedCharacters.length);
+    
+    setTimeout(() => {
+      setCurrentPage(nextPage);
+      setHasMore(nextEndIndex < learnedCharacters.length);
+      setIsLoading(false);
+    }, 300);
   };
 
   const renderCharacterItem = ({ item }: { item: LearnedCharacter }) => (
@@ -760,12 +752,13 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     </TouchableOpacity>
   );
 
-  const renderFooter = () => {
-    if (!hasMore) return null;
+  const renderListFooter = () => {
+    if (!hasMore && !isLoading) return null;
+    
     return (
-      <TouchableOpacity style={styles.loadMoreButton} onPress={handleLoadMore}>
-        <Text style={styles.loadMoreText}>{i18n.t('showMore')}</Text>
-      </TouchableOpacity>
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color="#007AFF" />
+      </View>
     );
   };
 
@@ -882,10 +875,10 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   };
 
   const getMasteryLevelColor = (level: number): string => {
-    switch (level) {
-      case 2:
+    switch (true) {
+      case level >= 2:
         return '#34C759'; // 已掌握 - 绿色
-      case 1:
+      case level === 1:
         return '#333333'; // 已学习 - 黑色
       default:
         return '#333333'; // 默认黑色
@@ -1133,10 +1126,13 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                 keyExtractor={(item) => item.character}
                 numColumns={3}
                 contentContainerStyle={styles.characterGrid}
-                ListFooterComponent={renderFooter}
+                ListFooterComponent={renderListFooter}
                 scrollEnabled={true}
                 nestedScrollEnabled={true}
                 style={styles.characterList}
+                onEndReached={hasMore ? handleLoadMore : null}
+                onEndReachedThreshold={0.3}
+                initialNumToRender={ITEMS_PER_PAGE}
               />
             ) : (
               <Text style={[styles.noDataText, { fontSize: fontSizes.noDataText }]}>{i18n.t('noLearnedChars')}</Text>

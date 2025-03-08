@@ -310,7 +310,6 @@ export default class SubscriptionService {
               transactionId: purchase.transactionId || ''
             };
             
-            logger.subscription('使用基本交易信息创建终身订阅:', subscriptionData);
             await this.updateSubscriptionStatus(subscriptionData);
             return true;
           }

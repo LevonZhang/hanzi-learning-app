@@ -187,7 +187,7 @@ export class LearningManager {
     }
   }
 
-  async recordProgress(character: string, isCorrect: boolean): Promise<void> {
+  async recordProgress(character: string, isCorrect: boolean, forceAddToReview: boolean = false): Promise<void> {
     try {
       const progress = await this.getAllProgress();
       
@@ -196,23 +196,52 @@ export class LearningManager {
         const initialProgress = {
           character,
           lastReviewDate: new Date().toISOString().split('T')[0],
-          masteryLevel: 1,
-          mistakes: 0,
-          nextReviewDate: this.getNextReviewDate(new Date(), 1)
+          masteryLevel: isCorrect ? 2 : 1, // 如果回答正确，设置为掌握状态(2)
+          mistakes: forceAddToReview ? 1 : 0, // 只有强制加入错题本时才设置mistakes为1
+          nextReviewDate: this.getNextReviewDate(new Date(), isCorrect ? 2 : 1)
         };
         progress[character] = initialProgress;
       } else {
         // 更新进度
         const item = progress[character];
         item.lastReviewDate = new Date().toISOString().split('T')[0];
-        item.masteryLevel = isCorrect ? Math.min(item.masteryLevel + 1, 5) : Math.max(item.masteryLevel - 1, 1);
-        item.mistakes = isCorrect ? item.mistakes : item.mistakes + 1;
+        
+        // 修复: 如果回答正确，直接设置掌握等级为2表示已掌握，而不是递增
+        if (isCorrect) {
+          item.masteryLevel = 2; // 直接设为2表示已掌握状态
+        } else if (forceAddToReview) {
+          // 不降低掌握等级，只有强制加入错题本时增加mistakes
+          item.mistakes += 1;
+        }
+        
         item.nextReviewDate = this.getNextReviewDate(new Date(), item.masteryLevel);
       }
 
       await this.saveProgress(progress);
     } catch (error) {
       logger.error('记录学习进度失败:', error);
+    }
+  }
+
+  // 初始化一个字符的学习记录，标记为"已学习但未掌握"
+  async initCharacterLearning(character: string): Promise<void> {
+    try {
+      const progress = await this.getAllProgress();
+      
+      // 只有当字符不在进度记录中时才初始化
+      if (!progress[character]) {
+        const initialProgress = {
+          character,
+          lastReviewDate: new Date().toISOString().split('T')[0],
+          masteryLevel: 1,  // 设置掌握度为1表示"已学习但未掌握"
+          mistakes: 0,      // 不加入错题本
+          nextReviewDate: this.getNextReviewDate(new Date(), 1)
+        };
+        progress[character] = initialProgress;
+        await this.saveProgress(progress);
+      }
+    } catch (error) {
+      logger.error('初始化字符学习记录失败:', error);
     }
   }
 
@@ -230,6 +259,7 @@ export class LearningManager {
   async getMostMistakenChars(limit: number = 10) {
     const progress = await this.getAllProgress();
     return Object.values(progress)
+      .filter(item => item.mistakes > 0)
       .sort((a, b) => b.mistakes - a.mistakes)
       .slice(0, limit);
   }
@@ -241,7 +271,7 @@ export class LearningManager {
     
     return {
       totalLearned: chars.length,
-      mastered: chars.filter(c => c.masteryLevel === 2).length,
+      mastered: chars.filter(c => c.masteryLevel >= 2).length,
       needReview: chars.filter(c => c.mistakes > 0).length
     };
   }

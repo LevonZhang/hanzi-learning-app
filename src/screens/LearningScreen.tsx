@@ -617,7 +617,10 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     try {
       // 记录学习的汉字（仅设置为已学习状态，不标记为已掌握）
       const learningManager = LearningManager.getInstance();
-      await learningManager.recordProgress(character, false);  // 设置 isCorrect 为 false，确保不会被标记为已掌握
+      
+      // 使用新的initCharacterLearning方法初始化字符学习记录，而不是recordProgress
+      await learningManager.initCharacterLearning(character);
+      
       await StatisticsService.recordLearnedCharacter(character, false);
     } catch (error) {
       console.error('[handleCharacterLearned] Failed to record learned character:', error);

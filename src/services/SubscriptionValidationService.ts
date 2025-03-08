@@ -160,11 +160,21 @@ class SubscriptionValidationService {
   // 解析交易信息为订阅数据
   parseTransactionInfo(transactionInfo: any): SubscriptionData {
     const now = new Date();
+    
+    // 为lifetime会员设置特殊到期日期
+    let expirationDate;
+    if (transactionInfo.productId?.includes('lifetime')) {
+      // 使用2050年作为终身会员的到期日期，避免Date范围错误
+      expirationDate = new Date(2050, 0, 1);
+    } else {
+      expirationDate = new Date(transactionInfo.expirationDate);
+    }
+    
     return {
       productId: transactionInfo.productId,
       originalTransactionId: transactionInfo.originalTransactionId,
       purchaseDate: new Date(transactionInfo.purchaseDate),
-      expirationDate: new Date(transactionInfo.expirationDate),
+      expirationDate: expirationDate,
       isActive: this.isSubscriptionActive(transactionInfo),
       environment: transactionInfo.environment || 'production',
       lastUpdated: now.toISOString(),

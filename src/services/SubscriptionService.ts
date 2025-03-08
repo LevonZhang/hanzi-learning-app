@@ -236,7 +236,22 @@ export default class SubscriptionService {
             // 解析JWT载荷
             const payload = JSON.parse(jsonString);
             
-            const expirationDate = new Date(payload.expiresDate);
+            // Get expiration date from JWT
+            let expirationDate;
+            if (purchase.productId?.includes('lifetime')) {
+              // 对终身会员使用固定的未来日期
+              expirationDate = new Date(2150, 0, 1);
+            } else {
+              try {
+                expirationDate = new Date(payload.expiresDate);
+              } catch (dateError) {
+                // 如果日期格式错误，使用合理的默认值
+                logger.error('解析JWT到期日期出错:', dateError);
+                // 默认设置为当前日期加一年
+                expirationDate = new Date();
+                expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+              }
+            }
             const now = new Date();
 
             // 即使 JWT 验证成功，我们仍然尝试发送到服务器进行记录
@@ -282,8 +297,22 @@ export default class SubscriptionService {
           } else if (purchase.productId.includes('yearly')) {
             expirationDate.setFullYear(expirationDate.getFullYear() + 1);
           } else if (purchase.productId.includes('lifetime')) {
-            // 终身订阅，设置为100年后
-            expirationDate.setFullYear(expirationDate.getFullYear() + 100);
+            // 终身订阅，使用2150年作为到期日期
+            // 避免使用过远的日期（如100年后）导致JavaScript Date对象出错
+            const lifetimeDate = new Date(2150, 0, 1); // 2150年1月1日
+            
+            const subscriptionData: SubscriptionDataType = {
+              isActive: true,
+              productId: purchase.productId,
+              expirationDate: lifetimeDate.toISOString(),
+              lastUpdated: new Date().toISOString(),
+              environment: 'fallback',
+              transactionId: purchase.transactionId || ''
+            };
+            
+            logger.subscription('使用基本交易信息创建终身订阅:', subscriptionData);
+            await this.updateSubscriptionStatus(subscriptionData);
+            return true;
           }
           
           const subscriptionData: SubscriptionDataType = {
@@ -800,7 +829,21 @@ export default class SubscriptionService {
               const payload = JSON.parse(jsonPayload);
               
               // Get expiration date from JWT
-              const expirationDate = new Date(payload.expiresDate);
+              let expirationDate;
+              if (latestPurchase.productId?.includes('lifetime')) {
+                // 对终身会员使用固定的未来日期
+                expirationDate = new Date(2150, 0, 1);
+              } else {
+                try {
+                  expirationDate = new Date(payload.expiresDate);
+                } catch (dateError) {
+                  // 如果日期格式错误，使用合理的默认值
+                  logger.error('解析JWT到期日期出错:', dateError);
+                  // 默认设置为当前日期加一年
+                  expirationDate = new Date();
+                  expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+                }
+              }
               const now = new Date();
 
               const subscriptionData: SubscriptionDataType = {

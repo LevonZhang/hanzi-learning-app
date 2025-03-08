@@ -5,7 +5,6 @@ export const zh = {
   search: '搜索',
   games: '游戏',
   settings: '设置',
-  profileTab: '我的',
 
   // Search Screen
   searchPlaceholder: '输入汉字或拼音',
@@ -56,7 +55,7 @@ export const zh = {
   correctMatch: '正确配对',
   incorrectMatch: '错误匹配',
   useHint: '使用提示',
-  points: '{{points}}分',
+  points: '分',
 
   // Stroke Order
   stroke: '第{{number}}笔',
@@ -143,7 +142,6 @@ export const zh = {
   // Learning Statistics
   totalLearningTime: '时长',
   learned: '已学',
-  mastered: '已掌握',
   hours: 'h',
   minutes: 'm',
   
@@ -193,8 +191,6 @@ export const zh = {
   resetGame: '重新开始游戏',
   resetGameConfirm: '重置游戏',
   resetGameConfirmMessage: '确定要重置游戏进度吗？这将清除当前的得分和关卡进度，从第一关重新开始。',
-  points: '分',
-
   // Subscription Messages
   subscription: {
     // 订阅状态
@@ -207,6 +203,10 @@ export const zh = {
     noActiveSubscription: '没有找到活跃的订阅',
     subscribeNow: '是否要订阅会员以使用所有功能？',
     noSubscriptionFound: '未找到可恢复的订阅',
+    
+    // 支付延迟提示
+    deferred: '订阅请求已提交',
+    deferredMessage: '您的订阅请求已提交，正在等待批准（例如家长控制)。批准后，您将自动获得会员资格。',
     
     // 订阅操作
     subscribe: '订阅',

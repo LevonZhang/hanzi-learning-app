@@ -12,14 +12,9 @@ import 'cnchar-order';   // 笔顺
 import 'cnchar-draw';    // 绘制
 import 'cnchar-words';   // 词组功能
 
-logger.info('App组件加载');
-
 function App() {
   const [isLoading, setIsLoading] = useState(true);
-  logger.info('App组件渲染');
-
   useEffect(() => {
-    logger.info('App useEffect 触发');
 
     const initialize = async () => {
       try {
@@ -50,7 +45,6 @@ function App() {
     initialize();
 
     return () => {
-      logger.info('App组件清理');
       const cleanup = async () => {
         try {
           const subscriptionService = SubscriptionService.getInstance();
@@ -81,5 +75,4 @@ function App() {
 }
 
 const WrappedApp = withIAPContext(App);
-logger.info('App组件包装完成');
 export default WrappedApp; 

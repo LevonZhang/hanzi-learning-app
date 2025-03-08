@@ -275,15 +275,17 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     container: {
       flex: 1,
       position: 'relative',
-      marginTop: shouldUseDesktopLayout ? (isMacDevice ? 20 : isIPad ? 50 : 0) : 0,
+      marginTop: shouldUseDesktopLayout 
+        ? (isMacDevice ? 20 : isIPad ? 50 : 0) 
+        : Platform.OS === 'ios' && !isIPad ? -30 : 0, // iPhone设备向上移动
       alignItems: 'center',
       width: '100%',
     },
     displayContainer: {
       width: '100%',
-      aspectRatio: shouldUseDesktopLayout ? 1 : 0.9,
+      aspectRatio: shouldUseDesktopLayout ? 1 : 0.9, // 恢复原始比例
       maxWidth: shouldUseDesktopLayout ? (isIPad ? 360 : isMacDevice ? 290 : 330) : 280,
-      maxHeight: shouldUseDesktopLayout ? (isIPad ? 360 : isMacDevice ? 290 : 330) : 252,
+      maxHeight: shouldUseDesktopLayout ? (isIPad ? 360 : isMacDevice ? 290 : 330) : 252, // 恢复原始高度
       alignSelf: 'center',
       position: 'relative',
       marginLeft: 0,
@@ -299,7 +301,9 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     buttonContainer: {
       width: '100%',
       paddingHorizontal: shouldUseDesktopLayout ? (isIPad ? 20 : isMacDevice ? 14 : 16) : 10,
-      marginTop: shouldUseDesktopLayout ? (isMacDevice ? 30 : isIPad ? 70 : 60) : -5,
+      marginTop: shouldUseDesktopLayout 
+        ? (isMacDevice ? 30 : isIPad ? 70 : 60) 
+        : Platform.OS === 'ios' && !isIPad ? -10 : -5, // iPhone设备向上移动更多
       marginLeft: 0,
     },
     buttonRow: {
@@ -395,11 +399,11 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       top: '50%',
       left: '50%',
       transform: [
-        { translateX: -(shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90) / 2 },
-        { translateY: -(shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90) / 2 }
+        { translateX: -(shouldUseDesktopLayout ? (isIPad ? 250 : isMacDevice ? 220 : 220) : (width - 90) * 0.7) / 2 },
+        { translateY: -(shouldUseDesktopLayout ? (isIPad ? 250 : isMacDevice ? 220 : 220) : (width - 90) * 0.7) / 2 }
       ],
-      width: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90,
-      height: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90,
+      width: shouldUseDesktopLayout ? (isIPad ? 250 : isMacDevice ? 220 : 220) : (width - 90) * 0.7,
+      height: shouldUseDesktopLayout ? (isIPad ? 250 : isMacDevice ? 220 : 220) : (width - 90) * 0.7,
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: '#fff',
@@ -415,8 +419,8 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       elevation: 3,
     },
     loadingText: {
-      marginTop: 10,
-      fontSize: shouldUseDesktopLayout ? (isIPad ? 15 : 14) : 14,
+      marginTop: 8,
+      fontSize: shouldUseDesktopLayout ? (isIPad ? 13 : 12) : 12,
       color: '#666',
     },
     errorText: {
@@ -431,11 +435,11 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       top: '50%',
       left: '50%',
       transform: [
-        { translateX: -(shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90) / 2 },
-        { translateY: -(shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90) / 2 }
+        { translateX: -(shouldUseDesktopLayout ? (isIPad ? 250 : isMacDevice ? 220 : 220) : (width - 90) * 0.7) / 2 },
+        { translateY: -(shouldUseDesktopLayout ? (isIPad ? 250 : isMacDevice ? 220 : 220) : (width - 90) * 0.7) / 2 }
       ],
-      width: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90,
-      height: shouldUseDesktopLayout ? (isIPad ? 350 : isMacDevice ? 320 : 320) : width - 90,
+      width: shouldUseDesktopLayout ? (isIPad ? 250 : isMacDevice ? 220 : 220) : (width - 90) * 0.7,
+      height: shouldUseDesktopLayout ? (isIPad ? 250 : isMacDevice ? 220 : 220) : (width - 90) * 0.7,
       zIndex: 1,
       borderRadius: 12,
     },
@@ -468,7 +472,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
         {isLoading && (
           <View style={[styles.loadingContainer, styles.overlayContainer]}>
             <ActivityIndicator size="small" color="#4CAF50" />
-            <Text style={[styles.loadingText, { fontSize: shouldUseDesktopLayout ? (isIPad ? 13 : 12) : 12 }]}>{i18n.t('loading')}</Text>
+            <Text style={styles.loadingText}>{i18n.t('loading')}</Text>
           </View>
         )}
       </View>

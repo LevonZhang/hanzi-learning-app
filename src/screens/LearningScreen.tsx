@@ -141,13 +141,26 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     },
     meaningContainer: {
       width: '100%',
-      padding: isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 20 : 8,
+      padding: isMacDevice ? 15 : isDesktop ? 20 : isIPad ? 20 : 3,
+      ...(Platform.OS === 'ios' && !isIPad ? {
+        paddingBottom: 4, // iPhone设备减小底部padding
+      } : {}),
       borderRadius: 8,
       backgroundColor: '#fff',
-      marginTop: isDesktop ? 0 : isIPad ? -20 : -40,
-      height: isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '47%',
+      marginTop: isDesktop 
+        ? 0 
+        : isIPad 
+          ? -20 
+          : Platform.OS === 'ios' ? -70 : -40,
+      height: isDesktop 
+        ? (isMacDevice ? '70%' : '75%')
+        : isIPad 
+          ? '80%'
+          : Platform.OS === 'ios'
+            ? '42%'
+            : '47%',
       maxHeight: Platform.OS === 'ios' ? 
-        (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '47%') : 
+        (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '45%') : 
         (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '45%'),
       ...Platform.select({
         ios: {
@@ -224,7 +237,14 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       paddingHorizontal: 16,
       paddingBottom: 16,
       marginBottom: Platform.OS === 'ios' && !isIPad ? 15 : 16,
-      marginTop: isDesktop && !isIPad ? 30 : Platform.OS === 'ios' ? (isIPad ? 60 : 0) : 0,
+      ...(Platform.OS === 'ios' && !isIPad ? {
+        position: 'relative',
+        marginTop: -110, // 进一步向上调整，与详情区底部更靠近
+        paddingTop: 0,
+        zIndex: 10,
+      } : {
+        marginTop: isDesktop && !isIPad ? 30 : Platform.OS === 'ios' ? (isIPad ? 60 : 0) : 0,
+      }),
     },
     wideButtonContainer: {
       paddingHorizontal: isDesktop && !isIPad ? 24 : isIPad ? 24 : 32,
@@ -371,6 +391,11 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       fontWeight: '600',
       color: '#333',
     },
+    limitDescription: {
+      fontSize: isDesktop ? 16 : isIPad ? 18 : 16,
+      lineHeight: isDesktop ? 26 : isIPad ? 28 : 24,
+      color: theme.colors.textSecondary,
+    },
   });
 
   const [state, setState] = useState<LearningState>({
@@ -415,38 +440,62 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
   }, [route?.params]);
 
   const loadTodayLearning = async () => {
-    // 获取学习列表
-    const learningManager = LearningManager.getInstance();
-    const { newWords, reviewWords } = await learningManager.getTodayLearningList();
-    const statistics = await learningManager.getStatistics();
+    try {
+      // 首先检查会员权限
+      const subscriptionService = SubscriptionService.getInstance();
+      const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
+      
+      if (reachedLimit) {
+        // 如果达到限制，只设置空状态，不弹出提示
+        // 仅在用户点击"下一个"按钮时才会显示提示（在handleComplete中处理）
+        setState(prev => ({
+          ...prev,
+          newWords: [],
+          reviewWords: [],
+          currentWord: null
+        }));
+        return;
+      }
 
-    // 这里的判断应该只看 newWords
-    if (newWords.length === 0) {  // 修改这里，不需要考虑 reviewWords
+      // 获取学习列表
+      const learningManager = LearningManager.getInstance();
+      const { newWords, reviewWords } = await learningManager.getTodayLearningList();
+      const statistics = await learningManager.getStatistics();
+
+      // 这里的判断应该只看 newWords
+      if (newWords.length === 0) {  // 修改这里，不需要考虑 reviewWords
+        setState(prev => ({
+          ...prev,
+          newWords: [],
+          reviewWords: [],
+          currentWord: null,
+          statistics
+        }));
+        return;
+      }
+
+      // 设置当前要学习的字
+      const currentWord = newWords[0];  // 直接使用 newWords[0]，不需要考虑 reviewWords
+      
       setState(prev => ({
         ...prev,
-        newWords: [],
-        reviewWords: [],
-        currentWord: null,
+        newWords,
+        reviewWords,
+        currentWord,
+        isReviewMode: false,  // 这里应该始终是 false，因为我们只关注学习
         statistics
       }));
-      return;
-    }
 
-    // 设置当前要学习的字
-    const currentWord = newWords[0];  // 直接使用 newWords[0]，不需要考虑 reviewWords
-    
-    setState(prev => ({
-      ...prev,
-      newWords,
-      reviewWords,
-      currentWord,
-      isReviewMode: false,  // 这里应该始终是 false，因为我们只关注学习
-      statistics
-    }));
-
-    // 记录为已开始学习
-    if (currentWord) {
-      await handleCharacterLearned(currentWord.character);
+      // 记录为已开始学习
+      if (currentWord) {
+        await handleCharacterLearned(currentWord.character);
+      }
+    } catch (error) {
+      console.error('加载今日学习内容失败:', error);
+      Alert.alert(
+        i18n.t('error'),
+        i18n.t('loadLearningError')
+      );
     }
   };
 
@@ -860,16 +909,31 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
             </View>
             
             <TouchableOpacity 
-              style={screenStyles.learnMoreButton}
+              style={[screenStyles.button, { backgroundColor: theme.colors.primary, marginTop: 20 }]}
               onPress={loadMoreCharacters}
             >
-              <MaterialCommunityIcons 
-                name="book-open-variant" 
-                size={isIPad ? 22 : 24} 
-                color="#fff" 
-              />
-              <Text style={screenStyles.learnMoreText}>
+              <Text style={[screenStyles.buttonText, { color: theme.colors.textLight }]}>
                 {i18n.t('learnMore')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        {!state.currentWord && state.newWords.length === 0 && state.statistics.totalLearned === 0 && (
+          <View style={screenStyles.completedContainer}>
+            <Text style={screenStyles.completedText}>
+              {i18n.t('characterLimitReached')}
+            </Text>
+            <Text style={[screenStyles.limitDescription, { marginTop: 10, textAlign: 'center', paddingHorizontal: 20 }]}>
+              {i18n.t('characterLimitDesc')}
+            </Text>
+            
+            <TouchableOpacity 
+              style={[screenStyles.button, { backgroundColor: theme.colors.success, marginTop: 20 }]}
+              onPress={() => navigation.navigate('Settings', { screen: 'premium' })}
+            >
+              <Text style={[screenStyles.buttonText, { color: theme.colors.textLight }]}>
+                {i18n.t('getPremium')}
               </Text>
             </TouchableOpacity>
           </View>

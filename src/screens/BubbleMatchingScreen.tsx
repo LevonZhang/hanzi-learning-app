@@ -107,17 +107,6 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
   );
   const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
   
-  // 调试输出
-  console.log('游戏气泡页设备信息:', { 
-    Platform: Platform.OS, 
-    isDesktop, 
-    isIPad, 
-    isMacOS,
-    isMacCatalyst,
-    isMacDevice,
-    windowWidth
-  });
-  
   // 动态计算气球尺寸
   const BUBBLE_SIZE = getBubbleSize(isDesktop, isIPad, isMacDevice);
 

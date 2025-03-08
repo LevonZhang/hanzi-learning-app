@@ -49,10 +49,10 @@ export const AppNavigator = () => {
 
   const isMacOS = Platform.OS === 'macos';
   
-  const tabBarHeight = isMacOS ? 110 : isIPad ? 80 : Platform.OS === 'ios' ? 70 : 60;
-  const iconSize = isMacOS ? 44 : isIPad ? 32 : 24;
-  const labelSize = isMacOS ? 22 : isIPad ? 16 : 12;
-  const bottomPadding = isMacOS ? 25 : isIPad ? 12 : Platform.OS === 'ios' ? 15 : 5;
+  const tabBarHeight = isMacOS ? 90 : isIPad ? 70 : Platform.OS === 'ios' ? 60 : 50;
+  const iconSize = isMacOS ? 40 : isIPad ? 30 : 22;
+  const labelSize = isMacOS ? 18 : isIPad ? 14 : 11;
+  const bottomPadding = isMacOS ? 22 : isIPad ? 10 : Platform.OS === 'ios' ? 12 : 5;
 
   useEffect(() => {
     // 监听语言变化
@@ -96,12 +96,12 @@ export const AppNavigator = () => {
     tabBarStyle: {
       paddingBottom: bottomPadding,
       height: tabBarHeight,
-      paddingTop: isMacOS ? 12 : isIPad ? 10 : 5,
+      paddingTop: isMacOS ? 10 : isIPad ? 8 : 3,
       position: 'absolute' as const,
-      bottom: isMacOS ? 25 : isIPad ? 20 : 15,
+      bottom: isMacOS ? 22 : isIPad ? 18 : 12,
       left: isMacOS ? 20 : isIPad ? 15 : 10,
       right: isMacOS ? 20 : isIPad ? 15 : 10,
-      borderRadius: isMacOS ? 25 : isIPad ? 20 : 15,
+      borderRadius: isMacOS ? 22 : isIPad ? 18 : 12,
       backgroundColor: '#ffffff',
       shadowColor: '#000',
       shadowOffset: {
@@ -115,12 +115,12 @@ export const AppNavigator = () => {
     },
     tabBarLabelStyle: {
       fontSize: labelSize,
-      marginBottom: Platform.OS === 'ios' ? 0 : isIPad ? 10 : 5,
-      fontWeight: isIPad ? '700' : '500',
-      lineHeight: isIPad ? 26 : undefined,
+      marginBottom: Platform.OS === 'ios' ? 0 : isIPad ? 8 : 4,
+      fontWeight: isIPad ? '600' : '500',
+      lineHeight: isIPad ? 22 : undefined,
     },
     headerShown: false,
-    tabBarLabel: route.name === 'Settings' ? i18n.t('profileTab') : i18n.t(route.name.toLowerCase())
+    tabBarLabel: route.name === 'Settings' ? i18n.t('settings') : i18n.t(route.name.toLowerCase())
   });
 
   return (
@@ -164,7 +164,7 @@ export const AppNavigator = () => {
         <Tab.Screen
           name="Settings"
           component={SettingsScreen}
-          options={{ title: i18n.t('profileTab') }}
+          options={{ title: i18n.t('settings') }}
         />
       </Tab.Navigator>
     </NavigationContainer>

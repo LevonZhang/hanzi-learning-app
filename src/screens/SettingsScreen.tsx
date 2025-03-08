@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { i18n } from '../i18n/i18n';
 import { LearningManager } from '../services/LearningManager';
 import SubscriptionService from '../services/SubscriptionService';
-import GameService from '../services/GameService';
+import gameService from '../services/GameService';
 import { ResponsiveContainer } from '../components/ResponsiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
 import { logger } from '../utils/logger';
@@ -528,6 +528,27 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     loadStats();
     loadLearnedCharacters();
     initializeSubscription();
+
+    // 添加订阅状态监听器
+    const subscriptionService = SubscriptionService.getInstance();
+    const removeListener = subscriptionService.addSubscriptionUpdateListener((subscriptionData) => {
+      console.log('收到订阅状态更新:', subscriptionData);
+      if (subscriptionData) {
+        setSubscriptionStatus({
+          isActive: subscriptionData.isActive,
+          isLifetime: subscriptionData.productId?.includes('lifetime') || false,
+          expirationDate: subscriptionData.expirationDate ? new Date(subscriptionData.expirationDate) : undefined,
+          productId: subscriptionData.productId || undefined,
+        });
+        setIsPremium(subscriptionData.isActive);
+      }
+    });
+
+    return () => {
+      // 清理订阅监听器
+      removeListener();
+      subscriptionService.cleanup();
+    };
   }, []);
 
   useEffect(() => {
@@ -546,8 +567,8 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     const loadData = async () => {
       try {
         const stats = await AsyncStorage.getItem('gameStats');
-        const progress = await GameService.loadGameProgress('word');
-        const pronunciationProgress = await GameService.loadGameProgress('pronunciation');
+        const progress = await gameService.loadGameProgress('word');
+        const pronunciationProgress = await gameService.loadGameProgress('pronunciation');
         setGameStats(stats ? JSON.parse(stats) : {
           wordGame: { highScore: 0, gamesPlayed: 0, isCompleted: false },
           pronunciationGame: { highScore: 0, gamesPlayed: 0, isCompleted: false }
@@ -577,11 +598,22 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     const plans: SubscriptionPlan[] = Object.entries(SUBSCRIPTION_PLANS).map(([id, plan]) => {
       // 从完整的产品ID中提取简短标识符用于本地化键
       const shortId = id.split('.').pop()?.replace('sub.', '') || '';
+      
+      // 确定正确的时间周期键
+      let periodKey = 'oneTime'; // 默认是一次性付费(终身会员)
+      if (shortId === 'monthly') {
+        periodKey = 'perMonth';
+      } else if (shortId === 'quarterly') {
+        periodKey = 'perQuarter';
+      } else if (shortId === 'yearly') {
+        periodKey = 'perYear';
+      }
+      
       return {
         id: id as SubscriptionPlanId,
         title: i18n.t(`${shortId}Plan`),
         price: plan.price,
-        period: i18n.t(`per${shortId.charAt(0).toUpperCase() + shortId.slice(1)}`),
+        period: i18n.t(periodKey),
         description: i18n.t(`${shortId}Desc`),
         icon: plan.icon,
         name: i18n.t(`${shortId}Name`),
@@ -595,6 +627,12 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     try {
       const subscriptionService = SubscriptionService.getInstance();
       await subscriptionService.initialize();
+      
+      // 预加载可用的订阅产品
+      subscriptionService.getAvailableSubscriptions().catch(error => {
+        console.error('获取可用订阅产品失败:', error);
+      });
+      
       // 获取订阅状态
       const subscriptionData = await AsyncStorage.getItem('subscriptionData');
       console.log('从本地存储获取的会员信息:', subscriptionData);
@@ -763,9 +801,21 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
         return;
       }
 
+      // 确定正确的时间周期键
+      let periodKey = 'oneTime'; // 默认是一次性付费(终身会员)
+      if (plan.id.includes('monthly')) {
+        periodKey = 'perMonth';
+      } else if (plan.id.includes('quarterly')) {
+        periodKey = 'perQuarter';
+      } else if (plan.id.includes('yearly')) {
+        periodKey = 'perYear';
+      }
+      
+      const periodText = i18n.t(periodKey);
+
       Alert.alert(
         i18n.t('subscriptionConfirm'),
-        i18n.t('subscriptionConfirmDesc', { price: plan.price, period: plan.period }),
+        i18n.t('subscriptionConfirmDesc', { price: plan.price, period: periodText }),
         [
           {
             text: i18n.t('cancelButton'),
@@ -777,7 +827,24 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
             onPress: async () => {
               try {
                 const subscriptionService = SubscriptionService.getInstance();
-                await subscriptionService.purchaseSubscription(plan.id);
+                const result = await subscriptionService.purchaseSubscription(plan.id);
+                
+                // 检查返回结果
+                if (result.success) {
+                  if (result.status === 'deferred') {
+                    // 支付已延迟，等待批准
+                    Alert.alert(
+                      i18n.t('subscription.deferred'),
+                      i18n.t('subscription.deferredMessage') || result.message || '订阅请求已提交，等待批准',
+                      [{ text: i18n.t('ok') }]
+                    );
+                  }
+                  // 成功购买的情况下不需要额外操作，purchaseUpdateListener会处理
+                } else {
+                  // 显示错误信息
+                  console.error('订阅失败:', result.error);
+                  Alert.alert(i18n.t('errorTitle'), i18n.t('purchaseError'));
+                }
               } catch (error: any) {
                 // 只有在非用户取消的情况下才显示错误
                 if (error.code !== 'E_USER_CANCELLED') {
@@ -1094,7 +1161,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           text: i18n.t('confirm'),
           onPress: async () => {
             try {
-              await GameService.resetGame(gameType);
+              await gameService.resetGame(gameType);
               
               // 重置游戏进度状态
               if (gameType === 'word') {

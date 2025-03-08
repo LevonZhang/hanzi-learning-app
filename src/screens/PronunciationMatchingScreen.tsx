@@ -136,17 +136,6 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     (isIPad && windowWidth > 1024) // 兼容旧版本 RN
   );
   const isMacDevice = isDesktop && !isIPad || isMacOS || isMacCatalyst;
-  
-  // 调试输出
-  console.log('发音游戏页设备信息:', { 
-    Platform: Platform.OS, 
-    isDesktop, 
-    isIPad, 
-    isMacOS,
-    isMacCatalyst,
-    isMacDevice,
-    windowWidth
-  });
 
   // 初始化气泡旋转动画
   useEffect(() => {
@@ -240,17 +229,6 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     // 设置起始Y坐标和行间距 - 减少垂直间距以容纳更多气泡
     const startY = isMacDevice ? 0 : 10;
     const verticalGap = BUBBLE_SIZE * (isMacDevice ? 0.85 : 0.9);
-    
-    console.log('气泡布局参数:', {
-      gameAreaWidth,
-      bubbleAreaWidth,
-      startX,
-      bubblesPerRow,
-      BUBBLE_SIZE,
-      effectiveBubbleSize,
-      totalBubbles,
-      verticalGap
-    });
 
     // 为每一行创建气泡位置
     for (let row = 0; row < rows; row++) {
@@ -262,13 +240,6 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       
       // 计算当前行的起始X坐标，使行居中
       const rowStartX = startX + (bubbleAreaWidth - rowWidth) / 2;
-      
-      console.log(`第${row+1}行:`, {
-        bubblesInThisRow,
-        rowWidth,
-        rowStartX,
-        y
-      });
       
       // 为这一行的每个气泡创建位置
       for (let col = 0; col < bubblesInThisRow; col++) {
@@ -870,6 +841,27 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
   useEffect(() => {
     playScoreTransition();
   }, [score]);
+
+  // 添加保存游戏进度的useEffect
+  useEffect(() => {
+    const saveProgress = async () => {
+      try {
+        await gameService.saveGameProgress({
+          currentLevel: currentLevel,
+          score,
+          completedWords: [], // 不需要记录已完成的字符
+          isCompleted: currentLevel > gameService.getTotalLevels()
+        }, 'pronunciation');
+      } catch (error) {
+        console.error('保存游戏进度失败:', error);
+      }
+    };
+    
+    // 当游戏已经初始化后才保存进度（避免覆盖已加载的进度）
+    if (isGameStarted) {
+      saveProgress();
+    }
+  }, [currentLevel, score, isGameStarted]);
 
   // 计算游戏区域尺寸
   const bubblesPerRow = isDesktop ? 7 : isIPad ? 5 : 4;

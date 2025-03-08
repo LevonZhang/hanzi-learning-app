@@ -140,22 +140,41 @@ class GameService {
   }
 
   public async saveGameProgress(progress: GameProgress, gameType: 'word' | 'pronunciation'): Promise<void> {
-    const key = gameType === 'word' ? 'gameProgress' : 'pronunciationGameProgress';
-    await AsyncStorage.setItem(key, JSON.stringify({
-      ...progress,
-      isCompleted: progress.currentLevel > this.getTotalLevels()
-    }));
+    try {
+      const key = gameType === 'word' ? 'gameProgress' : 'pronunciationGameProgress';
+      
+      const data = JSON.stringify({
+        ...progress,
+        isCompleted: progress.currentLevel > this.getTotalLevels()
+      });
+      
+      await AsyncStorage.setItem(key, data);
+      
+      // 验证保存是否成功
+      const savedData = await AsyncStorage.getItem(key);
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+      } else {
+        console.error(`游戏进度保存失败，无法读取保存的数据`);
+      }
+    } catch (error) {
+      console.error(`保存游戏进度失败:`, error);
+    }
   }
 
   public async loadGameProgress(gameType: 'word' | 'pronunciation'): Promise<GameProgress | null> {
     try {
       const key = gameType === 'word' ? 'gameProgress' : 'pronunciationGameProgress';
+      
       const savedProgress = await AsyncStorage.getItem(key);
       if (savedProgress) {
-        return JSON.parse(savedProgress);
+        const parsedProgress = JSON.parse(savedProgress);
+        return parsedProgress;
+      } else {
+        console.log(`未找到保存的游戏进度，返回null`);
       }
     } catch (error) {
-      // Silent error handling
+      console.error(`加载游戏进度失败:`, error);
     }
     return null;
   }

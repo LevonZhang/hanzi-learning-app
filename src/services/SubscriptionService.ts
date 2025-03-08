@@ -123,12 +123,9 @@ export default class SubscriptionService {
     // 创建新的初始化promise
     this.initializationPromise = (async () => {
       try {
-        logger.subscription('开始初始化订阅服务');
-
         // 首先初始化IAP连接
         try {
           await initConnection();
-          logger.subscription('IAP连接初始化成功');
         } catch (error) {
           logger.error('IAP连接初始化失败:', error);
           // 不要抛出错误，让应用继续运行
@@ -142,9 +139,14 @@ export default class SubscriptionService {
         // 标记为已初始化，确保后续操作不会重复初始化
         this.isInitialized = true;
 
-        // 异步获取订阅状态，但不阻塞初始化完成
+        // 异步获取订阅状态和可用的订阅产品，但不阻塞初始化完成
         this.fetchAndUpdateSubscriptionStatus().catch(error => {
           logger.error('获取订阅状态失败:', error);
+        });
+        
+        // 预先加载可用的订阅产品
+        this.getAvailableSubscriptions().catch(error => {
+          logger.error('获取可用订阅产品失败:', error);
         });
 
         return true;
@@ -177,7 +179,6 @@ export default class SubscriptionService {
       
       // 处理用户取消类错误 (不显示提示)
       if (errorCode === 'E_USER_CANCELLED') {
-        logger.subscription('用户取消购买');
         return;
       }
       
@@ -209,43 +210,55 @@ export default class SubscriptionService {
   private async validatePurchase(purchase: ProductPurchase): Promise<boolean> {
     if (!purchase) {
       logger.error('无效的购买对象');
+      
+      // 检查是否已有有效订阅
+      await this.checkExistingSubscription();
       return false;
     }
     
     try {
-      logger.subscription('开始验证购买:', {
-        productId: purchase.productId,
-        transactionId: purchase.transactionId,
-        transactionDate: purchase.transactionDate,
-        hasJWT: !!purchase.verificationResultIOS
-      });
-
       // 首先尝试使用 StoreKit 2 的 JWT 验证（iOS 15+）
       if (purchase.verificationResultIOS) {
         try {
           const jwtParts = purchase.verificationResultIOS.split('.');
           if (jwtParts.length === 3) {
-            const payload = JSON.parse(Buffer.from(jwtParts[1], 'base64').toString());
+            // 使用base64解码，避免使用Buffer
+            const base64 = jwtParts[1].replace(/-/g, '+').replace(/_/g, '/');
+            const jsonString = decodeURIComponent(
+              Array.prototype.map
+                .call(
+                  atob(base64),
+                  (c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+                )
+                .join('')
+            );
+            
+            // 解析JWT载荷
+            const payload = JSON.parse(jsonString);
+            
             const expirationDate = new Date(payload.expiresDate);
             const now = new Date();
 
-            // 即使 JWT 验证成功，我们仍然发送到服务器进行记录
+            // 即使 JWT 验证成功，我们仍然尝试发送到服务器进行记录
             const subscriptionValidator = SubscriptionValidationService.getInstance();
-            subscriptionValidator.verifyTransaction(
-              purchase.transactionId || '',
-              purchase.transactionReceipt || ''
-            ).catch(error => {
-              logger.error('服务器记录 JWT 验证结果失败:', error);
-            });
+            if (purchase.transactionReceipt) {
+              subscriptionValidator.verifyTransaction(
+                purchase.transactionId || '',
+                purchase.transactionReceipt
+              ).catch(error => {
+                logger.error('服务器记录 JWT 验证结果失败:', error);
+              });
+            }
 
             const subscriptionData: SubscriptionDataType = {
               isActive: now < expirationDate,
               productId: purchase.productId,
               expirationDate: expirationDate.toISOString(),
               lastUpdated: new Date().toISOString(),
-              environment: payload.environment
+              environment: payload.environment,
+              transactionId: purchase.transactionId || ''
             };
-
+            
             await this.updateSubscriptionStatus(subscriptionData);
             return true;
           }
@@ -257,10 +270,42 @@ export default class SubscriptionService {
       // 如果 JWT 验证失败或不可用，使用服务器验证
       const receipt = purchase.transactionReceipt;
       if (!receipt) {
-        logger.error('购买凭证为空，无法进行服务器验证', purchase.productId);
+        // 没有receipt，但我们尝试使用transaction信息创建基本订阅数据
+        if (purchase.transactionDate) {
+          
+          // 获取产品信息来确定有效期
+          const expirationDate = new Date(purchase.transactionDate);
+          if (purchase.productId.includes('monthly')) {
+            expirationDate.setMonth(expirationDate.getMonth() + 1);
+          } else if (purchase.productId.includes('quarterly')) {
+            expirationDate.setMonth(expirationDate.getMonth() + 3);
+          } else if (purchase.productId.includes('yearly')) {
+            expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+          } else if (purchase.productId.includes('lifetime')) {
+            // 终身订阅，设置为100年后
+            expirationDate.setFullYear(expirationDate.getFullYear() + 100);
+          }
+          
+          const subscriptionData: SubscriptionDataType = {
+            isActive: true,
+            productId: purchase.productId,
+            expirationDate: expirationDate.toISOString(),
+            lastUpdated: new Date().toISOString(),
+            environment: 'fallback',
+            transactionId: purchase.transactionId || ''
+          };
+          
+          await this.updateSubscriptionStatus(subscriptionData);
+          return true;
+        }
+        
+        logger.error('购买凭证为空且无交易日期，无法验证', purchase.productId);
+        // 在验证失败时检查现有订阅
+        await this.checkExistingSubscription();
         return false;
       }
       
+      // 继续尝试服务器验证
       const subscriptionValidator = SubscriptionValidationService.getInstance();
       const validationResult = await subscriptionValidator.verifyTransaction(
         purchase.transactionId || '',
@@ -272,6 +317,8 @@ export default class SubscriptionService {
           error: validationResult.error,
           transactionId: purchase.transactionId
         });
+        // 在验证失败时检查现有订阅
+        await this.checkExistingSubscription();
         return false;
       }
 
@@ -281,9 +328,13 @@ export default class SubscriptionService {
         return true;
       }
       
+      // 在验证失败时检查现有订阅
+      await this.checkExistingSubscription();
       return false;
     } catch (error) {
       logger.error('Purchase validation failed:', error);
+      // 在验证失败时检查现有订阅
+      await this.checkExistingSubscription();
       return false;
     }
   }
@@ -308,7 +359,7 @@ export default class SubscriptionService {
     }
   }
 
-  private async updateSubscriptionStatus(subscriptionData: any) {
+  private async updateSubscriptionStatus(subscriptionData: SubscriptionDataType) {
     const updatePromise = async () => {
       try {
         const data = {
@@ -317,31 +368,21 @@ export default class SubscriptionService {
           environment: ENV.IS_SANDBOX ? 'sandbox' : 'production'
         };
         
-        logger.subscription('Updating subscription status', {
-          isActive: data.isActive,
-          productId: data.productId,
-          expirationDate: data.expirationDate,
-          environment: data.environment
-        });
-        
+        // 更新内存中的状态
+        this.currentSubscriptionData = data;        
+        // 更新本地存储
         await AsyncStorage.multiSet([
-          ['subscriptionData', JSON.stringify(data)],
+          [SUBSCRIPTION_KEY, JSON.stringify(data)],
           ['isPremium', data.isActive.toString()]
         ]);
 
-        const [savedData, savedIsPremium] = await AsyncStorage.multiGet(['subscriptionData', 'isPremium']);
-        logger.subscription('Verified saved subscription data', {
-          subscriptionDataSaved: !!savedData[1],
-          isPremiumSaved: savedIsPremium[1],
-          savedDataMatches: savedData[1] === JSON.stringify(data),
-          savedIsPremiumMatches: savedIsPremium[1] === data.isActive.toString()
-        });
+        // 验证存储是否成功
+        const [savedData, savedIsPremium] = await AsyncStorage.multiGet([SUBSCRIPTION_KEY, 'isPremium']);
         
+        // 通知所有监听器
         this.safeNotifySubscriptionUpdate(data);
-        
-        logger.subscription('Subscription status updated successfully', data);
       } catch (err) {
-        logger.error('Failed to update subscription status:', {
+        logger.error('更新订阅状态失败:', {
           error: err,
           errorMessage: err instanceof Error ? err.message : 'Unknown error',
           subscriptionData: {
@@ -362,7 +403,7 @@ export default class SubscriptionService {
         return;
       } catch (err) {
         retries--;
-        logger.error(`Failed to update subscription status, retries left: ${retries}`, {
+        logger.error(`更新订阅状态失败，剩余重试次数: ${retries}`, {
           error: err,
           errorMessage: err instanceof Error ? err.message : 'Unknown error'
         });
@@ -384,8 +425,9 @@ export default class SubscriptionService {
   }
 
   // 添加订阅状态更新监听器
-  addSubscriptionUpdateListener(listener: (data: any) => void) {
+  public addSubscriptionUpdateListener(listener: (data: SubscriptionDataType) => void): () => void {
     this.subscriptionUpdateListeners.add(listener);
+    return () => this.subscriptionUpdateListeners.delete(listener);
   }
 
   // 移除订阅状态更新监听器
@@ -394,13 +436,7 @@ export default class SubscriptionService {
   }
 
   // 通知所有订阅状态更新监听器
-  private notifySubscriptionUpdate(data: any) {
-    logger.subscription('Notifying subscription update', { 
-      activeListeners: this.subscriptionUpdateListeners.size,
-      isActive: data.isActive,
-      productId: data.productId
-    });
-    
+  private notifySubscriptionUpdate(data: any) {  
     this.subscriptionUpdateListeners.forEach(listener => {
       try {
         listener(data);
@@ -424,55 +460,35 @@ export default class SubscriptionService {
 
   async purchaseSubscription(planId: SubscriptionPlanId) {
     try {
-      logger.subscription('开始订阅购买流程:', { planId });
-
+      // 确保IAP服务已初始化
       if (!this.isInitialized) {
-        logger.subscription('订阅服务未初始化，正在初始化...');
         await this.initialize();
       }
-      
+
       const fullProductId = IOS_SKUS[planId];
       if (!fullProductId) {
         throw new Error(`Invalid subscription plan: ${planId}`);
       }
 
-      logger.subscription('正在获取可用订阅产品...');
-      // Get available subscriptions first
-      const availableSubscriptions = await getSubscriptions({
-        skus: Object.values(IOS_SKUS)
-      });
-
-      logger.subscription('获取到的订阅产品:', {
-        count: availableSubscriptions.length,
-        products: availableSubscriptions.map(sub => sub.productId)
-      });
-
-      // Verify the subscription product exists
-      const subscriptionProduct = availableSubscriptions.find(
-        (sub) => sub.productId === fullProductId
-      );
-
-      if (!subscriptionProduct) {
-        throw new Error(`Subscription product not found: ${fullProductId}`);
+      // 先获取可用的订阅产品
+      const subscriptions = await this.getAvailableSubscriptions();
+      if (subscriptions.length === 0) {
+        throw new Error('No available subscriptions found');
+      }
+      
+      // 检查产品ID是否在可用产品列表中
+      const validProduct = subscriptions.find(product => product.productId === fullProductId);
+      if (!validProduct) {
+        logger.error('产品ID不在可用产品列表中:', { fullProductId, availableIds: subscriptions.map(s => s.productId) });
+        throw new Error(`Product ID ${fullProductId} not available in store`);
       }
 
-      logger.subscription('找到匹配的订阅产品:', {
-        productId: subscriptionProduct.productId,
-        title: subscriptionProduct.title,
-        description: subscriptionProduct.description
-      });
-      
-      logger.subscription('正在发起购买请求...');
+      // 使用动态导入确保IAP模块加载完成
       const { requestPurchase } = await import('react-native-iap');
       const result = await requestPurchase({
         sku: fullProductId,
         andDangerouslyFinishTransactionAutomaticallyIOS: false
       });
-
-      logger.subscription('购买请求已发送，等待 StoreKit 响应...', { result });
-
-      // Update subscription status immediately after purchase
-      await this.fetchAndUpdateSubscriptionStatus();
       
       return {
         success: true,
@@ -481,10 +497,25 @@ export default class SubscriptionService {
         result
       };
     } catch (error) {
+      // 检查是否为支付延迟（例如需要家长控制批准）的情况
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes('payment was deferred') || 
+          errorMessage.includes('awaiting approval') || 
+          errorMessage.includes('parental controls')) {
+                
+        return { 
+          success: true, 
+          status: 'deferred',
+          message: '订阅请求已提交，等待家长批准'
+        };
+      }
+      
+      // 其他错误情况
       logger.error('订阅购买失败:', error);
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : '购买失败'
+        error: errorMessage
       };
     }
   }
@@ -516,7 +547,6 @@ export default class SubscriptionService {
       // 重置初始化状态
       this.isInitialized = false;
 
-      logger.subscription('订阅服务清理完成');
       return true;
     } catch (error) {
       logger.error('清理订阅服务失败:', error);
@@ -548,7 +578,6 @@ export default class SubscriptionService {
   // 检查游戏关卡限制
   async checkGameLevelLimit(level: number): Promise<boolean> {
     if (!ENV.CHECK_SUBSCRIPTION) {
-      logger.debug('Game level limit check disabled in development mode');
       return false;
     }
 
@@ -565,24 +594,20 @@ export default class SubscriptionService {
   // 检查是否可以使用搜索功能
   async canUseSearch(): Promise<boolean> {
     if (!ENV.CHECK_SUBSCRIPTION) {
-      logger.debug('Search feature check disabled in development mode');
       return true;
     }
     
     const isSubscribed = await this.checkSubscriptionStatus();
-    logger.subscription('Search permission check:', { isSubscribed });
     return isSubscribed;
   }
 
   // 检查是否可以使用复习功能
   async canUseReview(): Promise<boolean> {
     if (!ENV.CHECK_SUBSCRIPTION) {
-      logger.debug('Review feature check disabled in development mode');
       return true;
     }
     
     const isSubscribed = await this.checkSubscriptionStatus();
-    logger.subscription('Review permission check:', { isSubscribed });
     return isSubscribed;
   }
 
@@ -608,14 +633,6 @@ export default class SubscriptionService {
         const expirationDate = new Date(parsedData.expirationDate);
         const currentTime = new Date();
         const daysUntilExpiration = Math.ceil((expirationDate.getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24));
-
-        // 只记录日志，不显示提醒
-        logger.subscription('Subscription expiration check', {
-          daysUntilExpiration,
-          expirationDate: expirationDate.toISOString(),
-          currentTime: currentTime.toISOString(),
-          isExpired: daysUntilExpiration <= 0
-        });
       }
     } catch (error) {
       logger.error('Failed to check subscription expiration:', error);
@@ -651,19 +668,12 @@ export default class SubscriptionService {
       
       // 添加购买更新监听器
       this.purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase: ProductPurchase) => {
-        logger.subscription('收到购买更新事件:', {
-          productId: purchase.productId,
-          transactionId: purchase.transactionId,
-          transactionDate: purchase.transactionDate,
-          timestamp: new Date().toISOString()
-        });
         
         // 确保transactionId不为undefined
         const transactionId = purchase.transactionId || '';
         
         // 避免重复处理相同交易
         if (this.processedTransactions.has(transactionId)) {
-          logger.subscription('跳过已处理的交易:', transactionId);
           return;
         }
 
@@ -681,7 +691,6 @@ export default class SubscriptionService {
               purchase,
               isConsumable: false
             });
-            logger.subscription('交易已完成:', transactionId);
           } catch (finishError) {
             logger.error('完成交易失败:', {
               error: finishError,
@@ -698,7 +707,6 @@ export default class SubscriptionService {
       // 添加购买错误监听器
       this.purchaseErrorSubscription = purchaseErrorListener(this.handlePurchaseError.bind(this));
       
-      logger.subscription('订阅监听器已更新');
     } catch (error) {
       logger.error('更新订阅监听器失败:', error);
     }
@@ -733,9 +741,7 @@ export default class SubscriptionService {
     }
   }
 
-  private async handleSubscriptionStatusChange(event: any) {
-    logger.info('订阅状态变更:', event);
-    
+  private async handleSubscriptionStatusChange(event: any) {    
     const { productId, expirationDate, purchaseToken } = event;
     
     if (expirationDate) {
@@ -766,10 +772,6 @@ export default class SubscriptionService {
     try {
       // Get available purchases
       const purchases = await this.getAvailablePurchases();
-      logger.subscription('获取到购买记录:', {
-        purchaseCount: purchases?.length || 0,
-        hasRecords: !!purchases && purchases.length > 0
-      });
       
       if (purchases && purchases.length > 0) {
         // Sort by transaction date to get the latest
@@ -779,31 +781,27 @@ export default class SubscriptionService {
           return bDate - aDate;
         })[0];
 
-        logger.subscription('最新的购买记录:', {
-          transactionId: latestPurchase.transactionId,
-          productId: latestPurchase.productId,
-          transactionDate: new Date(latestPurchase.transactionDate).toISOString(),
-          hasVerificationResult: !!latestPurchase.verificationResultIOS
-        });
-
         if (latestPurchase && latestPurchase.verificationResultIOS) {
           try {
             // Parse the JWT token
             const jwtParts = latestPurchase.verificationResultIOS.split('.');
             if (jwtParts.length === 3) {
-              const payload = JSON.parse(Buffer.from(jwtParts[1], 'base64').toString());
+              // 不使用Buffer，改用base64解码
+              const base64 = jwtParts[1].replace(/-/g, '+').replace(/_/g, '/');
+              const jsonPayload = decodeURIComponent(
+                atob(base64)
+                  .split('')
+                  .map(c => {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                  })
+                  .join('')
+              );
+              
+              const payload = JSON.parse(jsonPayload);
               
               // Get expiration date from JWT
               const expirationDate = new Date(payload.expiresDate);
               const now = new Date();
-              
-              logger.subscription('解析到的订阅信息:', {
-                expirationDate: expirationDate.toISOString(),
-                currentTime: now.toISOString(),
-                isActive: now < expirationDate,
-                environment: payload.environment,
-                transactionReason: payload.transactionReason
-              });
 
               const subscriptionData: SubscriptionDataType = {
                 isActive: now < expirationDate,
@@ -817,16 +815,77 @@ export default class SubscriptionService {
               this.currentSubscriptionData = subscriptionData;
               this.notifySubscriptionUpdate(subscriptionData);
               
-              logger.subscription('订阅状态已更新', subscriptionData);
               return;
             }
           } catch (jwtError) {
             logger.error('解析验证结果JWT失败:', jwtError);
+            
+            // 如果解析JWT失败，检查是否有现有有效订阅
+            const savedSubscriptionData = await AsyncStorage.getItem(SUBSCRIPTION_KEY);
+            if (savedSubscriptionData) {
+              try {
+                const parsedData = JSON.parse(savedSubscriptionData) as SubscriptionDataType;
+                
+                // 检查保存的订阅是否仍然有效
+                if (parsedData.isActive && parsedData.expirationDate) {
+                  const expiryDate = new Date(parsedData.expirationDate);
+                  const now = new Date();
+                  
+                  // 如果尚未过期，保留现有订阅状态
+                  if (now < expiryDate) {
+                    
+                    // 只更新lastUpdated字段
+                    const updatedData = {
+                      ...parsedData,
+                      lastUpdated: new Date().toISOString()
+                    };
+                    
+                    this.currentSubscriptionData = updatedData;
+                    await AsyncStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(updatedData));
+                    this.notifySubscriptionUpdate(updatedData);
+                    return;
+                  }
+                }
+              } catch (parseError) {
+                logger.error('解析保存的订阅数据失败:', parseError);
+              }
+            }
           }
         }
       }
 
-      // If no valid subscription found, set inactive status
+      // 如果没有找到有效订阅或者JWT解析失败且无有效订阅，检查是否有现有有效订阅
+      const savedSubscriptionData = await AsyncStorage.getItem(SUBSCRIPTION_KEY);
+      if (savedSubscriptionData) {
+        try {
+          const parsedData = JSON.parse(savedSubscriptionData) as SubscriptionDataType;
+          
+          // 检查保存的订阅是否仍然有效
+          if (parsedData.isActive && parsedData.expirationDate) {
+            const expiryDate = new Date(parsedData.expirationDate);
+            const now = new Date();
+            
+            // 如果尚未过期，保留现有订阅状态
+            if (now < expiryDate) {
+              
+              // 只更新lastUpdated字段
+              const updatedData = {
+                ...parsedData,
+                lastUpdated: new Date().toISOString()
+              };
+              
+              this.currentSubscriptionData = updatedData;
+              await AsyncStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(updatedData));
+              this.notifySubscriptionUpdate(updatedData);
+              return;
+            }
+          }
+        } catch (parseError) {
+          logger.error('解析保存的订阅数据失败:', parseError);
+        }
+      }
+      
+      // 只有在没有找到现有有效订阅的情况下，才设置为非活跃状态
       const subscriptionData: SubscriptionDataType = {
         isActive: false,
         productId: null,
@@ -838,7 +897,6 @@ export default class SubscriptionService {
       this.currentSubscriptionData = subscriptionData;
       this.notifySubscriptionUpdate(subscriptionData);
       
-      logger.subscription('未找到有效订阅');
     } catch (error) {
       logger.error('获取订阅状态失败:', error);
       throw error;
@@ -856,47 +914,32 @@ export default class SubscriptionService {
               try {
                 // 避免重复处理 - 检查transactionId是否存在
                 if (purchase.transactionId && this.processedTransactions.has(purchase.transactionId)) {
-                  logger.subscription('跳过已处理的交易:', purchase.transactionId);
                   return;
                 }
 
-                logger.subscription('检测到交易更新:', {
-                  productId: purchase.productId,
-                  transactionId: purchase.transactionId,
-                  transactionDate: new Date(purchase.transactionDate).toISOString(),
-                  hasJWT: !!purchase.verificationResultIOS
-                });
-
-                // 验证购买
+                // 验证购买并更新状态
                 const isValid = await this.validatePurchase(purchase);
                 
                 // 如果验证成功，或环境为非正式环境，完成交易
                 if (isValid || ENV.IS_SANDBOX) {
                   try {
+                    // 确保状态更新完成后再完成交易
+                    await this.fetchAndUpdateSubscriptionStatus();
                     await finishTransaction({ purchase });
-                    logger.subscription('交易已完成:', purchase.transactionId);
                     
                     // 记录已处理的交易
                     if (purchase.transactionId) {
                       this.processedTransactions.add(purchase.transactionId);
                     }
                   } catch (finishError) {
-                    logger.error('完成交易失败:', {
-                      error: finishError,
-                      transactionId: purchase.transactionId
-                    });
+                    logger.error('完成交易失败:', finishError);
                   }
-                } else {
-                  logger.error('购买验证失败，不完成交易:', {
-                    transactionId: purchase.transactionId
-                  });
                 }
               } catch (error) {
                 logger.error('处理交易更新失败:', error);
               }
             }
           );
-          logger.subscription('购买更新监听器设置成功');
         }
       } catch (error) {
         logger.error('设置购买更新监听器失败:', error);
@@ -911,13 +954,11 @@ export default class SubscriptionService {
       if (subscriptionData) {
         const parsedData = JSON.parse(subscriptionData);
         if (parsedData.isActive) {
-          logger.subscription('找到有效订阅:', parsedData);
           return true;
         }
       }
       
       // 没有找到有效订阅，但不再显示提示
-      logger.subscription('没有找到有效订阅');
       return false;
     } catch (error) {
       logger.error('检查订阅状态失败:', error);
@@ -941,5 +982,40 @@ export default class SubscriptionService {
         }
       ]
     );
+  }
+
+  private async checkExistingSubscription() {
+    try {
+      // 从本地存储中读取订阅数据
+      const savedSubscriptionData = await AsyncStorage.getItem(SUBSCRIPTION_KEY);
+      if (savedSubscriptionData) {
+        const parsedData = JSON.parse(savedSubscriptionData) as SubscriptionDataType;
+        
+        // 检查保存的订阅是否仍然有效
+        if (parsedData.isActive && parsedData.expirationDate) {
+          const expiryDate = new Date(parsedData.expirationDate);
+          const now = new Date();
+          
+          // 如果尚未过期，保留现有订阅状态
+          if (now < expiryDate) {
+            
+            // 只更新lastUpdated字段
+            const updatedData = {
+              ...parsedData,
+              lastUpdated: new Date().toISOString()
+            };
+            
+            this.currentSubscriptionData = updatedData;
+            await AsyncStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(updatedData));
+            this.notifySubscriptionUpdate(updatedData);
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      logger.error('检查现有订阅失败:', error);
+      return false;
+    }
   }
 }

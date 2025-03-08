@@ -5,7 +5,6 @@ export const en = {
   search: 'Search',
   games: 'Games',
   settings: 'Settings',
-  profileTab: 'Profile',
 
   // Search Screen
   searchPlaceholder: 'Enter character or pinyin',
@@ -56,7 +55,6 @@ export const en = {
   correctMatch: 'Correct Match',
   incorrectMatch: 'Wrong Match',
   useHint: 'Use Hint',
-  points: '{{points}} pts',
 
   // Stroke Order
   stroke: 'Stroke {{number}}',
@@ -141,7 +139,6 @@ export const en = {
   // Learning Statistics
   totalLearningTime: 'Time',
   learned: 'Learned',
-  mastered: 'Mastered',
   hours: 'h',
   minutes: 'm',
   
@@ -185,7 +182,6 @@ export const en = {
   resetConfirmMessage: 'Are you sure you want to reset all learning progress? This will clear all learned character records.',
 
   levelNumber: 'Level {{level}}',
-  levelTitle: 'Level {{current}}',
 
   // Game
   exitGame: 'Exit Game',
@@ -209,6 +205,10 @@ export const en = {
     subscribeNow: 'Would you like to subscribe to access all features?',
     noSubscriptionFound: 'No Subscription Found',
     
+    // Deferred Payment
+    deferred: 'Subscription Request Submitted',
+    deferredMessage: 'Your subscription request has been submitted and is waiting for approval (e.g. parental controls). You will automatically get premium access once approved.',
+    
     // Subscription Actions
     subscribe: 'Subscribe',
     unsubscribe: 'Unsubscribe',
@@ -229,7 +229,6 @@ export const en = {
     expiringSoon: 'Your Subscription is Expiring Soon',
     expiringSoonMessage: 'Your subscription will expire in {{days}} days. Please renew to continue using all features.',
     
-    expired: 'Your Subscription has Expired',
     expiredMessage: 'Please renew your subscription to continue using all features.',
     
     // Subscription Management

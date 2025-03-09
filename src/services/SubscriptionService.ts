@@ -292,10 +292,25 @@ export default class SubscriptionService {
           const expirationDate = new Date(purchase.transactionDate);
           if (purchase.productId.includes('monthly')) {
             expirationDate.setMonth(expirationDate.getMonth() + 1);
+            logger.subscription('月度订阅设置默认有效期', {
+              transactionDate: purchase.transactionDate,
+              expirationDate: expirationDate.toISOString(),
+              daysValidity: 30
+            });
           } else if (purchase.productId.includes('quarterly')) {
             expirationDate.setMonth(expirationDate.getMonth() + 3);
+            logger.subscription('季度订阅设置默认有效期', {
+              transactionDate: purchase.transactionDate,
+              expirationDate: expirationDate.toISOString(),
+              daysValidity: 90
+            });
           } else if (purchase.productId.includes('yearly')) {
             expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+            logger.subscription('年度订阅设置默认有效期', {
+              transactionDate: purchase.transactionDate,
+              expirationDate: expirationDate.toISOString(),
+              daysValidity: 365
+            });
           } else if (purchase.productId.includes('lifetime')) {
             // 终身订阅，使用2150年作为到期日期
             // 避免使用过远的日期（如100年后）导致JavaScript Date对象出错
@@ -658,9 +673,38 @@ export default class SubscriptionService {
       const subscriptionData = await AsyncStorage.getItem('subscriptionData');
       if (subscriptionData) {
         const parsedData = JSON.parse(subscriptionData);
-        const expirationDate = new Date(parsedData.expirationDate);
-        const currentTime = new Date();
-        const daysUntilExpiration = Math.ceil((expirationDate.getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24));
+        if (parsedData.expirationDate) {
+          const expirationDate = new Date(parsedData.expirationDate);
+          const currentTime = new Date();
+          const daysUntilExpiration = Math.ceil((expirationDate.getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24));
+          
+          logger.subscription('检查订阅到期状态', {
+            now: currentTime.toISOString(),
+            expirationDate: expirationDate.toISOString(),
+            daysUntilExpiration,
+            isActive: parsedData.isActive,
+            productId: parsedData.productId
+          });
+          
+          // 如果已过期但状态还是活跃，更新状态
+          if (daysUntilExpiration <= 0 && parsedData.isActive) {
+            logger.subscription('订阅已过期但状态仍为活跃，正在更新状态');
+            const updatedData = {
+              ...parsedData,
+              isActive: false,
+              lastUpdated: new Date().toISOString()
+            };
+            await AsyncStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(updatedData));
+            this.currentSubscriptionData = updatedData;
+            this.notifySubscriptionUpdate(updatedData);
+          }
+          
+          // 如果距离到期不到一天，触发同步
+          if (daysUntilExpiration < 1 && parsedData.isActive) {
+            logger.subscription('订阅即将过期，触发同步检查');
+            await this.fetchAndUpdateSubscriptionStatus();
+          }
+        }
       }
     } catch (error) {
       logger.error('Failed to check subscription expiration:', error);
@@ -748,12 +792,37 @@ export default class SubscriptionService {
         await this.initialize();
       }
 
+      logger.subscription('开始获取可用购买记录');
       // 获取可用的购买记录
       const { getAvailablePurchases } = await import('react-native-iap');
       const purchases = await getAvailablePurchases();
+      
       if (!purchases || purchases.length === 0) {
+        // 先检查之前的订阅状态
+        const oldSubscriptionData = await AsyncStorage.getItem(SUBSCRIPTION_KEY);
+        if (oldSubscriptionData) {
+          try {
+            const oldStatus = JSON.parse(oldSubscriptionData);
+            if (oldStatus.isActive) {
+              logger.subscription('警告：之前有活跃订阅，但现在没有找到购买记录，可能是退款或取消');
+            }
+          } catch (e) {
+            // 解析错误，忽略
+          }
+        }
+        
+        logger.subscription('没有获取到可用购买记录');
         return [];
       }
+
+      logger.subscription(`获取到 ${purchases.length} 个可用购买记录`, {
+        purchaseInfo: purchases.map(p => ({
+          productId: p.productId,
+          transactionDate: p.transactionDate,
+          transactionId: p.transactionId,
+          hasVerificationResult: !!p.verificationResultIOS
+        }))
+      });
 
       // 根据交易日期排序，最新的在前
       const sortedPurchases = purchases.sort((a, b) => {
@@ -796,11 +865,52 @@ export default class SubscriptionService {
     // 例如使用 EventEmitter 或其他状态管理方案
   }
 
-  private async fetchAndUpdateSubscriptionStatus() {
+  public async fetchAndUpdateSubscriptionStatus() {
     try {
+      logger.subscription('开始获取并更新订阅状态');
+      
+      // 先记录当前状态，供后面比较
+      const oldSubscriptionData = await AsyncStorage.getItem(SUBSCRIPTION_KEY);
+      let oldStatus = null;
+      if (oldSubscriptionData) {
+        try {
+          oldStatus = JSON.parse(oldSubscriptionData);
+          logger.subscription('当前订阅状态', {
+            isActive: oldStatus.isActive,
+            productId: oldStatus.productId,
+            expirationDate: oldStatus.expirationDate
+          });
+        } catch (e) {
+          logger.error('解析当前订阅状态失败', e);
+        }
+      }
+      
       // Get available purchases
       const purchases = await this.getAvailablePurchases();
+      logger.subscription(`获取到 ${purchases.length} 个可用购买记录`);
       
+      let hasValidSubscription = false;
+      
+      // 特别检查：如果之前有活跃订阅但现在没有任何购买记录，可能是退款
+      if (oldStatus?.isActive && purchases.length === 0) {
+        logger.subscription('检测到可能的退款情况：之前有活跃订阅但现在没有购买记录');
+        
+        // 将状态设置为非活跃
+        const updatedData: SubscriptionDataType = {
+          isActive: false,
+          productId: null,
+          expirationDate: null,
+          lastUpdated: new Date().toISOString(),
+          possibleRefund: true // 标记可能是退款
+        };
+        
+        await AsyncStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(updatedData));
+        this.currentSubscriptionData = updatedData;
+        this.notifySubscriptionUpdate(updatedData);
+        return;
+      }
+      
+      // 正常处理有购买记录的情况
       if (purchases && purchases.length > 0) {
         // Sort by transaction date to get the latest
         const latestPurchase = purchases.sort((a, b) => {
@@ -808,6 +918,12 @@ export default class SubscriptionService {
           const bDate = b.transactionDate ? new Date(b.transactionDate).getTime() : 0;
           return bDate - aDate;
         })[0];
+        
+        logger.subscription('最新购买记录', {
+          productId: latestPurchase.productId,
+          transactionDate: latestPurchase.transactionDate,
+          hasVerificationResult: !!latestPurchase.verificationResultIOS
+        });
 
         if (latestPurchase && latestPurchase.verificationResultIOS) {
           try {
@@ -826,27 +942,47 @@ export default class SubscriptionService {
               );
               
               const payload = JSON.parse(jsonPayload);
+              logger.subscription('解析JWT成功', { 
+                environment: payload.environment,
+                expiresDate: payload.expiresDate,
+                productId: latestPurchase.productId
+              });
               
               // Get expiration date from JWT
               let expirationDate;
               if (latestPurchase.productId?.includes('lifetime')) {
                 // 对终身会员使用固定的未来日期
                 expirationDate = new Date(2150, 0, 1);
+                logger.subscription('终身会员设置固定到期日期', { expirationDate: expirationDate.toISOString() });
               } else {
                 try {
                   expirationDate = new Date(payload.expiresDate);
+                  logger.subscription('从JWT获取到期日期', { 
+                    rawExpiresDate: payload.expiresDate,
+                    parsedDate: expirationDate.toISOString()
+                  });
                 } catch (dateError) {
                   // 如果日期格式错误，使用合理的默认值
                   logger.error('解析JWT到期日期出错:', dateError);
                   // 默认设置为当前日期加一年
                   expirationDate = new Date();
                   expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+                  logger.subscription('使用默认到期日期（当前日期+1年）', { expirationDate: expirationDate.toISOString() });
                 }
               }
               const now = new Date();
+              const isActive = now < expirationDate;
+              const daysRemaining = Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              
+              logger.subscription('订阅状态计算', {
+                now: now.toISOString(),
+                expirationDate: expirationDate.toISOString(),
+                isActive,
+                daysRemaining
+              });
 
               const subscriptionData: SubscriptionDataType = {
-                isActive: now < expirationDate,
+                isActive: isActive,
                 productId: latestPurchase.productId,
                 expirationDate: expirationDate.toISOString(),
                 lastUpdated: new Date().toISOString(),
@@ -856,6 +992,7 @@ export default class SubscriptionService {
               await AsyncStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(subscriptionData));
               this.currentSubscriptionData = subscriptionData;
               this.notifySubscriptionUpdate(subscriptionData);
+              logger.subscription('订阅状态已更新（JWT成功解析）', subscriptionData);
               
               return;
             }
@@ -1059,5 +1196,47 @@ export default class SubscriptionService {
       logger.error('检查现有订阅失败:', error);
       return false;
     }
+  }
+
+  /**
+   * 强制验证订阅状态，用于需要确保订阅状态最新的场景
+   * 例如在进入需要会员权限的功能前调用
+   */
+  async forceVerifySubscription(): Promise<boolean> {
+    try {
+      logger.subscription('强制验证订阅状态');
+      
+      // 获取当前状态
+      const oldData = this.currentSubscriptionData;
+      
+      // 强制获取并验证最新购买记录
+      await this.fetchAndUpdateSubscriptionStatus();
+      
+      // 检查状态是否变化
+      if (oldData?.isActive !== this.currentSubscriptionData?.isActive) {
+        logger.subscription('订阅状态已变化', {
+          oldStatus: oldData?.isActive,
+          newStatus: this.currentSubscriptionData?.isActive
+        });
+      }
+      
+      return this.currentSubscriptionData?.isActive || false;
+    } catch (error) {
+      logger.error('强制验证订阅状态失败', error);
+      // 出错时，使用当前状态
+      return this.currentSubscriptionData?.isActive || false;
+    }
+  }
+  
+  /**
+   * 检查是否可以使用需要会员权限的功能
+   * 此方法会先验证订阅状态，然后返回是否可用
+   */
+  async canUsePremiumFeature(): Promise<boolean> {
+    // 首先验证订阅状态
+    await this.forceVerifySubscription();
+    
+    // 然后返回结果
+    return this.currentSubscriptionData?.isActive || false;
   }
 }

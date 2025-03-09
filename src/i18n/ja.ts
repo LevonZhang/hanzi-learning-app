@@ -141,13 +141,14 @@ export const ja = {
   errorTitle: 'エラー',
 
   // Premium Status
-  premiumActiveStatus: 'プレミアム有効',
-  getPremiumButton: 'プレミアムにアップグレード',
+  premiumActiveStatus: 'プレミアムアクティブ',
+  getPremiumButton: 'プレミアムを取得',
   daysRemaining: '残り {{days}} 日',
+  timeRemaining: '残り {{days}}日{{hours}}時間{{minutes}}分',
 
   // Learning Statistics
   totalLearningTime: '時間',
-  learned: '学習済',
+  learned: '学習済み',
   hours: 'h',
   minutes: 'm',
 

@@ -486,6 +486,30 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       justifyContent: 'center',
       alignItems: 'center',
     },
+    lockIcon: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      padding: 4,
+    },
+    sectionTitleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    premiumTagContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 4,
+      borderRadius: 4,
+      backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    },
+    premiumTagText: {
+      fontSize: fontSizes.settingLabel,
+      color: '#FFD700',
+      fontWeight: '600',
+      marginLeft: 4,
+    },
   });
 
   const [dailyWords, setDailyWords] = useState(5);
@@ -739,16 +763,50 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
 
   const renderCharacterItem = ({ item }: { item: LearnedCharacter }) => (
     <TouchableOpacity 
-      style={styles.characterItem}
-      onPress={() => navigation.navigate('Learning', {
-        mode: 'display',
-        character: item.character,
-        fromSettings: true
-      })}
+      style={[
+        styles.characterItem,
+        !subscriptionStatus.isActive && { opacity: 0.7 }
+      ]}
+      onPress={() => {
+        if (subscriptionStatus.isActive) {
+          navigation.navigate('Learning', {
+            mode: 'display',
+            character: item.character,
+            fromSettings: true
+          });
+        } else {
+          // 显示需要会员的提示
+          Alert.alert(
+            i18n.t('premiumFeature'),
+            i18n.t('searchPremiumDesc'),
+            [
+              { 
+                text: i18n.t('cancel'), 
+                style: 'cancel' 
+              },
+              {
+                text: i18n.t('getPremiumButton'),
+                onPress: () => setActiveSection('premium')
+              }
+            ]
+          );
+        }
+      }}
     >
-      <Text style={[styles.characterText, { color: getMasteryLevelColor(item.masteryLevel) }]}>
+      <Text style={[
+        styles.characterText, 
+        { color: getMasteryLevelColor(item.masteryLevel) }
+      ]}>
         {item.character}
       </Text>
+      {!subscriptionStatus.isActive && (
+        <MaterialCommunityIcons 
+          name="lock" 
+          size={14} 
+          color="#7F7F7F" 
+          style={styles.lockIcon} 
+        />
+      )}
     </TouchableOpacity>
   );
 
@@ -867,11 +925,21 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     return `${hours}${i18n.t('hours')}${remainingMinutes}${i18n.t('minutes')}`;
   };
 
-  const formatRemainingDays = (expirationDate: Date): string => {
+  const formatRemainingDays = (expirationDate: Date): { days: number; hours: number; minutes: number } => {
     const now = new Date();
     const diffTime = expirationDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays.toString() : '0';
+    
+    // 如果已经过期，直接返回0天0小时0分钟
+    if (diffTime <= 0) {
+      return { days: 0, hours: 0, minutes: 0 };
+    }
+    
+    // 计算天数、小时和分钟
+    const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return { days, hours, minutes };
   };
 
   const getMasteryLevelColor = (level: number): string => {
@@ -942,7 +1010,14 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
               </View>
               {subscriptionStatus.isActive && !subscriptionStatus.isLifetime && subscriptionStatus.expirationDate && (
                 <Text style={[styles.expirationText, { fontSize: fontSizes.expirationText }]}>
-                  {i18n.t('daysRemaining', { days: formatRemainingDays(subscriptionStatus.expirationDate) })}
+                  {(() => {
+                    const remaining = formatRemainingDays(subscriptionStatus.expirationDate);
+                    return i18n.t('timeRemaining', { 
+                      days: remaining.days, 
+                      hours: remaining.hours, 
+                      minutes: remaining.minutes 
+                    });
+                  })()}
                 </Text>
               )}
             </View>
@@ -1108,7 +1183,15 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                 <Text style={[styles.statsLabel, { fontSize: fontSizes.statsLabel }]}>{i18n.t('totalLearningTime')}</Text>
               </View>
             </View>
-            <Text style={[styles.sectionTitle, { fontSize: fontSizes.sectionTitle }]}>{i18n.t('learnedCharacters')}</Text>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={[styles.sectionTitle, { fontSize: fontSizes.sectionTitle }]}>{i18n.t('learnedCharacters')}</Text>
+              {!subscriptionStatus.isActive && (
+                <View style={styles.premiumTagContainer}>
+                  <MaterialCommunityIcons name="crown" size={16} color="#FFD700" />
+                  <Text style={styles.premiumTagText}>{i18n.t('premium')}</Text>
+                </View>
+              )}
+            </View>
             <View style={styles.legendContainer}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendColor, { backgroundColor: '#34C759' }]} />

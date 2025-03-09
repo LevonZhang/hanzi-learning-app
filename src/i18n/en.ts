@@ -134,8 +134,9 @@ export const en = {
   
   // Premium Status
   premiumActiveStatus: 'Premium Active',
-  getPremiumButton: 'Upgrade to Premium',
+  getPremiumButton: 'Get Premium',
   daysRemaining: '{{days}} days remaining',
+  timeRemaining: '{{days}}d {{hours}}h {{minutes}}m remaining',
 
   // Learning Statistics
   totalLearningTime: 'Time',

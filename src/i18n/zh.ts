@@ -139,6 +139,7 @@ export const zh = {
   premiumActiveStatus: '会员已激活',
   getPremiumButton: '升级会员',
   daysRemaining: '剩余 {{days}} 天',
+  timeRemaining: '剩余 {{days}}天{{hours}}小时{{minutes}}分钟',
 
   // Learning Statistics
   totalLearningTime: '时长',

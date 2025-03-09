@@ -443,6 +443,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     try {
       // 获取会员状态
       const subscriptionService = SubscriptionService.getInstance();
+      const isPremium = await subscriptionService.checkSubscriptionStatus();
       
       // 获取学习列表
       const learningManager = LearningManager.getInstance();
@@ -460,7 +461,75 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
         }));
         return;
       }
+
+      // 处理非会员用户的逻辑
+      if (!isPremium) {
+        // 获取已学习的汉字列表
+        const progress = await learningManager.getAllProgress();
+        const learnedCharacters = Object.entries(progress).map(([char, data]) => ({
+          character: char,
+          masteryLevel: data.masteryLevel,
+          lastReviewDate: data.lastReviewDate,
+        }));
+        
+        if (learnedCharacters.length <= 10) {
+          // 如果学习过的字没有超过10个，显示最后一个学过的字
+          if (learnedCharacters.length > 0) {
+            const lastLearned = learnedCharacters[learnedCharacters.length - 1];
+            await loadSingleCharacter(lastLearned.character);
+            // 设置统计信息
+            setState(prev => ({
+              ...prev,
+              reviewWords,
+              statistics
+            }));
+          } else {
+            // 如果没有学过任何字，按正常流程处理
+            const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
+            
+            if (reachedLimit) {
+              setState(prev => ({
+                ...prev,
+                newWords: [],
+                reviewWords: [],
+                currentWord: null,
+                statistics
+              }));
+              return;
+            }
+
+            // 设置当前要学习的字
+            const currentWord = newWords[0];
+            
+            setState(prev => ({
+              ...prev,
+              newWords,
+              reviewWords,
+              currentWord,
+              isReviewMode: false,
+              statistics
+            }));
+
+            // 记录为已开始学习
+            if (currentWord) {
+              await handleCharacterLearned(currentWord.character);
+            }
+          }
+        } else {
+          // 如果学习过的字超过了10个，显示第10个字
+          const tenthCharacter = learnedCharacters[9]; // 第10个字（索引为9）
+          await loadSingleCharacter(tenthCharacter.character);
+          // 设置统计信息
+          setState(prev => ({
+            ...prev,
+            reviewWords,
+            statistics
+          }));
+        }
+        return;
+      }
       
+      // 会员用户的正常流程
       // 检查免费用户字符限制
       const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
       

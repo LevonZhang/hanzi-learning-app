@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, FlatList, ActivityIndicator, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { i18n } from '../i18n/i18n';
 import { LearningManager } from '../services/LearningManager';
 import SubscriptionService from '../services/SubscriptionService';
-import gameService from '../services/GameService';
 import { ResponsiveContainer } from '../components/ResponsiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
 import { logger } from '../utils/logger';
 import { SUBSCRIPTION_PLANS, SubscriptionPlanId } from '../services/SubscriptionService';
+import gameService from '../services/GameService';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -541,151 +542,52 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   const ITEMS_PER_PAGE = isDesktop ? 24 : 18;
 
   useEffect(() => {
+    loadData();
+  }, []);
+
+  // 添加新的effect，当activeSection为gameStats时刷新游戏统计数据
+  useEffect(() => {
+    if (activeSection === 'gameStats') {
+      loadGameStats();
+    }
+  }, [activeSection]);
+
+  const loadData = async () => {
+    loadLearnedCharacters();
     loadSettings();
     loadStats();
-    loadLearnedCharacters();
-    initializeSubscription();
+    
+    // 初始化订阅相关
+    if (Platform.OS !== 'web') {
+      initializeSubscription();
+    }
+    
+    // 确保加载游戏统计
+    loadGameStats();
+  };
 
-    // 添加订阅状态监听器
-    const subscriptionService = SubscriptionService.getInstance();
-    const removeListener = subscriptionService.addSubscriptionUpdateListener((subscriptionData) => {
-      if (subscriptionData) {
-        setSubscriptionStatus({
-          isActive: subscriptionData.isActive,
-          isLifetime: subscriptionData.productId?.includes('lifetime') || false,
-          expirationDate: subscriptionData.expirationDate ? new Date(subscriptionData.expirationDate) : undefined,
-          productId: subscriptionData.productId || undefined,
-        });
-        setIsPremium(subscriptionData.isActive);
+  // 拆分游戏统计的加载为单独的函数
+  const loadGameStats = async () => {
+    try {
+      // 加载游戏统计
+      const gameStatsStr = await AsyncStorage.getItem('gameStats');
+      if (gameStatsStr) {
+        const parsedGameStats = JSON.parse(gameStatsStr);
+        setGameStats(parsedGameStats);
       }
-    });
 
-    return () => {
-      // 清理订阅监听器
-      removeListener();
-      subscriptionService.cleanup();
-    };
-  }, []);
-
-  useEffect(() => {
-    updateSubscriptionPlans();
-  }, [currentLanguage]);
-
-  useEffect(() => {
-    return () => {
-      // 清理订阅监听器
-      const subscriptionService = SubscriptionService.getInstance();
-      subscriptionService.cleanup();
-    };
-  }, []);
-
-  useEffect(() => {
-    const loadData = async () => {
+      // 加载游戏进度
       try {
-        const stats = await AsyncStorage.getItem('gameStats');
-        const progress = await gameService.loadGameProgress('word');
+        const wordProgress = await gameService.loadGameProgress('word');
+        setGameProgress(wordProgress);
+
         const pronunciationProgress = await gameService.loadGameProgress('pronunciation');
-        setGameStats(stats ? JSON.parse(stats) : {
-          wordGame: { highScore: 0, gamesPlayed: 0, isCompleted: false },
-          pronunciationGame: { highScore: 0, gamesPlayed: 0, isCompleted: false }
-        });
-        setGameProgress(progress);
         setPronunciationGameProgress(pronunciationProgress);
       } catch (error) {
-        // Silent error handling
-      }
-    };
-
-    // 初始加载
-    loadData();
-
-    // 添加焦点监听器
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadData(); // 当屏幕重新获得焦点时重新加载数据
-    });
-
-    // 清理订阅
-    return () => {
-      unsubscribe();
-    };
-  }, [navigation]);
-
-  const updateSubscriptionPlans = () => {
-    const plans: SubscriptionPlan[] = Object.entries(SUBSCRIPTION_PLANS).map(([id, plan]) => {
-      // 从完整的产品ID中提取简短标识符用于本地化键
-      const shortId = id.split('.').pop()?.replace('sub.', '') || '';
-      
-      // 确定正确的时间周期键
-      let periodKey = 'oneTime'; // 默认是一次性付费(终身会员)
-      if (shortId === 'monthly') {
-        periodKey = 'perMonth';
-      } else if (shortId === 'quarterly') {
-        periodKey = 'perQuarter';
-      } else if (shortId === 'yearly') {
-        periodKey = 'perYear';
-      }
-      
-      return {
-        id: id as SubscriptionPlanId,
-        title: i18n.t(`${shortId}Plan`),
-        price: plan.price,
-        period: i18n.t(periodKey),
-        description: i18n.t(`${shortId}Desc`),
-        icon: plan.icon,
-        name: i18n.t(`${shortId}Name`),
-        duration: i18n.t(`${shortId}Duration`),
-      };
-    });
-    setSubscriptionPlansState(plans);
-  };
-
-  const initializeSubscription = async () => {
-    try {
-      const subscriptionService = SubscriptionService.getInstance();
-      await subscriptionService.initialize();
-      
-      // 预加载可用的订阅产品
-      subscriptionService.getAvailableSubscriptions().catch(error => {
-        console.error('获取可用订阅产品失败:', error);
-      });
-      
-      // 获取订阅状态
-      const subscriptionData = await AsyncStorage.getItem('subscriptionData');
-      
-      if (subscriptionData) {
-        const parsedData = JSON.parse(subscriptionData);
-        
-        setSubscriptionStatus({
-          isActive: parsedData.isActive,
-          isLifetime: parsedData.productId?.includes('lifetime') || false,
-          expirationDate: parsedData.expirationDate ? new Date(parsedData.expirationDate) : undefined,
-          productId: parsedData.productId,
-        });
-        setIsPremium(parsedData.isActive);
-      } else {
-        console.log('未找到本地存储的会员信息');
+        console.error('加载游戏进度失败:', error);
       }
     } catch (error) {
-      console.error('初始化订阅服务失败:', error);
-    }
-  };
-
-  const loadSettings = async () => {
-    try {
-      const storedDailyWords = await AsyncStorage.getItem('dailyWords');
-      const storedLanguage = await AsyncStorage.getItem('language');
-      const storedPremium = await AsyncStorage.getItem('isPremium');
-
-      if (storedDailyWords) setDailyWords(parseInt(storedDailyWords));
-      if (storedLanguage) {
-        await i18n.changeLanguage(storedLanguage);
-        setCurrentLanguage(storedLanguage);
-      }
-      if (storedPremium) setIsPremium(storedPremium === 'true');
-      
-      updateSubscriptionPlans(); // 确保在加载设置后更新订阅计划
-    } catch (error) {
-      logger.error('加载设置失败:', error);
+      console.error('加载游戏统计失败:', error);
     }
   };
 
@@ -715,11 +617,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
         }));
       }
 
-      // 加载游戏统计
-      const gameStatsStr = await AsyncStorage.getItem('gameStats');
-      if (gameStatsStr) {
-        setGameStats(JSON.parse(gameStatsStr));
-      }
+      // 游戏统计移动到loadGameStats函数中
     } catch (error) {
       console.error('加载统计数据失败:', error);
     }
@@ -1229,8 +1127,8 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
 
   const handleResetGame = async (gameType: 'word' | 'pronunciation') => {
     Alert.alert(
-      i18n.t('resetGameConfirm'),
-      i18n.t('resetGameConfirmMessage'),
+      i18n.t('resetConfirmTitle'),
+      i18n.t('resetConfirmMessage'),
       [
         {
           text: i18n.t('cancel'),
@@ -1242,39 +1140,97 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
             try {
               await gameService.resetGame(gameType);
               
-              // 重置游戏进度状态
-              if (gameType === 'word') {
-                setGameProgress({
-                  currentLevel: 1,
-                  completedWords: [],
-                  score: 0,
-                  isCompleted: false
-                });
-              } else {
-                setPronunciationGameProgress({
-                  currentLevel: 1,
-                  completedWords: [],
-                  score: 0,
-                  isCompleted: false
-                });
-              }
-
-              // 更新游戏统计数据
-              setGameStats(prev => ({
-                ...prev,
-                [gameType === 'word' ? 'wordGame' : 'pronunciationGame']: {
-                  highScore: prev[gameType === 'word' ? 'wordGame' : 'pronunciationGame'].highScore,
-                  gamesPlayed: prev[gameType === 'word' ? 'wordGame' : 'pronunciationGame'].gamesPlayed,
-                  isCompleted: false
-                }
-              }));
+              // 重置完成后立即刷新游戏统计
+              loadGameStats();
+              
+              Alert.alert(i18n.t('success'), i18n.t('resetSuccess'));
             } catch (error) {
               console.error('重置游戏失败:', error);
+              Alert.alert(i18n.t('error'), i18n.t('resetError'));
             }
           }
         }
       ]
     );
+  };
+
+  const loadSettings = async () => {
+    try {
+      const storedDailyWords = await AsyncStorage.getItem('dailyWords');
+      const storedLanguage = await AsyncStorage.getItem('language');
+      const storedPremium = await AsyncStorage.getItem('isPremium');
+
+      if (storedDailyWords) setDailyWords(parseInt(storedDailyWords));
+      if (storedLanguage) {
+        await i18n.changeLanguage(storedLanguage);
+        setCurrentLanguage(storedLanguage);
+      }
+      if (storedPremium) setIsPremium(storedPremium === 'true');
+      
+      updateSubscriptionPlans(); // 确保在加载设置后更新订阅计划
+    } catch (error) {
+      logger.error('加载设置失败:', error);
+    }
+  };
+
+  const updateSubscriptionPlans = () => {
+    const plans: SubscriptionPlan[] = Object.entries(SUBSCRIPTION_PLANS).map(([id, plan]) => {
+      // 从完整的产品ID中提取简短标识符用于本地化键
+      const shortId = id.split('.').pop()?.replace('sub.', '') || '';
+      
+      // 确定正确的时间周期键
+      let periodKey = 'oneTime'; // 默认是一次性付费(终身会员)
+      if (shortId === 'monthly') {
+        periodKey = 'perMonth';
+      } else if (shortId === 'quarterly') {
+        periodKey = 'perQuarter';
+      } else if (shortId === 'yearly') {
+        periodKey = 'perYear';
+      }
+      
+      return {
+        id: id as SubscriptionPlanId,
+        title: i18n.t(`${shortId}Plan`),
+        price: plan.price,
+        period: i18n.t(periodKey),
+        description: i18n.t(`${shortId}Desc`),
+        icon: plan.icon,
+        name: i18n.t(`${shortId}Name`),
+        duration: i18n.t(`${shortId}Duration`),
+      };
+    });
+    setSubscriptionPlansState(plans);
+  };
+
+  const initializeSubscription = async () => {
+    try {
+      const subscriptionService = SubscriptionService.getInstance();
+      await subscriptionService.initialize();
+      
+      // 预加载可用的订阅产品
+      subscriptionService.getAvailableSubscriptions().catch(error => {
+        console.error('获取可用订阅产品失败:', error);
+      });
+      
+      // 获取订阅状态
+      const subscriptionData = await AsyncStorage.getItem('subscriptionData');
+      
+      if (subscriptionData) {
+        const parsedData = JSON.parse(subscriptionData);
+        
+        setSubscriptionStatus({
+          isActive: parsedData.isActive,
+          isLifetime: parsedData.productId?.includes('lifetime') || false,
+          expirationDate: parsedData.expirationDate ? new Date(parsedData.expirationDate) : undefined,
+          productId: parsedData.productId,
+        });
+        setIsPremium(parsedData.isActive);
+      } else {
+        console.log('未找到本地存储的会员信息');
+      }
+    } catch (error) {
+      console.error('初始化订阅服务失败:', error);
+    }
   };
 
   return (

@@ -815,9 +815,6 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
                 isCompleted: false
               }, 'pronunciation');
               
-              // 更新游戏统计
-              await gameService.updateGameStats(score, false, 'pronunciation');
-              
               // 退出游戏
               navigation.goBack();
             } catch (error) {
@@ -861,6 +858,14 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
     if (isGameStarted) {
       saveProgress();
     }
+
+    return () => {
+      // 当组件卸载时，如果游戏已经开始，保存统计数据
+      if (isGameStarted && score > 0) {
+        gameService.updateGameStats(score, false, 'pronunciation')
+          .catch(err => console.error('更新游戏统计失败:', err));
+      }
+    };
   }, [currentLevel, score, isGameStarted]);
 
   // 计算游戏区域尺寸

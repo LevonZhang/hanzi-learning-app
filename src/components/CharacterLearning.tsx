@@ -100,6 +100,17 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     };
   }, [character]);
 
+  // 添加对isReviewMode变化的监听，确保模式切换时重新初始化写字板
+  useEffect(() => {
+    if (isReady && webViewRef.current) {
+      // 重新初始化写字板
+      webViewRef.current.postMessage(JSON.stringify({ 
+        type: 'animate',
+        isReviewMode
+      }));
+    }
+  }, [isReviewMode, isReady]);
+
   // 获取汉字信息
   const getHanziInfo = (char: string): HanziInfo => {
     const defaultInfo = {
@@ -173,6 +184,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
           let writer = null;
           let loadAttempts = 0;
           const maxAttempts = 5;
+          let isReviewMode = ${isReviewMode};
           
           function waitForCnchar() {
             loadAttempts++;
@@ -196,7 +208,8 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             }
             
             try {
-              writer = HanziWriter.create('character-target-div', character, {
+              // 统一学习模式和复习模式的配置
+              const writerOptions = {
                 width: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220},
                 height: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220},
                 padding: ${shouldUseDesktopLayout ? (isIPad ? 5 : isDesktop ? 5 : 5) : 3},
@@ -208,14 +221,16 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
                 highlightColor: '#00FF00',
                 drawingColor: '#FF0000',
                 radicalColor: '#168F16',
-                showCharacter: false,
-                showHintAfterMisses: 3,
+                // 根据模式设置不同的显示选项
+                showCharacter: isReviewMode,
+                showHintAfterMisses: isReviewMode ? 1 : 3,
                 highlightOnComplete: true,
-                leniency: 1.0,
+                leniency: isReviewMode ? 0.8 : 1.0,
                 onLoadCharDataSuccess: () => {
                   window.ReactNativeWebView.postMessage(JSON.stringify({ 
                     type: 'characterLoaded', 
-                    character: '${character}' 
+                    character: '${character}',
+                    isReviewMode: isReviewMode
                   }));
                   writer.animateCharacter();
                 },
@@ -225,7 +240,15 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
                     message: '加载汉字数据失败: ' + error 
                   }));
                 }
-              });
+              };
+
+              // 输出当前配置信息，用于调试
+              console.log('Writer options:', JSON.stringify({
+                ...writerOptions,
+                isReviewMode
+              }));
+              
+              writer = HanziWriter.create('character-target-div', character, writerOptions);
               
               return writer;
             } catch (error) {
@@ -272,8 +295,16 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             const data = JSON.parse(event.data);
             
             if (data.type === 'animate') {
+              // 使用传递进来的isReviewMode参数更新全局变量
+              if (data.isReviewMode !== undefined) {
+                isReviewMode = data.isReviewMode;
+              }
               startAnimation();
             } else if (data.type === 'quiz') {
+              // 使用传递进来的isReviewMode参数更新全局变量
+              if (data.isReviewMode !== undefined) {
+                isReviewMode = data.isReviewMode;
+              }
               startQuiz();
             }
           });
@@ -570,7 +601,10 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             style={[styles.button, styles.demonstrateButton]}
             onPress={() => {
               if (webViewRef.current) {
-                webViewRef.current.postMessage(JSON.stringify({ type: 'animate' }));
+                webViewRef.current.postMessage(JSON.stringify({ 
+                  type: 'animate',
+                  isReviewMode
+                }));
               }
             }}
           >
@@ -586,7 +620,10 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             style={[styles.button, styles.practiceButton]}
             onPress={() => {
               if (webViewRef.current) {
-                webViewRef.current.postMessage(JSON.stringify({ type: 'quiz' }));
+                webViewRef.current.postMessage(JSON.stringify({ 
+                  type: 'quiz',
+                  isReviewMode
+                }));
               }
             }}
           >

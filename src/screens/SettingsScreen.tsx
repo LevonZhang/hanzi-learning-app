@@ -511,6 +511,17 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       fontWeight: '600',
       marginLeft: 4,
     },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      color: theme.colors.primary,
+      fontSize: 16,
+      fontWeight: 'bold',
+      marginTop: 10,
+    },
   });
 
   const [dailyWords, setDailyWords] = useState(5);
@@ -540,15 +551,43 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   const [gameProgress, setGameProgress] = useState<GameProgress | null>(null);
   const [pronunciationGameProgress, setPronunciationGameProgress] = useState<GameProgress | null>(null);
   const ITEMS_PER_PAGE = isDesktop ? 24 : 18;
+  const [lastSubscriptionAlertTime, setLastSubscriptionAlertTime] = useState<number>(0);
+  const ALERT_COOLDOWN = 5000; // 5秒内不重复显示
 
   useEffect(() => {
     loadData();
+    
+    // 添加订阅更新监听器
+    if (Platform.OS !== 'web') {
+      const subscriptionService = SubscriptionService.getInstance();
+      const unsubscribe = subscriptionService.addSubscriptionUpdateListener((data) => {
+        if (data) {
+          setSubscriptionStatus({
+            isActive: data.isActive,
+            isLifetime: data.productId?.includes('lifetime') || false,
+            expirationDate: data.expirationDate ? new Date(data.expirationDate as string) : undefined,
+            productId: data.productId || undefined,
+          });
+          setIsPremium(data.isActive);
+        }
+      });
+      
+      // 清理监听器
+      return () => {
+        unsubscribe();
+      };
+    }
   }, []);
 
   // 添加新的effect，当activeSection为gameStats时刷新游戏统计数据
   useEffect(() => {
     if (activeSection === 'gameStats') {
       loadGameStats();
+    }
+    
+    // 当切换到会员页面时，刷新订阅状态
+    if (activeSection === 'premium' && Platform.OS !== 'web') {
+      refreshSubscriptionStatus();
     }
   }, [activeSection]);
 
@@ -769,37 +808,50 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           {
             text: i18n.t('cancelButton'),
             style: 'cancel',
-            // 用户取消时不需要任何操作
           },
           {
             text: i18n.t('subscribeButton'),
             onPress: async () => {
               try {
+                setIsLoading(true);
                 const subscriptionService = SubscriptionService.getInstance();
                 const result = await subscriptionService.purchaseSubscription(plan.id);
                 
-                // 检查返回结果
                 if (result.success) {
+                  // 立即刷新订阅状态
+                  await subscriptionService.fetchAndUpdateSubscriptionStatus();
+                  
                   if (result.status === 'deferred') {
-                    // 支付已延迟，等待批准
                     Alert.alert(
                       i18n.t('subscription.deferred'),
-                      i18n.t('subscription.deferredMessage') || result.message || '订阅请求已提交，等待批准',
+                      i18n.t('subscription.deferredMessage'),
                       [{ text: i18n.t('ok') }]
                     );
+                  } else {
+                    // 显示成功消息并强制刷新状态
+                    Alert.alert(
+                      i18n.t('subscription.purchaseSuccess'),
+                      i18n.t('subscription.purchaseSuccessDesc'),
+                      [{ 
+                        text: i18n.t('ok'),
+                        onPress: () => {
+                          // 重置视图到 premium 区域，显示最新状态
+                          setActiveSection('premium');
+                        } 
+                      }]
+                    );
                   }
-                  // 成功购买的情况下不需要额外操作，purchaseUpdateListener会处理
                 } else {
-                  // 显示错误信息
                   console.error('订阅失败:', result.error);
                   Alert.alert(i18n.t('errorTitle'), i18n.t('purchaseError'));
                 }
               } catch (error: any) {
-                // 只有在非用户取消的情况下才显示错误
                 if (error.code !== 'E_USER_CANCELLED') {
                   console.error('订阅失败:', error);
                   Alert.alert(i18n.t('errorTitle'), i18n.t('purchaseError'));
                 }
+              } finally {
+                setIsLoading(false);
               }
             },
           },
@@ -922,6 +974,12 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
 
             {!subscriptionStatus.isLifetime && (
               <View style={styles.subscriptionPlans}>
+                {isLoading && (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.colors.primary} />
+                    <Text style={styles.loadingText}>{i18n.t('loading')}</Text>
+                  </View>
+                )}
                 {subscriptionPlansState.map((plan) => (
                   <TouchableOpacity
                     key={plan.id}
@@ -1212,6 +1270,9 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
         console.error('获取可用订阅产品失败:', error);
       });
       
+      // 主动刷新一次订阅状态，检查是否有退款等变更
+      await subscriptionService.fetchAndUpdateSubscriptionStatus();
+      
       // 获取订阅状态
       const subscriptionData = await AsyncStorage.getItem('subscriptionData');
       
@@ -1222,14 +1283,56 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           isActive: parsedData.isActive,
           isLifetime: parsedData.productId?.includes('lifetime') || false,
           expirationDate: parsedData.expirationDate ? new Date(parsedData.expirationDate) : undefined,
-          productId: parsedData.productId,
+          productId: parsedData.productId || undefined,
         });
         setIsPremium(parsedData.isActive);
+        
+        // 检查是否是退款情况，但不在初始化时显示，避免双重通知
+        // 初始化时不显示通知，而是依赖于refreshSubscriptionStatus来显示
       } else {
         console.log('未找到本地存储的会员信息');
       }
     } catch (error) {
       console.error('初始化订阅服务失败:', error);
+    }
+  };
+
+  // 更新刷新订阅状态的函数
+  const refreshSubscriptionStatus = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const subscriptionService = SubscriptionService.getInstance();
+        await subscriptionService.fetchAndUpdateSubscriptionStatus();
+        
+        // 从AsyncStorage获取最新状态
+        const subscriptionData = await AsyncStorage.getItem('subscriptionData');
+        if (subscriptionData) {
+          const parsedData = JSON.parse(subscriptionData);
+          
+          setSubscriptionStatus({
+            isActive: parsedData.isActive,
+            isLifetime: parsedData.productId?.includes('lifetime') || false,
+            expirationDate: parsedData.expirationDate ? new Date(parsedData.expirationDate) : undefined,
+            productId: parsedData.productId || undefined,
+          });
+          setIsPremium(parsedData.isActive);
+          
+          // 如果是退款情况，并且在冷却时间外，显示通知
+          if (parsedData.possibleRefund) {
+            const now = Date.now();
+            if (now - lastSubscriptionAlertTime > ALERT_COOLDOWN) {
+              setLastSubscriptionAlertTime(now);
+              Alert.alert(
+                i18n.t('subscription.statusChanged'),
+                i18n.t('subscription.expired'),
+                [{ text: i18n.t('ok') }]
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('刷新订阅状态失败:', error);
     }
   };
 

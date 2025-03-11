@@ -206,6 +206,10 @@ export const zh = {
     subscribeNow: '是否要订阅会员以使用所有功能？',
     noSubscriptionFound: '未找到可恢复的订阅',
     
+    // 购买成功
+    purchaseSuccess: '订阅成功',
+    purchaseSuccessDesc: '感谢您的订阅！您现在可以使用所有高级功能。',
+    
     // 支付延迟提示
     deferred: '订阅请求已提交',
     deferredMessage: '您的订阅请求已提交，正在等待批准（例如家长控制)。批准后，您将自动获得会员资格。',

@@ -182,22 +182,44 @@ export default class SubscriptionService {
         return;
       }
       
+      const now = Date.now(); // 添加 now 变量
+      
       // 处理网络错误
       if (errorCode === 'E_NETWORK_ERROR') {
-      Alert.alert(
-          '网络错误',
-          '购买过程中出现网络问题，请检查您的网络连接后重试。',
-          [{ text: '确定', style: 'default' }]
-        );
+        if (now - this.lastAlertTime > this.ALERT_COOLDOWN) {
+          this.lastAlertTime = now;
+          this.isShowingExpirationAlert = true;
+          Alert.alert(
+            '网络错误',
+            '购买过程中出现网络问题，请检查您的网络连接后重试。',
+            [{ 
+              text: '确定', 
+              style: 'default',
+              onPress: () => {
+                this.isShowingExpirationAlert = false;
+              }
+            }]
+          );
+        }
         return;
       }
       
       // 处理其他错误
-      Alert.alert(
-        '购买失败',
-        `订阅购买过程中出现错误: ${errorMessage}`,
-        [{ text: '确定', style: 'default' }]
-      );
+      if (now - this.lastAlertTime > this.ALERT_COOLDOWN) {
+        this.lastAlertTime = now;
+        this.isShowingExpirationAlert = true;
+        Alert.alert(
+          '购买失败',
+          `订阅购买过程中出现错误: ${errorMessage}`,
+          [{ 
+            text: '确定', 
+            style: 'default',
+            onPress: () => {
+              this.isShowingExpirationAlert = false;
+            }
+          }]
+        );
+      }
       
       // 通知监听器订阅状态可能已发生变化
       this.updateSubscriptionListeners();
@@ -904,9 +926,10 @@ export default class SubscriptionService {
           possibleRefund: true // 标记可能是退款
         };
         
-        await AsyncStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(updatedData));
-        this.currentSubscriptionData = updatedData;
-        this.notifySubscriptionUpdate(updatedData);
+        // 使用统一的 updateSubscriptionStatus 方法更新状态
+        await this.updateSubscriptionStatus(updatedData);
+        
+        // 不再自动显示提示，而是由监听器处理
         return;
       }
       

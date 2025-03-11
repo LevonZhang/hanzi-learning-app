@@ -127,8 +127,8 @@ export const en = {
   cancelButton: 'Cancel',
   
   // Purchase Status
-  purchaseSuccess: 'Purchase Successful',
-  enjoyPremium: 'Thank you for your support! Enjoy all premium features',
+  purchaseSuccess: 'Subscription Successful',
+  purchaseSuccessDesc: 'Thank you for subscribing! You now have access to all premium features.',
   purchaseError: 'Purchase failed, please try again later',
   errorTitle: 'Error',
   
@@ -206,6 +206,10 @@ export const en = {
     noActiveSubscription: 'No Active Subscription',
     subscribeNow: 'Would you like to subscribe to access all features?',
     noSubscriptionFound: 'No Subscription Found',
+    
+    // Purchase Success
+    purchaseSuccess: 'Subscription Successful',
+    purchaseSuccessDesc: 'Thank you for subscribing! You now have access to all premium features.',
     
     // Deferred Payment
     deferred: 'Subscription Request Submitted',

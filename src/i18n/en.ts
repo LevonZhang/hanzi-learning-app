@@ -255,4 +255,7 @@ export const en = {
     verifyingReceipt: 'Verifying subscription status...',
     contactSupport: 'If you have any issues, please contact support',
   },
+
+  resetLearning: 'Reset Learning Progress',
+  resetLearningConfirmMessage: 'Are you sure you want to reset all learning progress? This action cannot be undone.',
 }; 

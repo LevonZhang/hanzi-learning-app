@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.itlongbow.hanzilearningapp",
-      "buildNumber": "19"
+      "buildNumber": "20"
     },
     "web": {
       "favicon": "./assets/favicon.png"

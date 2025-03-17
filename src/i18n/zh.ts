@@ -193,6 +193,8 @@ export const zh = {
   resetGame: '重新开始游戏',
   resetGameConfirm: '重置游戏',
   resetGameConfirmMessage: '确定要重置游戏进度吗？这将清除当前的得分和关卡进度，从第一关重新开始。',
+  resetLearning: '重置学习进度',
+  resetLearningConfirmMessage: '确定要重置所有学习进度吗？此操作无法撤销。',
   // Subscription Messages
   subscription: {
     // 订阅状态

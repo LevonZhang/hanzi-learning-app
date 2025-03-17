@@ -11,6 +11,7 @@ import 'cnchar-draw';  // 导入绘制模块
 import * as Share from 'expo-sharing';
 import { useTranslation } from 'react-i18next';
 import HanziWriter from 'hanzi-writer';
+import { logger } from '../utils/logger';
 
 interface StrokeOrderCardProps {
   character: string;
@@ -35,14 +36,41 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
   const windowHeight = Dimensions.get('window').height;
   const [writer, setWriter] = useState<HanziWriter | null>(null);
   const [targetStrokeIndex, setTargetStrokeIndex] = useState<number>(-1);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const handleMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'error') {
+        setLoadError('无法加载汉字笔画数据');
+        logger.error(`Error loading character data for ${character}: ${data.message}`);
+      }
+    } catch (e) {
+      // Handle other messages
+    }
+  };
+
+  const onError = () => {
+    setLoadError('无法加载汉字笔画数据');
+    logger.error(`Failed to load character data for ${character}`);
+  };
+
+  if (loadError) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{loadError}</Text>
+        <Text style={styles.characterText}>{character}</Text>
+      </View>
+    );
+  }
 
   const getHtmlContent = (index: number) => `
     <!DOCTYPE html>
     <html>
       <head>
         <meta charset="UTF-8">
+        <script src="https://www.hanzilearning.xyz/libs/hanzi-writer.min.js"></script>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
         <style>
           html, body {
             margin: 0;
@@ -83,7 +111,25 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
           let isInitialized = false;
           let writer = null;
 
-          function initWriter() {
+          async function loadCharacterData(char) {
+            try {
+              const response = await fetch(\`https://www.hanzilearning.xyz/api/\${encodeURIComponent(char)}\`);
+              if (!response.ok) {
+                throw new Error(\`HTTP error! status: \${response.status}\`);
+              }
+              const data = await response.json();
+              return data;
+            } catch (error) {
+              console.error('Error loading character data:', error);
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'error',
+                message: \`Error loading character data: \${error.message}\`
+              }));
+              return null;
+            }
+          }
+
+          async function initWriter() {
             if (isInitialized) {
               return;
             }
@@ -92,6 +138,12 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
               const target = document.getElementById('target');
               if (!target) {
                 return;
+              }
+
+              // Load character data first
+              const charData = await loadCharacterData('${character}');
+              if (!charData) {
+                throw new Error('Failed to load character data');
               }
 
               writer = HanziWriter.create(target, '${character}', {
@@ -104,6 +156,7 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
                 outlineColor: '#CCCCCC',
                 strokeWidth: 2,
                 delayBetweenStrokes: 50,
+                charDataLoader: () => Promise.resolve(charData),
                 onLoadCharDataSuccess: () => {
                   try {
                     writer.hideCharacter();
@@ -126,18 +179,37 @@ export const StrokeOrderCard = ({ character, strokeCount, onClose }: StrokeOrder
                           }
                         });
                       } catch (error) {
-                        console.error(error);
+                        console.error('Error styling strokes:', error);
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                          type: 'error',
+                          message: 'Error styling strokes: ' + error.message
+                        }));
                       }
                     }, 100);
                   } catch (error) {
-                    console.error(error);
+                    console.error('Error showing character:', error);
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'error',
+                      message: 'Error showing character: ' + error.message
+                    }));
                   }
+                },
+                onLoadCharDataError: (error) => {
+                  console.error('Error loading character data:', error);
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'error',
+                    message: 'Error loading character data: ' + error
+                  }));
                 }
               });
 
               isInitialized = true;
             } catch (error) {
-              console.error(error);
+              console.error('Error initializing writer:', error);
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'error',
+                message: 'Error initializing writer: ' + error.message
+              }));
             }
           }
 
@@ -400,5 +472,20 @@ const styles = StyleSheet.create({
   closeButton: {
     backgroundColor: '#FF4444',
     marginLeft: 0,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#FF0000',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  characterText: {
+    color: '#333',
+    fontSize: 14,
   },
 }); 

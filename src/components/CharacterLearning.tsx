@@ -50,7 +50,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
   const [showStrokeOrder, setShowStrokeOrder] = useState(false);
   const [strokeCount, setStrokeCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [hasStrokeData, setHasStrokeData] = useState(true);
   const { width, height } = Dimensions.get('window');
   const { isIPad, isDesktop: isResponsiveDesktop } = useResponsive();
@@ -71,7 +71,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
   useEffect(() => {
     // Reset states when character changes
     setIsLoading(true);
-    setLoadError(false);
+    setLoadError(null);
     setIsReady(false);
     setHasStrokeData(true);
     
@@ -84,6 +84,17 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     if (strokeCount === 0) {
       setHasStrokeData(false);
     }
+
+    // 初始化学习记录
+    const initLearning = async () => {
+      try {
+        const learningManager = LearningManager.getInstance();
+        await learningManager.initCharacterLearning(character);
+      } catch (error) {
+        logger.error('初始化学习记录失败:', error);
+      }
+    };
+    initLearning();
     
     // 清除之前的超时
     if (timeoutRef.current) {
@@ -144,7 +155,39 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+        <script src="https://www.hanzilearning.xyz/libs/hanzi-writer.min.js"></script>
+        <script>
+          // 添加字符数据加载函数
+          async function loadCharacterData(char) {
+            try {
+              // 检查字符是否有效
+              if (!char || char === 'undefined' || char === 'null') {
+                console.error('Invalid character provided:', char);
+                throw new Error('Invalid character: ' + char);
+              }
+              const response = await fetch('https://www.hanzilearning.xyz/api/' + encodeURIComponent(char));
+              if (!response.ok) {
+                throw new Error('Failed to load character data');
+              }
+              return await response.json();
+            } catch (error) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'error',
+                message: 'Failed to load character data: ' + error.message
+              }));
+              throw error;
+            }
+          }
+        </script>
+        <script>
+          window.onerror = function(msg, url, line) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'error',
+              message: msg + ' at line ' + line
+            }));
+            return true;
+          };
+        </script>
         <style>
           body {
             margin: 0;
@@ -190,24 +233,59 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             loadAttempts++;
             
             if (typeof HanziWriter !== 'undefined') {
-              initializeAll();
+              try {
+                initializeAll();
+              } catch (error) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                  type: 'error', 
+                  message: '初始化失败: ' + error.message 
+                }));
+              }
             } else if (loadAttempts < maxAttempts) {
               setTimeout(waitForCnchar, 300);
             } else {
               window.ReactNativeWebView.postMessage(JSON.stringify({ 
                 type: 'error', 
-                message: 'HanziWriter加载失败, 超过最大尝试次数' 
+                message: 'HanziWriter加载失败, 请检查网络连接并重试' 
               }));
             }
           }
 
-          function initWriter(character) {
+          function initializeAll() {
+            try {
+              initWriter('${character}');
+              window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                type: 'ready'
+              }));
+            } catch (error) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                type: 'error', 
+                message: '初始化写字板失败: ' + error.message 
+              }));
+            }
+          }
+
+          async function initWriter(character) {
             if (writer) {
-              writer.setCharacter(character);
-              return writer;
+              try {
+                writer.setCharacter(character);
+                return writer;
+              } catch (error) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                  type: 'error', 
+                  message: '设置汉字失败: ' + error.message 
+                }));
+                return null;
+              }
             }
             
             try {
+              // 首先加载字符数据
+              const charData = await loadCharacterData(character);
+              if (!charData) {
+                throw new Error('Failed to load character data');
+              }
+              
               // 统一学习模式和复习模式的配置
               const writerOptions = {
                 width: ${shouldUseDesktopLayout ? (isIPad ? 320 : isDesktop ? 260 : 320) : 220},
@@ -226,6 +304,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
                 showHintAfterMisses: isReviewMode ? 1 : 3,
                 highlightOnComplete: true,
                 leniency: isReviewMode ? 0.8 : 1.0,
+                charDataLoader: () => Promise.resolve(charData),
                 onLoadCharDataSuccess: () => {
                   window.ReactNativeWebView.postMessage(JSON.stringify({ 
                     type: 'characterLoaded', 
@@ -242,83 +321,43 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
                 }
               };
 
-              // 输出当前配置信息，用于调试
-              console.log('Writer options:', JSON.stringify({
-                ...writerOptions,
-                isReviewMode
-              }));
-              
               writer = HanziWriter.create('character-target-div', character, writerOptions);
-              
               return writer;
             } catch (error) {
               window.ReactNativeWebView.postMessage(JSON.stringify({ 
                 type: 'error', 
-                message: '创建Writer失败: ' + error.message 
+                message: '创建写字板失败: ' + error.message 
               }));
               return null;
             }
           }
 
-          function startAnimation() {
-            if (!writer) {
-              writer = initWriter('${character}');
-            }
-            if (writer) {
-              writer.animateCharacter();
-            }
-          }
-
-          function startQuiz() {
-            if (!writer) {
-              writer = initWriter('${character}');
-            }
-            if (writer) {
-              writer.quiz({
-                showOutline: true,
-                highlightOnComplete: true,
-                showCharacter: true,
-                strokeHighlightSpeed: 2,
-                drawingWidth: ${shouldUseDesktopLayout ? (isIPad ? 8 : isDesktop ? 10 : 12) : 12},
-                showHintAfterMisses: 3,
-                onComplete: () => {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'quizComplete'
-                  }));
-                },
-                gridColor: '#DDD'
-              });
-            }
-          }
-
-          window.addEventListener('message', (event) => {
-            const data = JSON.parse(event.data);
-            
-            if (data.type === 'animate') {
-              // 使用传递进来的isReviewMode参数更新全局变量
-              if (data.isReviewMode !== undefined) {
-                isReviewMode = data.isReviewMode;
+          // 添加消息处理函数
+          window.addEventListener('message', function(event) {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === 'animate') {
+                if (writer) {
+                  writer.animateCharacter();
+                }
+              } else if (data.type === 'quiz') {
+                if (writer) {
+                  writer.quiz({
+                    onComplete: () => {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'quizComplete'
+                      }));
+                    }
+                  });
+                }
               }
-              startAnimation();
-            } else if (data.type === 'quiz') {
-              // 使用传递进来的isReviewMode参数更新全局变量
-              if (data.isReviewMode !== undefined) {
-                isReviewMode = data.isReviewMode;
-              }
-              startQuiz();
+            } catch (error) {
+              console.error('Message handling error:', error);
             }
           });
 
-          function initializeAll() {
-            // 初始化写字板
-            writer = initWriter('${character}');
-            
-            // 初始化完成后通知 React Native
-            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
-          }
-
-          // 开始等待 cnchar 加载
-          waitForCnchar();
+          // 开始加载过程
+          setTimeout(waitForCnchar, 100);
         </script>
       </body>
     </html>
@@ -329,7 +368,7 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       description: event.nativeEvent?.description,
       code: event.nativeEvent?.code
     });
-    setLoadError(true);
+    setLoadError('无法加载汉字笔画数据');
     setIsLoading(false);
   };
 
@@ -339,10 +378,16 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
       
       if (data.type === 'error') {
         logger.error(`CharacterLearning Error: ${data.message}`);
-        setLoadError(true);
+        setLoadError('无法加载汉字笔画数据');
       } else if (data.type === 'ready') {
         setIsReady(true);
-        setLoadError(false);
+        setIsLoading(false);
+        
+        // 当组件准备就绪时，记录为已学习状态
+        const learningManager = LearningManager.getInstance();
+        learningManager.initCharacterLearning(character).catch(error => {
+          logger.error('初始化学习记录失败:', error);
+        });
       } else if (data.type === 'characterLoaded') {
         // 清除超时检查
         if (timeoutRef.current) {
@@ -354,13 +399,18 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
           setIsLoading(false);
         }, 300);
       } else if (data.type === 'quizComplete') {
+        // 当练习完成时，记录为已掌握状态
+        const learningManager = LearningManager.getInstance();
+        learningManager.recordProgress(character, true).catch(error => {
+          logger.error('记录学习进度失败:', error);
+        });
         onComplete?.(true);
       } else if (data.type === 'hanziInfo') {
         onHanziInfo?.(data.data);
       }
     } catch (error) {
       logger.error('WebView message error:', error);
-      setLoadError(true);
+      setLoadError('无法加载汉字笔画数据');
       setIsLoading(false);
     }
   };
@@ -540,7 +590,27 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
     hidden: {
       opacity: 0,
     },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    characterText: {
+      marginTop: 10,
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#333',
+    },
   });
+
+  if (loadError) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{loadError}</Text>
+        <Text style={styles.characterText}>{character}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -601,10 +671,12 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             style={[styles.button, styles.demonstrateButton]}
             onPress={() => {
               if (webViewRef.current) {
-                webViewRef.current.postMessage(JSON.stringify({ 
-                  type: 'animate',
-                  isReviewMode
-                }));
+                webViewRef.current.injectJavaScript(`
+                  if (writer) {
+                    writer.animateCharacter();
+                  }
+                  true;
+                `);
               }
             }}
           >
@@ -620,10 +692,18 @@ export const CharacterLearning: React.FC<Props> = ({ character, onComplete, onHa
             style={[styles.button, styles.practiceButton]}
             onPress={() => {
               if (webViewRef.current) {
-                webViewRef.current.postMessage(JSON.stringify({ 
-                  type: 'quiz',
-                  isReviewMode
-                }));
+                webViewRef.current.injectJavaScript(`
+                  if (writer) {
+                    writer.quiz({
+                      onComplete: () => {
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                          type: 'quizComplete'
+                        }));
+                      }
+                    });
+                  }
+                  true;
+                `);
               }
             }}
           >

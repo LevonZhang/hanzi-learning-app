@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HanziService from './HanziService';
 import { logger } from '../utils/logger';
+import { getNextUnlearnedHSKCharacters } from '../utils/hskUtils';
 
 interface LearningProgress {
   character: string;
@@ -99,7 +100,9 @@ export class LearningManager {
   // 获取今天的学习列表
   async getTodayLearningList() {
     const date = new Date().toISOString().split('T')[0];
+    
     const progress = await this.getAllProgress();
+    
     const hanziService = HanziService.getInstance();
     const allCharacters = await hanziService.getHanziListWithDetails();
     
@@ -112,31 +115,20 @@ export class LearningManager {
     // 获取已学习的字符集
     const learnedChars = new Set(Object.keys(progress));
     
-    // 从未学习的字符中选择新的字符，按难易程度排序
-    const availableChars = allCharacters
-      .filter(char => !learnedChars.has(char.character))
-      .sort((a, b) => {
-        // 1. 首先按常用字排序（常用字优先）
-        if (a.isCommon !== b.isCommon) {
-          return a.isCommon ? -1 : 1;
-        }
-
-        // 2. 在常用字中，按笔画数排序（笔画少的优先）
-        const strokeDiff = a.strokes - b.strokes;
-        if (strokeDiff !== 0) {
-          return strokeDiff;
-        }
-
-        // 3. 如果笔画数相同，按使用频率排序
-        if (a.isCommon && b.isCommon) {
-          return a.commonIndex - b.commonIndex;
-        }
-
-        // 4. 如果都不是常用字，保持随机顺序
-        return Math.random() - 0.5;
-      });
+    // 使用HSK工具获取下一批要学习的字符（包括非HSK字符）
+    const nextChars = getNextUnlearnedHSKCharacters(learnedChars, this.settings.dailyNewWords, allCharacters);
     
-    const newChars = availableChars.slice(0, this.settings.dailyNewWords);
+    // 从所有汉字中找到对应的完整信息
+    const newChars = nextChars
+      .map(hskChar => {
+        // 如果是非HSK字符，已经包含了完整信息
+        if (hskChar.level === 999) {
+          return hskChar as Character;
+        }
+        // 如果是HSK字符，需要查找完整信息
+        return allCharacters.find(c => c.character === hskChar.character);
+      })
+      .filter(Boolean) as Character[];
 
     return {
       newWords: newChars,
@@ -152,20 +144,42 @@ export class LearningManager {
     
     try {
       const data = await AsyncStorage.getItem('learningProgress');
-      if (!data) return {};
+      
+      if (!data) {
+        return {};
+      }
       
       try {
         const parsedData = JSON.parse(data);
         if (typeof parsedData === 'object' && parsedData !== null) {
-          return parsedData;
+          // 验证并修正数据
+          const validatedData: Record<string, LearningProgress> = {};
+          for (const [char, data] of Object.entries(parsedData)) {
+            // 跳过空字符或无效字符
+            if (!char || char.trim() === '') {
+              continue;
+            }
+            if (typeof data === 'object' && data !== null) {
+              const progressData = data as Partial<LearningProgress>;
+              validatedData[char] = {
+                character: char,
+                lastReviewDate: progressData.lastReviewDate || new Date().toISOString().split('T')[0],
+                nextReviewDate: progressData.nextReviewDate || this.getNextReviewDate(new Date(), progressData.masteryLevel || 1),
+                mistakes: typeof progressData.mistakes === 'number' ? progressData.mistakes : 0,
+                masteryLevel: typeof progressData.masteryLevel === 'number' && progressData.masteryLevel >= 0 && progressData.masteryLevel <= 2 
+                  ? progressData.masteryLevel 
+                  : 1
+              };
+            }
+          }
+          
+          return validatedData;
         }
         return {};
       } catch (parseError) {
-        console.error('[LearningManager] 解析学习进度数据失败:', parseError);
         return {};
       }
     } catch (error) {
-      console.error('[LearningManager] 获取学习进度失败:', error);
       return {};
     }
   }
@@ -183,7 +197,6 @@ export class LearningManager {
     try {
       await this.recordProgress(character, isCorrect);
     } catch (error) {
-      logger.error('记录学习进度失败:', error);
     }
   }
 
@@ -196,21 +209,25 @@ export class LearningManager {
         const initialProgress = {
           character,
           lastReviewDate: new Date().toISOString().split('T')[0],
-          masteryLevel: isCorrect ? 2 : 1, // 如果回答正确，设置为掌握状态(2)
-          mistakes: forceAddToReview ? 1 : 0, // 只有强制加入错题本时才设置mistakes为1
+          masteryLevel: isCorrect ? 2 : 1, // 如果回答正确，设置为掌握状态(2)，否则设置为已学习状态(1)
+          mistakes: forceAddToReview ? 1 : 0,
           nextReviewDate: this.getNextReviewDate(new Date(), isCorrect ? 2 : 1)
         };
         progress[character] = initialProgress;
       } else {
-        // 更新进度
+        // 更新现有进度
         const item = progress[character];
+        const oldMasteryLevel = item.masteryLevel;
         item.lastReviewDate = new Date().toISOString().split('T')[0];
         
-        // 修复: 如果回答正确，直接设置掌握等级为2表示已掌握，而不是递增
+        // 更新掌握等级
         if (isCorrect) {
-          item.masteryLevel = 2; // 直接设为2表示已掌握状态
-        } else if (forceAddToReview) {
-          // 不降低掌握等级，只有强制加入错题本时增加mistakes
+          item.masteryLevel = 2; // 练习正确，设置为已掌握状态
+        } else if (!item.masteryLevel || item.masteryLevel < 1) {
+          item.masteryLevel = 1; // 确保至少是已学习状态
+        }
+        
+        if (forceAddToReview) {
           item.mistakes += 1;
         }
         
@@ -228,13 +245,13 @@ export class LearningManager {
     try {
       const progress = await this.getAllProgress();
       
-      // 只有当字符不在进度记录中时才初始化
-      if (!progress[character]) {
+      // 只有当字符不在进度记录中，或者掌握等级未设置时才初始化
+      if (!progress[character] || progress[character].masteryLevel === undefined) {
         const initialProgress = {
           character,
           lastReviewDate: new Date().toISOString().split('T')[0],
           masteryLevel: 1,  // 设置掌握度为1表示"已学习但未掌握"
-          mistakes: 0,      // 不加入错题本
+          mistakes: 0,
           nextReviewDate: this.getNextReviewDate(new Date(), 1)
         };
         progress[character] = initialProgress;
@@ -283,10 +300,36 @@ export class LearningManager {
         throw new Error('无效的进度数据');
       }
       
+      // 过滤掉无效字符
+      const filteredProgress: Record<string, LearningProgress> = {};
+      // 验证并修正数据
+      for (const [char, data] of Object.entries(progress)) {
+        // 跳过空字符或无效字符
+        if (!char || char.trim() === '') {
+          continue;
+        }
+        // 确保 masteryLevel 在有效范围内
+        if (typeof data.masteryLevel !== 'number' || data.masteryLevel < 0 || data.masteryLevel > 2) {
+          data.masteryLevel = 1; // 默认设置为已学习状态
+        }
+        
+        // 确保其他必要字段存在且类型正确
+        if (!data.lastReviewDate || typeof data.lastReviewDate !== 'string') {
+          data.lastReviewDate = new Date().toISOString().split('T')[0];
+        }
+        if (!data.nextReviewDate || typeof data.nextReviewDate !== 'string') {
+          data.nextReviewDate = this.getNextReviewDate(new Date(), data.masteryLevel);
+        }
+        if (typeof data.mistakes !== 'number') {
+          data.mistakes = 0;
+        }
+      }
+      
       const progressJson = JSON.stringify(progress);
       
       // 先保存备份
       await AsyncStorage.setItem('learningProgress_backup', progressJson);
+      
       // 然后保存主数据
       await AsyncStorage.setItem('learningProgress', progressJson);
       
@@ -297,7 +340,6 @@ export class LearningManager {
       }
     } catch (error) {
       logger.error('保存进度失败:', error);
-      throw error;
     }
   }
 
@@ -318,20 +360,20 @@ export class LearningManager {
       }
     } catch (error) {
       logger.error('从错字本删除失败:', error);
-      throw error;
     }
   }
 
   // 重置所有学习进度
   public async resetAllProgress(): Promise<void> {
     try {
+      // 清除存储的学习进度
       await AsyncStorage.removeItem('learningProgress');
+      await AsyncStorage.removeItem('learningProgress_backup');
       await AsyncStorage.removeItem('todayLearningList');
       this.reviewWords.clear();
       this.learningProgress.clear();
     } catch (error) {
       logger.error('重置进度失败:', error);
-      throw error;
     }
   }
 
@@ -361,32 +403,20 @@ export class LearningManager {
       // 获取已学习的字符集
       const learnedChars = new Set(Object.keys(progress));
       
-      // 从未学习的字符中选择新的字符，按难易程度排序
-      const availableChars = allCharacters
-        .filter(char => !learnedChars.has(char.character))
-        .sort((a, b) => {
-          // 1. 首先按常用字排序（常用字优先）
-          if (a.isCommon !== b.isCommon) {
-            return a.isCommon ? -1 : 1;
-          }
-
-          // 2. 在常用字中，按笔画数排序（笔画少的优先）
-          const strokeDiff = a.strokes - b.strokes;
-          if (strokeDiff !== 0) {
-            return strokeDiff;
-          }
-
-          // 3. 如果笔画数相同，按使用频率排序
-          if (a.isCommon && b.isCommon) {
-            return a.commonIndex - b.commonIndex;
-          }
-
-          // 4. 如果都不是常用字，保持随机顺序
-          return Math.random() - 0.5;
-        });
+      // 使用HSK工具获取下一批要学习的字符（包括非HSK字符）
+      const nextChars = getNextUnlearnedHSKCharacters(learnedChars, count, allCharacters);
       
-      // 返回指定数量的新字符
-      return availableChars.slice(0, count);
+      // 从所有汉字中找到对应的完整信息
+      return nextChars
+        .map(hskChar => {
+          // 如果是非HSK字符，已经包含了完整信息
+          if (hskChar.level === 999) {
+            return hskChar as Character;
+          }
+          // 如果是HSK字符，需要查找完整信息
+          return allCharacters.find(c => c.character === hskChar.character);
+        })
+        .filter(Boolean) as Character[];
     } catch (error) {
       logger.error('获取更多学习字符失败:', error);
       return [];

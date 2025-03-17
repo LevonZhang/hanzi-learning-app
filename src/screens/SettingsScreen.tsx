@@ -448,16 +448,21 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       marginBottom: 4,
     },
     resetButton: {
-      backgroundColor: '#ff6b6b',
+      backgroundColor: '#F5F5F5',
       padding: 10,
       borderRadius: 8,
       marginTop: 10,
       alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: '#E0E0E0',
     },
     resetButtonText: {
-      color: 'white',
+      color: '#FF3B30',
       fontSize: fontSizes.resetButtonText,
-      fontWeight: 'bold',
+      fontWeight: '600',
     },
     sectionTitle: {
       fontSize: fontSizes.sectionTitle,
@@ -522,6 +527,19 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       fontWeight: 'bold',
       marginTop: 10,
     },
+    resetButtonFullWidth: {
+      backgroundColor: '#F5F5F5',
+      padding: 10,
+      borderRadius: 8,
+      marginTop: 10,
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: '#E0E0E0',
+      width: '100%',
+    },
   });
 
   const [dailyWords, setDailyWords] = useState(5);
@@ -579,22 +597,34 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     }
   }, []);
 
-  // 添加新的effect，当activeSection为gameStats时刷新游戏统计数据
+  // 添加新的effect，当activeSection改变时加载相应的数据
   useEffect(() => {
-    if (activeSection === 'gameStats') {
+    if (activeSection === 'learningStats') {
+      loadLearnedCharacters();
+      loadStats();
+    } else if (activeSection === 'gameStats') {
       loadGameStats();
-    }
-    
-    // 当切换到会员页面时，刷新订阅状态
-    if (activeSection === 'premium' && Platform.OS !== 'web') {
+    } else if (activeSection === 'premium' && Platform.OS !== 'web') {
       refreshSubscriptionStatus();
     }
   }, [activeSection]);
 
+  // 添加导航焦点监听器，当屏幕重新获得焦点时刷新数据
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (activeSection === 'learningStats') {
+        loadLearnedCharacters();
+        loadStats();
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, activeSection]);
+
   const loadData = async () => {
     loadLearnedCharacters();
-    loadSettings();
     loadStats();
+    loadSettings();
     
     // 初始化订阅相关
     if (Platform.OS !== 'web') {
@@ -632,7 +662,7 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
 
   const loadStats = async () => {
     try {
-      // 从 StatisticsService 获取学习统计数据
+      // 从 LearningManager 获取学习统计数据
       const learningManager = LearningManager.getInstance();
       const stats = await learningManager.getStatistics();
       
@@ -655,27 +685,37 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           monthlyProgress: parsedStats.monthlyProgress || [],
         }));
       }
-
-      // 游戏统计移动到loadGameStats函数中
     } catch (error) {
-      console.error('加载统计数据失败:', error);
+      logger.error('加载统计数据失败:', error);
     }
   };
 
   const loadLearnedCharacters = async () => {
     try {
       const learningManager = LearningManager.getInstance();
-      const progress = await learningManager.getAllProgress();
-      const characters = Object.entries(progress).map(([char, data]) => ({
+      const progress = await learningManager.getAllProgress();      
+      const characters = Object.entries(progress)
+      // 过滤掉无效字符（空字符、undefined、null等）
+      .filter(([char, data]) => char && char.trim() !== '')
+      .map(([char, data]) => ({
         character: char,
         masteryLevel: data.masteryLevel,
         lastReviewDate: data.lastReviewDate,
       }));
-      const sortedCharacters = characters.sort((a, b) => b.masteryLevel - a.masteryLevel);
+      
+      // 按掌握等级排序：已掌握(2) > 已学习(1) > 未学习(0)
+      const sortedCharacters = characters.sort((a, b) => {
+        if (b.masteryLevel === a.masteryLevel) {
+          // 如果掌握等级相同，按最后复习日期排序（最近的在前）
+          return new Date(b.lastReviewDate).getTime() - new Date(a.lastReviewDate).getTime();
+        }
+        return b.masteryLevel - a.masteryLevel;
+      });
+      
       setLearnedCharacters(sortedCharacters);
       setHasMore(sortedCharacters.length > ITEMS_PER_PAGE);
     } catch (error) {
-      console.error('加载已学习汉字失败:', error);
+      logger.error('加载已学习汉字失败:', error);
     }
   };
 
@@ -698,54 +738,57 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     }, 300);
   };
 
-  const renderCharacterItem = ({ item }: { item: LearnedCharacter }) => (
-    <TouchableOpacity 
-      style={[
-        styles.characterItem,
-        !subscriptionStatus.isActive && { opacity: 0.7 }
-      ]}
-      onPress={() => {
-        if (subscriptionStatus.isActive) {
-          navigation.navigate('Learning', {
-            mode: 'display',
-            character: item.character,
-            fromSettings: true
-          });
-        } else {
-          // 显示需要会员的提示
-          Alert.alert(
-            i18n.t('premiumFeature'),
-            i18n.t('searchPremiumDesc'),
-            [
-              { 
-                text: i18n.t('cancel'), 
-                style: 'cancel' 
-              },
-              {
-                text: i18n.t('getPremiumButton'),
-                onPress: () => setActiveSection('premium')
-              }
-            ]
-          );
-        }
-      }}
-    >
-      <Text style={[
-        styles.characterText, 
-        { color: getMasteryLevelColor(item.masteryLevel) }
-      ]}>
-        {item.character}
-      </Text>
-      {!subscriptionStatus.isActive && (
-        <MaterialCommunityIcons 
-          name="lock" 
-          size={14} 
-          color="#7F7F7F" 
-          style={styles.lockIcon} 
-        />
-      )}
-    </TouchableOpacity>
-  );
+  const renderCharacterItem = ({ item }: { item: LearnedCharacter }) => {
+    const masteryColor = getMasteryLevelColor(item.masteryLevel);    
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.characterItem,
+          !subscriptionStatus.isActive && { opacity: 0.7 }
+        ]}
+        onPress={() => {
+          if (subscriptionStatus.isActive) {
+            navigation.navigate('Learning', {
+              mode: 'display',
+              character: item.character,
+              fromSettings: true
+            });
+          } else {
+            // 显示需要会员的提示
+            Alert.alert(
+              i18n.t('premiumFeature'),
+              i18n.t('searchPremiumDesc'),
+              [
+                { 
+                  text: i18n.t('cancel'), 
+                  style: 'cancel' 
+                },
+                {
+                  text: i18n.t('getPremiumButton'),
+                  onPress: () => setActiveSection('premium')
+                }
+              ]
+            );
+          }
+        }}
+      >
+        <Text style={[
+          styles.characterText, 
+          { color: masteryColor }
+        ]}>
+          {item.character}
+        </Text>
+        {!subscriptionStatus.isActive && (
+          <MaterialCommunityIcons 
+            name="lock" 
+            size={14} 
+            color="#7F7F7F" 
+            style={styles.lockIcon} 
+          />
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   const renderListFooter = () => {
     if (!hasMore && !isLoading) return null;
@@ -893,13 +936,13 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   };
 
   const getMasteryLevelColor = (level: number): string => {
-    switch (true) {
-      case level >= 2:
+    switch (level) {
+      case 2:
         return '#34C759'; // 已掌握 - 绿色
-      case level === 1:
+      case 1:
         return '#333333'; // 已学习 - 黑色
       default:
-        return '#333333'; // 默认黑色
+        return '#666666'; // 未学习 - 灰色
     }
   };
 
@@ -1139,24 +1182,47 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
                 <Text style={[styles.statsLabel, { fontSize: fontSizes.statsLabel }]}>{i18n.t('totalLearningTime')}</Text>
               </View>
             </View>
+            
+            {/* 重置学习按钮 - 单独一行 */}
+            <TouchableOpacity
+              style={[styles.resetButtonFullWidth, { marginBottom: 15 }]}
+              onPress={() => {
+                Alert.alert(
+                  i18n.t('resetLearning'),
+                  i18n.t('resetLearningConfirmMessage'),
+                  [
+                    {
+                      text: i18n.t('cancel'),
+                      style: 'cancel'
+                    },
+                    {
+                      text: i18n.t('confirm'),
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          const learningManager = LearningManager.getInstance();
+                          await learningManager.resetAllProgress();
+                          // 重新加载数据
+                          loadLearnedCharacters();
+                          loadStats();
+                          Alert.alert(i18n.t('success'), i18n.t('resetSuccess'));
+                        } catch (error) {
+                          logger.error('重置学习进度失败:', error);
+                          Alert.alert(i18n.t('error'), i18n.t('resetError'));
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <MaterialCommunityIcons name="refresh" size={16} color="#FF3B30" />
+              <Text style={styles.resetButtonText}>{i18n.t('resetLearning')}</Text>
+            </TouchableOpacity>
+            
+            {/* 已学习汉字标题 */}
             <View style={styles.sectionTitleContainer}>
               <Text style={[styles.sectionTitle, { fontSize: fontSizes.sectionTitle }]}>{i18n.t('learnedCharacters')}</Text>
-              {!subscriptionStatus.isActive && (
-                <View style={styles.premiumTagContainer}>
-                  <MaterialCommunityIcons name="crown" size={16} color="#FFD700" />
-                  <Text style={styles.premiumTagText}>{i18n.t('premium')}</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.legendContainer}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendColor, { backgroundColor: '#34C759' }]} />
-                <Text style={[styles.legendText, { fontSize: fontSizes.legendText }]}>{i18n.t('masteryLevel2')}</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendColor, { backgroundColor: '#333333' }]} />
-                <Text style={[styles.legendText, { fontSize: fontSizes.legendText }]}>{i18n.t('masteryLevel1')}</Text>
-              </View>
             </View>
             {learnedCharacters.length > 0 ? (
               <FlatList
@@ -1185,8 +1251,8 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
 
   const handleResetGame = async (gameType: 'word' | 'pronunciation') => {
     Alert.alert(
-      i18n.t('resetConfirmTitle'),
-      i18n.t('resetConfirmMessage'),
+      i18n.t('resetGameConfirm'),
+      i18n.t('resetGameConfirmMessage'),
       [
         {
           text: i18n.t('cancel'),

@@ -476,44 +476,46 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
           // 如果学习过的字没有超过10个，显示最后一个学过的字
           if (learnedCharacters.length > 0) {
             const lastLearned = learnedCharacters[learnedCharacters.length - 1];
-            await loadSingleCharacter(lastLearned.character);
-            // 设置统计信息
-            setState(prev => ({
-              ...prev,
-              reviewWords,
-              statistics
-            }));
-          } else {
-            // 如果没有学过任何字，按正常流程处理
-            const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
-            
-            if (reachedLimit) {
+            if (lastLearned && lastLearned.character) {
+              await loadSingleCharacter(lastLearned.character);
+              // 设置统计信息
               setState(prev => ({
                 ...prev,
-                newWords: [],
-                reviewWords: [],
-                currentWord: null,
+                reviewWords,
                 statistics
               }));
               return;
             }
-
-            // 设置当前要学习的字
-            const currentWord = newWords[0];
-            
+          }
+          // 如果没有学过任何字，按正常流程处理
+          const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
+          
+          if (reachedLimit) {
             setState(prev => ({
               ...prev,
-              newWords,
-              reviewWords,
-              currentWord,
-              isReviewMode: false,
+              newWords: [],
+              reviewWords: [],
+              currentWord: null,
               statistics
             }));
+            Alert.alert(i18n.t("characterLimitReached"), i18n.t("characterLimitDesc"), [{text: i18n.t("getPremium"), onPress: () => navigation.navigate("Settings")}, {text: i18n.t("ok"), style: "cancel"}]); return;
+          }
 
-            // 记录为已开始学习
-            if (currentWord) {
-              await handleCharacterLearned(currentWord.character);
-            }
+          // 设置当前要学习的字
+          const currentWord = newWords[0];
+          
+          setState(prev => ({
+            ...prev,
+            newWords,
+            reviewWords,
+            currentWord,
+            isReviewMode: false,
+            statistics
+          }));
+
+          // 记录为已开始学习
+          if (currentWord) {
+            await handleCharacterLearned(currentWord.character);
           }
         } else {
           // 如果学习过的字超过了10个，显示第10个字

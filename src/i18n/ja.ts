@@ -233,4 +233,7 @@ export const ja = {
     verifyingReceipt: '購読状態を確認中...',
     contactSupport: '問題がある場合はサポートにお問い合わせください',
   },
+
+  resetLearning: '学習進捗をリセット',
+  resetLearningConfirmMessage: '全ての学習進捗をリセットしてもよろしいですか？この操作は取り消せません。',
 }; 

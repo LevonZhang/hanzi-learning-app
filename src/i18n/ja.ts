@@ -56,6 +56,8 @@ export const ja = {
   incorrectMatch: '不正解',
   useHint: 'ヒント使用',
   points: '点',
+  clickMatchingBubble: '下の漢字と単語を作る気泡をタップ',
+  clickSoundBubble: '発音に一致する漢字の気泡をタップ',
 
   // Stroke Order
   stroke: '{{number}}画目',

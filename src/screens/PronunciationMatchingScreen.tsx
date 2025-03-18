@@ -10,6 +10,7 @@ import {
   Platform,
   Easing,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -433,6 +434,9 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       const shuffledChars = shuffleArray(validChars);
       setRemainingChars(shuffledChars);
       
+      // 设置加载状态为false
+      setIsLoading(false);
+      
       // 启动游戏开始动画
       setTimeout(() => {
         setIsGameStarted(true);
@@ -449,6 +453,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
       }, 500);
     } catch (error) {
       Alert.alert('错误', '初始化关卡时出错');
+      setIsLoading(false); // 出错时也要结束加载状态
     }
   };
 
@@ -1074,39 +1079,37 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
           </View>
         </View>
 
-        <View style={[
-          styles.gameArea,
-          isDesktop && styles.desktopGameArea,
-          { 
-            width: isDesktop ? '100%' : isIPad ? windowWidth - 20 : windowWidth - 10,
-            alignSelf: 'stretch',
-            paddingHorizontal: 0,
-            paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-            paddingTop: 0
-          }
-        ]}>
-          <View style={[
-            styles.bubblesContainer, 
-            { 
-              width: '100%',
-              height: GAME_AREA_HEIGHT,
-              alignSelf: 'stretch',
-              paddingTop: 0,
-              paddingBottom: 0
-            }
-          ]}>
-            {bubbles.map(renderBubble)}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.loadingText}>{i18n.t('loading')}</Text>
           </View>
-
-          <View style={[
-            styles.targetArea, 
-            isDesktop && styles.desktopTargetArea,
-            { 
-              bottom: Platform.OS === 'ios' ? 100 : 80,
-              width: '100%'
-            }
-          ]}>
-            <View style={styles.targetControls}>
+        ) : (
+          <View style={styles.gameArea}>
+            {/* 气泡 */}
+            <View style={[styles.bubblesContainer, { width: '100%' }]}>
+              {bubbles.map(renderBubble)}
+            </View>
+            
+            {/* 游戏规则说明 */}
+            <View style={styles.instructionsContainer}>
+              <View style={[
+                styles.instructionsBox,
+                isDesktop && { maxWidth: 700 },
+                isIPad && { maxWidth: 550 }
+              ]}>
+                <MaterialCommunityIcons name="information-outline" size={16} color="#4CAF50" />
+                <Text style={[styles.instructionsText, dynamicStyles.instructionsText]}>
+                  {isIPad || isDesktop ? 
+                    `${i18n.t('clickSoundBubble')} | ${i18n.t('correctMatch')}: +10 ${i18n.t('points')} | ${i18n.t('incorrectMatch')}: -5 ${i18n.t('points')} | ${i18n.t('useHint')}: -2 ${i18n.t('points')}` :
+                    `${i18n.t('clickSoundBubble')} | ✓ +10 | ✗ -5 | 💡 -2`
+                  }
+                </Text>
+              </View>
+            </View>
+            
+            {/* 当前字符和播放声音按钮 */}
+            <View style={styles.bottomContainer}>
               <TouchableOpacity
                 style={[
                   styles.soundButton, 
@@ -1126,7 +1129,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        )}
       </View>
     </ResponsiveContainer>
   );
@@ -1363,40 +1366,42 @@ const styles = StyleSheet.create({
   },
   instructionsContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 100 : 70,
+    bottom: Platform.OS === 'ios' ? 90 : 70,
     left: 0,
     right: 0,
     alignItems: 'center',
     paddingHorizontal: 10,
     width: '100%',
+    zIndex: 5,
   },
   instructionsBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.3)',
+    borderColor: 'rgba(76, 175, 80, 0.4)',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 4,
     gap: 8,
     width: '98%',
+    maxWidth: 380, // Default for mobile
   },
   instructionsText: {
-    color: '#444',
+    color: '#333',
     fontSize: 13,
     fontWeight: '500',
     flex: 1,
     lineHeight: 18,
-    flexWrap: 'nowrap',
+    flexWrap: 'wrap',
   },
   levelCompleteContainer: {
     position: 'absolute',
@@ -1486,5 +1491,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     minWidth: 30,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
   },
 }); 

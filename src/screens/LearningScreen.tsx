@@ -157,10 +157,10 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
         : isIPad 
           ? '80%'
           : Platform.OS === 'ios'
-            ? '42%'
+            ? '38%'  // 减小iPhone设备的高度
             : '47%',
       maxHeight: Platform.OS === 'ios' ? 
-        (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '45%') : 
+        (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '40%') :  // 减小iPhone设备的最大高度
         (isDesktop ? (isMacDevice ? '70%' : '75%') : isIPad ? '80%' : '45%'),
       ...Platform.select({
         ios: {
@@ -236,10 +236,10 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       justifyContent: 'center',
       paddingHorizontal: 16,
       paddingBottom: 16,
-      marginBottom: Platform.OS === 'ios' && !isIPad ? 15 : 16,
+      marginBottom: Platform.OS === 'ios' && !isIPad ? 35 : 16,  // 增加iPhone设备的底部边距
       ...(Platform.OS === 'ios' && !isIPad ? {
         position: 'relative',
-        marginTop: -110, // 进一步向上调整，与详情区底部更靠近
+        marginTop: -140, // 进一步向上调整按钮位置
         paddingTop: 0,
         zIndex: 10,
       } : {

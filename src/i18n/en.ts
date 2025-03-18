@@ -55,6 +55,8 @@ export const en = {
   correctMatch: 'Correct Match',
   incorrectMatch: 'Wrong Match',
   useHint: 'Use Hint',
+  clickMatchingBubble: 'Click bubbles that form words with the bottom character',
+  clickSoundBubble: 'Click the bubble with the matching pronunciation',
 
   // Stroke Order
   stroke: 'Stroke {{number}}',

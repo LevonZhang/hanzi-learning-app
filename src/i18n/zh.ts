@@ -52,10 +52,12 @@ export const zh = {
   gameCompleteWithRecord: '恭喜你完成了所有关卡，并创造了新的记录！',
 
   // Game Rules
-  correctMatch: '正确配对',
-  incorrectMatch: '错误匹配',
+  correctMatch: '匹配正确',
+  incorrectMatch: '匹配错误',
   useHint: '使用提示',
   points: '分',
+  clickMatchingBubble: '点击能与底部汉字组词的气泡',
+  clickSoundBubble: '点击发音对应的汉字气泡',
 
   // Stroke Order
   stroke: '第{{number}}笔',

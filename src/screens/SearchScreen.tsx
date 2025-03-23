@@ -14,7 +14,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import HanziService from '../services/HanziService';
-import SubscriptionService from '../services/SubscriptionService';
+import { SubscriptionService } from '../services/SubscriptionService';
 import { useResponsive } from '../hooks/useResponsive';
 
 interface SearchResult {
@@ -61,7 +61,7 @@ export const SearchScreen = ({ navigation }: any) => {
 
     // 检查会员权限
     const subscriptionService = SubscriptionService.getInstance();
-    const canSearch = await subscriptionService.canUseSearch();
+    const canSearch = await subscriptionService.canUsePremiumFeature();
 
     if (!canSearch && !isAlertShowing) {
       setIsAlertShowing(true);

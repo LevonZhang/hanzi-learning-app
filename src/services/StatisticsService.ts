@@ -113,7 +113,7 @@ class StatisticsService {
   }
 
   // 获取游戏统计数据
-  private async getGameStats(): Promise<GameStats> {
+  public async getGameStatistics(): Promise<GameStats> {
     const statsStr = await AsyncStorage.getItem('gameStats');
     if (statsStr) {
       return JSON.parse(statsStr);

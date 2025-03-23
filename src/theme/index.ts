@@ -1,7 +1,7 @@
 import { getDeviceType, DeviceType, getSpacing, getFontSize } from '../utils/responsive';
 
 // 颜色系统
-export const colors = {
+const colors = {
   // 主色调
   primary: '#007AFF',
   primaryDark: '#0056B3',
@@ -12,27 +12,24 @@ export const colors = {
   secondaryDark: '#3634A3',
   secondaryLight: '#7E7DFF',
   
-  // 功能色
-  success: '#4CAF50',
-  warning: '#FFB300',
-  error: '#FF3B30',
-  info: '#5B7B9E',
-  
-  // 中性色
+  // 背景色
   background: '#FFFFFF',
   surface: '#F8F9FA',
-  border: '#E0E0E0',
-  divider: '#EEEEEE',
   
   // 文本色
-  textPrimary: '#333333',
+  text: '#333333',
   textSecondary: '#666666',
-  textTertiary: '#999999',
-  textLight: '#FFFFFF',
+  
+  // 边框色
+  border: '#E0E0E0',
+  
+  // 功能色
+  error: '#FF3B30',
+  success: '#4CAF50',
+  warning: '#FFB300',
+  info: '#5B7B9E',
   
   // 特殊用途
-  overlay: 'rgba(0, 0, 0, 0.5)',
-  shimmer: 'rgba(255, 255, 255, 0.8)',
   transparent: 'transparent',
 } as const;
 
@@ -91,55 +88,51 @@ export const shadows = {
 export const getTheme = (deviceType: DeviceType = getDeviceType()) => {
   return {
     colors,
-    fontWeights,
-    borderRadius,
-    shadows,
-    
-    // 响应式间距
     spacing: {
       xs: getSpacing(4, deviceType),
       sm: getSpacing(8, deviceType),
       md: getSpacing(16, deviceType),
       lg: getSpacing(24, deviceType),
       xl: getSpacing(32, deviceType),
-      xxl: getSpacing(48, deviceType),
     },
-    
-    // 响应式字体大小
     typography: {
-      caption: {
-        fontSize: getFontSize(12, deviceType),
-        lineHeight: getFontSize(16, deviceType),
+      h1: {
+        fontSize: getFontSize(24, deviceType),
+        fontWeight: '600',
+      },
+      h2: {
+        fontSize: getFontSize(20, deviceType),
+        fontWeight: '600',
+      },
+      h3: {
+        fontSize: getFontSize(18, deviceType),
+        fontWeight: '600',
       },
       body: {
-        fontSize: getFontSize(14, deviceType),
-        lineHeight: getFontSize(20, deviceType),
-      },
-      subtitle: {
         fontSize: getFontSize(16, deviceType),
-        lineHeight: getFontSize(24, deviceType),
+        fontWeight: '400',
       },
-      title: {
-        fontSize: getFontSize(20, deviceType),
-        lineHeight: getFontSize(28, deviceType),
-      },
-      heading: {
-        fontSize: getFontSize(24, deviceType),
-        lineHeight: getFontSize(32, deviceType),
+      caption: {
+        fontSize: getFontSize(14, deviceType),
+        fontWeight: '400',
       },
     },
-    
-    // 布局
     layout: {
-      maxWidth: {
-        PHONE: 450,
-        TABLET: 768,
-        DESKTOP: 1200,
-      }[deviceType],
-      containerPadding: getSpacing(16, deviceType),
-      navigationHeight: getSpacing(deviceType === 'DESKTOP' ? 64 : 56, deviceType),
+      maxWidth: getContainerMaxWidth(deviceType),
+      padding: getSpacing(16, deviceType),
+      borderRadius: 8,
     },
   };
+};
+
+// 获取容器最大宽度
+const getContainerMaxWidth = (deviceType: DeviceType): number => {
+  const maxWidths = {
+    PHONE: 450,
+    TABLET: 768,
+    DESKTOP: 1200,
+  };
+  return maxWidths[deviceType];
 };
 
 // 导出类型

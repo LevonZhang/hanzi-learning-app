@@ -22,7 +22,7 @@ import { storageService } from '../services/StorageService';
 import StatisticsService from '../services/StatisticsService';
 import { ResponsiveContainer } from '../components/ResponsiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
-import SubscriptionService from '../services/SubscriptionService';
+import { SubscriptionService } from '../services/SubscriptionService';
 import { CONSTANTS } from '../config/env';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -62,11 +62,11 @@ type GameLevel = 1 | 2 | 3 | 4 | 5;
 
 type GameStackParamList = {
   GamesList: undefined;
-  WordGame: { mode: 'word' };
-  PronunciationGame: { mode: 'pronunciation' };
+  BubbleMatching: { mode: 'word' };
+  PronunciationMatching: { mode: 'pronunciation' };
 };
 
-type PronunciationMatchingScreenProps = NativeStackScreenProps<GameStackParamList, 'PronunciationGame'>;
+type PronunciationMatchingScreenProps = NativeStackScreenProps<GameStackParamList, 'PronunciationMatching'>;
 
 interface Bubble {
   id: string;

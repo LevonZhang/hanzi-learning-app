@@ -422,4 +422,16 @@ export class LearningManager {
       return [];
     }
   }
+
+  // Add getter and setter for settings
+  public getSettings(): LearningSettings {
+    return { ...this.settings };
+  }
+
+  public updateSettings(newSettings: Partial<LearningSettings>): void {
+    this.settings = {
+      ...this.settings,
+      ...newSettings
+    };
+  }
 } 

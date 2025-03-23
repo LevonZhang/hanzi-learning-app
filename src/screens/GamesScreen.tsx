@@ -7,8 +7,8 @@ import { useResponsive } from '../hooks/useResponsive';
 
 type GameStackParamList = {
   GamesList: undefined;
-  WordGame: { mode: 'word' };
-  PronunciationGame: { mode: 'pronunciation' };
+  BubbleMatching: { mode: 'word' };
+  PronunciationMatching: { mode: 'pronunciation' };
 };
 
 type GamesScreenProps = NativeStackScreenProps<GameStackParamList, 'GamesList'>;
@@ -47,7 +47,7 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
       <View style={screenStyles.content}>
         <TouchableOpacity 
           style={[screenStyles.gameCard, screenStyles.wordGame]}
-          onPress={() => navigation.navigate('WordGame', { mode: 'word' })}
+          onPress={() => navigation.navigate('BubbleMatching', { mode: 'word' })}
         >
           <MaterialCommunityIcons 
             name="cards" 
@@ -62,7 +62,7 @@ export const GamesScreen = ({ navigation }: GamesScreenProps) => {
 
         <TouchableOpacity 
           style={[screenStyles.gameCard, screenStyles.pronunciationGame]}
-          onPress={() => navigation.navigate('PronunciationGame', { mode: 'pronunciation' })}
+          onPress={() => navigation.navigate('PronunciationMatching', { mode: 'pronunciation' })}
         >
           <MaterialCommunityIcons 
             name="microphone" 

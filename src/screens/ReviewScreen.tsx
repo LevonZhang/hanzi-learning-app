@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, FlatList, Platform, us
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { i18n } from '../i18n/i18n';
 import { LearningManager } from '../services/LearningManager';
-import SubscriptionService from '../services/SubscriptionService';
+import { SubscriptionService } from '../services/SubscriptionService';
 import StatisticsService from '../services/StatisticsService';
 import { ResponsiveContainer } from '../components/ResponsiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
@@ -66,7 +66,7 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
   const startReviewForChar = async (item: ReviewItem) => {
     // 检查会员权限
     const subscriptionService = SubscriptionService.getInstance();
-    const canReview = await subscriptionService.canUseReview();
+    const canReview = await subscriptionService.canUsePremiumFeature();
     
     if (!canReview) {
       Alert.alert(
@@ -128,7 +128,7 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
         <MaterialCommunityIcons
           name="trash-can-outline"
           size={isMacDevice ? 16 : isDesktop ? 24 : isIPad ? 20 : 16}
-          color={theme.colors.textLight}
+          color={theme.colors.background}
         />
       </TouchableOpacity>
     </View>

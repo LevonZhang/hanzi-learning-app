@@ -4,7 +4,7 @@ export const ja = {
   review: '復習',
   search: '検索',
   games: 'ゲーム',
-  settings: 'プロフィール',
+  settingsTab: '設定',
 
   // Search Screen
   searchPlaceholder: '漢字またはピンインを入力',
@@ -19,6 +19,7 @@ export const ja = {
   reviewCompleted: '全ての文字を復習しました',
   continueLearning: '学習を続ける',
   continueNewLearning: '新しい文字を学ぶ',
+  learnMore: 'もっと学ぶ',
   totalLearned: '学習済み',
   mastered: '習得済み',
   needReview: '要復習',
@@ -83,15 +84,41 @@ export const ja = {
   removeFromReviewFailed: '削除に失敗しました',
   noReviewItems: '復習する文字がありません',
 
-  // Settings
-  learningSettings: '学習設定',
-  dailyWords: '一日の漢字数',
-  language: '言語',
+  // 设置相关翻译
+  settings: {
+    title: '設定',
+    premium: 'プレミアム',
+    basic: '基本設定',
+    learningStats: '学習統計',
+    gameStats: 'ゲーム統計',
+    dailyWords: '一日の学習漢字数',
+    language: '言語設定',
+    totalGamesPlayed: 'ゲーム総プレイ数',
+    highestScore: '最高スコア',
+    averageScore: '平均スコア',
+    totalScore: '合計スコア',
+    mostMistakenChars: 'よくミスする漢字',
+    mistakeCount: 'ミス{{count}}回',
+    totalLearned: '学習済み',
+    mastered: '習得済み',
+    needReview: '要復習',
+    resetProgress: '進捗リセット',
+    resetButton: '学習進捗をリセット',
+    resetProgressTitle: 'リセット確認',
+    resetProgressMessage: '全ての学習進捗をリセットしますか？この操作は元に戻せません。',
+    resetSuccessTitle: 'リセット完了',
+    resetSuccessMessage: '学習進捗がリセットされました',
+    resetFailMessage: 'リセットに失敗しました',
+    getPremium: 'プレミアムを取得',
+    premiumActive: 'プレミアム有効',
+    selectOption: 'オプションを選択してください',
+    privacy: 'プライバシーポリシー',
+    terms: '利用規約'
+  },
 
-  // Premium
+  // Premium Features
   premium: 'プレミアム',
-  getPremium: 'プレミアムを取得',
-  premiumActive: 'プレミアム有効',
+  getPremiumButton: 'プレミアムを取得',
   alreadyPremium: 'すでにプレミアムユーザーです',
   premiumFeatures: 'プレミアムで更なる機能を解除',
   subscribe: '購読',
@@ -144,7 +171,6 @@ export const ja = {
 
   // Premium Status
   premiumActiveStatus: 'プレミアムアクティブ',
-  getPremiumButton: 'プレミアムを取得',
   daysRemaining: '残り {{days}} 日',
   timeRemaining: '残り {{days}}日{{hours}}時間{{minutes}}分',
 
@@ -195,13 +221,23 @@ export const ja = {
   resetGame: 'ゲームをリセット',
   resetGameConfirm: 'ゲームリセット',
   resetGameConfirmMessage: 'ゲームの進捗をリセットしますか？現在のスコアとレベルの進捗が消去され、レベル1から始まります。',
-
+  resetLearning: '学習進捗をリセット',
+  resetLearningConfirmMessage: '全ての学習進捗をリセットしますか？この操作は元に戻せません。',
+  
   // Subscription Messages
   subscription: {
     active: '購読中',
     expired: '購読期限切れ',
     canceled: '購読キャンセル済み',
     restored: '購読を復元しました',
+    
+    // Subscription Types
+    length: '購読期間',
+    none: '購読なし',
+    monthly: '月額',
+    quarterly: '3ヶ月',
+    yearly: '年額',
+    lifetime: '永久',
     
     subscribe: '購読する',
     unsubscribe: '購読をキャンセル',
@@ -234,8 +270,13 @@ export const ja = {
     processingPurchase: '購読リクエストを処理中...',
     verifyingReceipt: '購読状態を確認中...',
     contactSupport: '問題がある場合はサポートにお問い合わせください',
+    
+    // 自動更新条件
+    termsTitle: '購読条件',
+    autoRenewalTerms: '• 購読は各期間の終了時に自動的に更新されます\n• 支払いは現在の期間終了の24時間前にあなたのiTunesアカウントに請求されます\n• 購読の管理と自動更新の解除はiTunesアカウント設定で行えます\n• キャンセルした場合でも、現在の購読期間が終了するまで全ての機能を使用できます\n• 購読料金は地域の税率により変動する場合があります\n• 購読の特別価格は初回購読者のみに適用されます'
   },
 
-  resetLearning: '学習進捗をリセット',
-  resetLearningConfirmMessage: '全ての学習進捗をリセットしてもよろしいですか？この操作は取り消せません。',
+  // Legal
+  privacyPolicy: 'プライバシーポリシー',
+  termsOfUse: '利用規約',
 }; 

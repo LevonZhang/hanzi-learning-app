@@ -22,7 +22,7 @@ import { WordPair, PronunciationChar } from '../services/GameService';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { storageService } from '../services/StorageService';
 import StatisticsService from '../services/StatisticsService';
-import SubscriptionService from '../services/SubscriptionService';
+import { SubscriptionService } from '../services/SubscriptionService';
 import { ResponsiveContainer } from '../components/ResponsiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
 import { CONSTANTS } from '../config/env';
@@ -57,11 +57,11 @@ type GameLevel = 1 | 2 | 3 | 4 | 5;
 
 type GameStackParamList = {
   GamesList: undefined;
-  WordGame: { mode: 'word' };
-  PronunciationGame: { mode: 'pronunciation' };
+  BubbleMatching: { mode: 'word' };
+  PronunciationMatching: { mode: 'pronunciation' };
 };
 
-type BubbleMatchingScreenProps = NativeStackScreenProps<GameStackParamList, 'WordGame' | 'PronunciationGame'>;
+type BubbleMatchingScreenProps = NativeStackScreenProps<GameStackParamList, 'BubbleMatching'>;
 
 interface WordGroup {
   firstChar: string;

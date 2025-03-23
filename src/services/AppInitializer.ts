@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger';
-import SubscriptionService from './SubscriptionService';
+import { SubscriptionService } from './SubscriptionService';
 
 class AppInitializer {
   private static instance: AppInitializer;

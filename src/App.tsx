@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
 import { withIAPContext, setup, initConnection, endConnection } from 'react-native-iap';
-import { ENV } from './config/env';
 import { logger } from './utils/logger';
-import SubscriptionService from './services/SubscriptionService';
+import { SubscriptionService } from './services/SubscriptionService';
 import { AppNavigator } from './navigation/AppNavigator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
@@ -129,7 +128,7 @@ const App = () => {
         try {
           // 清理订阅服务
           const subscriptionService = SubscriptionService.getInstance();
-          await subscriptionService.cleanup();
+          await subscriptionService.dispose();
           
           // 结束IAP连接
           await endConnection();

@@ -4,7 +4,7 @@ export const en = {
   review: 'Review',
   search: 'Search',
   games: 'Games',
-  settings: 'Settings',
+  settingsTab: 'Settings',
 
   // Search Screen
   searchPlaceholder: 'Enter character or pinyin',
@@ -83,18 +83,28 @@ export const en = {
   noReviewItems: 'No characters to review',
 
   // Settings
-  learningSettings: 'Learning Settings',
-  dailyWords: 'Daily Characters',
-  language: 'Language',
-  premium: 'Premium',
-  getPremium: 'Get Premium',
-  premiumActive: 'Premium Active',
-  alreadyPremium: 'You are already a premium user',
-  premiumFeatures: 'Get premium to unlock more features',
-  subscribe: 'Subscribe',
-  cancel: 'Cancel',
-  comingSoon: 'Coming Soon',
-  featureInDevelopment: 'This feature is under development',
+  settings: {
+    title: 'Settings',
+    basic: 'Basic Settings',
+    premium: 'Premium',
+    learningStats: 'Learning Stats',
+    gameStats: 'Game Stats',
+    privacy: 'Privacy Policy',
+    terms: 'Terms of Use',
+    selectOption: 'Please select an option from the menu',
+    learningSettings: 'Learning Settings',
+    dailyWords: 'Daily Characters',
+    language: 'Language',
+  },
+
+  // Premium
+  premium: {
+    title: 'Premium',
+    getPremium: 'Get Premium',
+    premiumActive: 'Premium Active',
+    alreadyPremium: 'You are already a premium user',
+    premiumFeatures: 'Get premium to unlock more features',
+  },
 
   // Subscription Plans
   monthlyPlan: 'Monthly Plan',
@@ -209,6 +219,14 @@ export const en = {
     subscribeNow: 'Would you like to subscribe to access all features?',
     noSubscriptionFound: 'No Subscription Found',
     
+    // Subscription Types
+    length: 'Subscription Length',
+    none: 'No Active Subscription',
+    monthly: 'Monthly',
+    quarterly: 'Quarterly',
+    yearly: 'Yearly',
+    lifetime: 'Lifetime',
+    
     // Purchase Success
     purchaseSuccess: 'Subscription Successful',
     purchaseSuccessDesc: 'Thank you for subscribing! You now have access to all premium features.',
@@ -220,7 +238,7 @@ export const en = {
     // Subscription Actions
     subscribe: 'Subscribe',
     unsubscribe: 'Unsubscribe',
-    restore: 'Restore Purchase',
+    restore: 'Restore Purchases',
     manage: 'Manage Subscription',
     
     // Subscription Prompts
@@ -229,10 +247,11 @@ export const en = {
     cancelSuccess: 'Subscription Successfully Canceled',
     cancelError: 'Failed to cancel subscription, please try again later',
     
-    restoreSuccess: 'Subscription Successfully Restored',
-    restoreError: 'Failed to restore subscription, please check if you have any previous subscriptions',
-    noSubscriptionToRestore: 'No subscriptions found to restore',
-    restoreFailed: 'Failed to restore subscription',
+    restoreSuccess: 'Restore Successful',
+    restoreSuccessDesc: 'Your previous purchases have been restored successfully.',
+    restoreFailed: 'Restore Failed',
+    restoreFailedDesc: 'No previous purchases were found or there was an error restoring them.',
+    restoreError: 'An error occurred while restoring purchases.',
     
     expiringSoon: 'Your Subscription is Expiring Soon',
     expiringSoonMessage: 'Your subscription will expire in {{days}} days. Please renew to continue using all features.',
@@ -256,7 +275,15 @@ export const en = {
     processingPurchase: 'Processing subscription request...',
     verifyingReceipt: 'Verifying subscription status...',
     contactSupport: 'If you have any issues, please contact support',
+    
+    // Auto-renewal Terms
+    termsTitle: 'Subscription Terms',
+    autoRenewalTerms: '• Subscriptions will automatically renew at the end of each period\n• Payment will be charged to your iTunes account 24 hours prior to the end of the current period\n• You can manage subscriptions and turn off auto-renewal in your iTunes account settings\n• If you cancel, you can continue to use all features until the end of your current subscription period\n• Subscription prices may vary by region due to tax rates\n• Subscription discount offers are only valid for first-time subscribers'
   },
+
+  // Legal
+  privacyPolicy: 'Privacy Policy',
+  termsOfUse: 'Terms of Use',
 
   resetLearning: 'Reset Learning Progress',
   resetLearningConfirmMessage: 'Are you sure you want to reset all learning progress? This action cannot be undone.',

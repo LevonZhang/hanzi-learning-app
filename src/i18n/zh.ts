@@ -4,7 +4,7 @@ export const zh = {
   review: '复习',
   search: '搜索',
   games: '游戏',
-  settings: '设置',
+  settingsTab: '设置',
 
   // Search Screen
   searchPlaceholder: '输入汉字或拼音',
@@ -84,14 +84,37 @@ export const zh = {
   noReviewItems: '没有需要复习的汉字',
 
   // Settings
-  learningSettings: '基本设置',
-  dailyWords: '每日学习字数',
-  language: '语言设置',
+  settings: {
+    title: '设置',
+    premium: '会员中心',
+    basic: '基本设置',
+    learningStats: '学习统计',
+    gameStats: '游戏统计',
+    dailyWords: '每日学习字数',
+    language: '语言设置',
+    totalGamesPlayed: '游戏总局数',
+    highestScore: '最高分数',
+    averageScore: '平均分数',
+    totalScore: '总分数',
+    mostMistakenChars: '易错汉字',
+    mistakeCount: '错误{{count}}次',
+    totalLearned: '已学习',
+    mastered: '已掌握',
+    needReview: '需要复习',
+    resetProgress: '重置进度',
+    resetButton: '重置学习进度',
+    resetProgressTitle: '确认重置',
+    resetProgressMessage: '确定要重置所有学习进度吗？此操作无法撤销。',
+    resetSuccessTitle: '重置成功',
+    resetSuccessMessage: '学习进度已重置',
+    resetFailMessage: '重置失败',
+    getPremium: '开通会员',
+    premiumActive: '会员已激活',
+    privacy: '隐私政策',
+    terms: '使用条款'
+  },
 
-  // Premium
-  premium: '会员中心',
-  getPremium: '开通会员',
-  premiumActive: '会员已激活',
+  // Premium Features
   alreadyPremium: '您已经是会员用户',
   premiumFeatures: '开通会员即可享受更多功能',
   subscribe: '立即订阅',
@@ -200,15 +223,23 @@ export const zh = {
   // Subscription Messages
   subscription: {
     // 订阅状态
-    active: '订阅已激活',
+    active: '订阅中',
     expired: '订阅已过期',
     canceled: '订阅已取消',
     restored: '订阅已恢复',
-    alreadySubscribed: '已有活跃订阅',
-    alreadySubscribedDesc: '您已经有一个活跃的订阅，无需重复订阅。如需更改订阅计划，请先等待当前订阅到期或取消当前订阅。',
-    noActiveSubscription: '没有找到活跃的订阅',
-    subscribeNow: '是否要订阅会员以使用所有功能？',
-    noSubscriptionFound: '未找到可恢复的订阅',
+    
+    // Subscription Types
+    length: '订阅期限',
+    none: '无订阅',
+    monthly: '月度',
+    quarterly: '季度',
+    yearly: '年度',
+    lifetime: '终身',
+    
+    subscribe: '订阅',
+    unsubscribe: '取消订阅',
+    restore: '恢复订阅',
+    manage: '管理订阅',
     
     // 购买成功
     purchaseSuccess: '订阅成功',
@@ -217,12 +248,6 @@ export const zh = {
     // 支付延迟提示
     deferred: '订阅请求已提交',
     deferredMessage: '您的订阅请求已提交，正在等待批准（例如家长控制)。批准后，您将自动获得会员资格。',
-    
-    // 订阅操作
-    subscribe: '订阅',
-    unsubscribe: '取消订阅',
-    restore: '恢复订阅',
-    manage: '管理订阅',
     
     // 订阅提示
     confirmCancel: '确认取消订阅',
@@ -258,5 +283,13 @@ export const zh = {
     processingPurchase: '正在处理订阅请求...',
     verifyingReceipt: '正在验证订阅状态...',
     contactSupport: '如有问题，请联系客服',
+    
+    // 自动续费条款
+    termsTitle: '订阅条款',
+    autoRenewalTerms: '• 订阅将在每个订阅期结束前自动续订\n• 续订费用将在当前订阅期结束前24小时内从您的iTunes账户中扣除\n• 您可以在iTunes账户设置中管理订阅并关闭自动续订\n• 如果取消订阅，您可以继续使用所有功能直到当前订阅期结束\n• 订阅价格可能会根据您所在地区的税率有所变化\n• 订阅优惠价格仅适用于首次订阅用户'
   },
+
+  // Legal
+  privacyPolicy: '隐私政策',
+  termsOfUse: '使用条款',
 };

@@ -12,7 +12,7 @@ import { hanziDict } from '../data/hanziDict';  // 导入汉字字典数据
 import { i18n } from '../i18n/i18n';
 import HanziService from '../services/HanziService';
 import StatisticsService from '../services/StatisticsService';
-import SubscriptionService from '../services/SubscriptionService';
+import { SubscriptionService } from '../services/SubscriptionService';
 import { ResponsiveContainer } from '../components/ResponsiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
 
@@ -239,7 +239,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
       marginBottom: Platform.OS === 'ios' && !isIPad ? 35 : 16,  // 增加iPhone设备的底部边距
       ...(Platform.OS === 'ios' && !isIPad ? {
         position: 'relative',
-        marginTop: -140, // 进一步向上调整按钮位置
+        marginTop: -50, // 从-100修改为-50，按钮位置进一步向下移动
         paddingTop: 0,
         zIndex: 10,
       } : {
@@ -832,7 +832,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                       <MaterialCommunityIcons
                         name="volume-high"
                         size={28}
-                        color={theme.colors.textLight}
+                        color="white"
                       />
                     </TouchableOpacity>
                     
@@ -849,7 +849,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                       ]}
                       onPress={() => handleComplete(true)}
                     >
-                      <Text style={[screenStyles.buttonText, { color: theme.colors.textLight, fontSize: 18, fontWeight: 'bold' }]}>
+                      <Text style={[screenStyles.buttonText, { color: "white", fontSize: 18, fontWeight: 'bold' }]}>
                         {i18n.t('next')}
                       </Text>
                     </TouchableOpacity>
@@ -871,7 +871,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                   >
                     <Text style={[
                       screenStyles.tabText,
-                      activeTab === 'zh' && { color: theme.colors.textLight },
+                      activeTab === 'zh' && { color: "white" },
                       (isDesktop || isIPad) && screenStyles.wideTabText
                     ]}>
                       {i18n.t('Chinese')}
@@ -887,7 +887,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                   >
                     <Text style={[
                       screenStyles.tabText,
-                      activeTab === 'en' && { color: theme.colors.textLight },
+                      activeTab === 'en' && { color: "white" },
                       (isDesktop || isIPad) && screenStyles.wideTabText
                     ]}>
                       {i18n.t('English')}
@@ -947,7 +947,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                   <MaterialCommunityIcons
                     name="volume-high"
                     size={isIPad ? 22 : 20}
-                    color={theme.colors.textLight}
+                    color="white"
                   />
                 </TouchableOpacity>
                 
@@ -955,7 +955,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                   style={[screenStyles.button, { backgroundColor: theme.colors.success }]}
                   onPress={() => handleComplete(true)}
                 >
-                  <Text style={[screenStyles.buttonText, { color: theme.colors.textLight }]}>
+                  <Text style={[screenStyles.buttonText, { color: "white" }]}>
                     {i18n.t('next')}
                   </Text>
                 </TouchableOpacity>
@@ -989,7 +989,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
               style={[screenStyles.button, { backgroundColor: theme.colors.primary, marginTop: 20 }]}
               onPress={loadMoreCharacters}
             >
-              <Text style={[screenStyles.buttonText, { color: theme.colors.textLight }]}>
+              <Text style={[screenStyles.buttonText, { color: "white" }]}>
                 {i18n.t('learnMore')}
               </Text>
             </TouchableOpacity>
@@ -1009,7 +1009,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
               style={[screenStyles.button, { backgroundColor: theme.colors.success, marginTop: 20 }]}
               onPress={() => navigation.navigate('Settings', { screen: 'premium' })}
             >
-              <Text style={[screenStyles.buttonText, { color: theme.colors.textLight }]}>
+              <Text style={[screenStyles.buttonText, { color: "white" }]}>
                 {i18n.t('getPremium')}
               </Text>
             </TouchableOpacity>

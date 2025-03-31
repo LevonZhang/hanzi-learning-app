@@ -2,11 +2,13 @@ import React, { useMemo } from 'react';
 import { SettingsLayout } from './SettingsLayout';
 import { PremiumSection } from './components/PremiumSection';
 import { useNavigation } from '@react-navigation/native';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView, Platform } from 'react-native';
 import { i18n } from '../../i18n/i18n';
+import { useResponsive } from '../../hooks/useResponsive';
 
 export const PremiumScreen = () => {
   const navigation = useNavigation();
+  const { isIPad, isDesktop } = useResponsive();
   
   // 使用useMemo缓存PremiumSection组件，减少不必要的重新渲染
   const premiumSection = useMemo(() => {
@@ -25,11 +27,17 @@ export const PremiumScreen = () => {
   
   return (
     <SettingsLayout>
-      <ScrollView style={styles.scrollContainer}>
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={(isIPad || isDesktop) && styles.scrollContentContainerWide}
+      >
         {premiumSection}
         
         {/* 自动续费条款说明 */}
-        <View style={styles.legalContainer}>
+        <View style={[
+          styles.legalContainer,
+          (isIPad || isDesktop) && styles.legalContainerWide
+        ]}>
           <Text style={styles.legalTitle}>{i18n.t('subscription.termsTitle')}</Text>
           <Text style={styles.legalText}>
             {i18n.t('subscription.autoRenewalTerms')}
@@ -54,7 +62,10 @@ export const PremiumScreen = () => {
 const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
-    width: '100%',
+    width: '100%', 
+  },
+  scrollContentContainerWide: {
+    paddingBottom: 24,
   },
   legalContainer: {
     padding: 16,
@@ -63,16 +74,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
   },
+  legalContainerWide: {
+    padding: 20,
+    marginHorizontal: Platform.OS === 'ios' && Platform.isPad ? 16 : 0,
+    marginBottom: 24,
+    maxWidth: '100%',
+  },
   legalTitle: {
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 18 : 16,
     fontWeight: 'bold',
     marginBottom: 8,
     color: '#333',
   },
   legalText: {
-    fontSize: 13,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 15 : 13,
     color: '#666',
-    lineHeight: 18,
+    lineHeight: Platform.OS === 'ios' && Platform.isPad ? 22 : 18,
     marginBottom: 12,
   },
   legalLinks: {
@@ -82,7 +99,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   linkText: {
-    fontSize: 14,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 16 : 14,
     color: '#007AFF',
     textDecorationLine: 'underline',
   },

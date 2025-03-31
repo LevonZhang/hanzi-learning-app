@@ -78,7 +78,7 @@ export const SearchScreen = ({ navigation }: any) => {
             }
           },
           { 
-            text: i18n.t('getPremium'),
+            text: i18n.t('settings.getPremium'),
             onPress: () => {
               setSearchText('');
               setIsAlertShowing(false);

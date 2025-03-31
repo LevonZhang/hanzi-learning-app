@@ -443,7 +443,9 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     try {
       // 获取会员状态
       const subscriptionService = SubscriptionService.getInstance();
-      const isPremium = await subscriptionService.checkSubscriptionStatus();
+      
+      // 使用 canUsePremiumFeature 替代 checkSubscriptionStatus，因为它更可靠
+      const isPremium = await subscriptionService.canUsePremiumFeature();
       
       // 获取学习列表
       const learningManager = LearningManager.getInstance();
@@ -462,107 +464,89 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
         return;
       }
 
-      // 处理非会员用户的逻辑
-      if (!isPremium) {
-        // 获取已学习的汉字列表
-        const progress = await learningManager.getAllProgress();
-        const learnedCharacters = Object.entries(progress).map(([char, data]) => ({
-          character: char,
-          masteryLevel: data.masteryLevel,
-          lastReviewDate: data.lastReviewDate,
+      // 会员用户直接进入正常学习流程
+      if (isPremium) {
+        const currentWord = newWords[0];
+        setState(prev => ({
+          ...prev,
+          newWords,
+          reviewWords,
+          currentWord,
+          isReviewMode: false,
+          statistics
         }));
-        
-        if (learnedCharacters.length <= 10) {
-          // 如果学习过的字没有超过10个，显示最后一个学过的字
-          if (learnedCharacters.length > 0) {
-            const lastLearned = learnedCharacters[learnedCharacters.length - 1];
-            if (lastLearned && lastLearned.character) {
-              await loadSingleCharacter(lastLearned.character);
-              // 设置统计信息
-              setState(prev => ({
-                ...prev,
-                reviewWords,
-                statistics
-              }));
-              return;
-            }
-          }
-          // 如果没有学过任何字，按正常流程处理
-          const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
-          
-          if (reachedLimit) {
-            setState(prev => ({
-              ...prev,
-              newWords: [],
-              reviewWords: [],
-              currentWord: null,
-              statistics
-            }));
-            Alert.alert(i18n.t("characterLimitReached"), i18n.t("characterLimitDesc"), [{text: i18n.t("getPremium"), onPress: () => navigation.navigate("Settings")}, {text: i18n.t("ok"), style: "cancel"}]); return;
-          }
 
-          // 设置当前要学习的字
-          const currentWord = newWords[0];
-          
-          setState(prev => ({
-            ...prev,
-            newWords,
-            reviewWords,
-            currentWord,
-            isReviewMode: false,
-            statistics
-          }));
-
-          // 记录为已开始学习
-          if (currentWord) {
-            await handleCharacterLearned(currentWord.character);
-          }
-        } else {
-          // 如果学习过的字超过了10个，显示第10个字
-          const tenthCharacter = learnedCharacters[9]; // 第10个字（索引为9）
-          await loadSingleCharacter(tenthCharacter.character);
-          // 设置统计信息
-          setState(prev => ({
-            ...prev,
-            reviewWords,
-            statistics
-          }));
+        // 记录为已开始学习
+        if (currentWord) {
+          await handleCharacterLearned(currentWord.character);
         }
         return;
       }
+
+      // 非会员用户的限制逻辑
+      const progress = await learningManager.getAllProgress();
+      const learnedCharacters = Object.entries(progress).map(([char, data]) => ({
+        character: char,
+        masteryLevel: data.masteryLevel,
+        lastReviewDate: data.lastReviewDate,
+      }));
       
-      // 会员用户的正常流程
-      // 检查免费用户字符限制
-      const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
-      
-      if (reachedLimit) {
-        // 如果达到限制，只设置空状态，不弹出提示
-        // 仅在用户点击"下一个"按钮时才会显示提示（在handleComplete中处理）
+      if (learnedCharacters.length <= 10) {
+        // 如果学习过的字没有超过10个，显示最后一个学过的字
+        if (learnedCharacters.length > 0) {
+          const lastLearned = learnedCharacters[learnedCharacters.length - 1];
+          if (lastLearned && lastLearned.character) {
+            await loadSingleCharacter(lastLearned.character);
+            // 设置统计信息
+            setState(prev => ({
+              ...prev,
+              reviewWords,
+              statistics
+            }));
+            return;
+          }
+        }
+        // 如果没有学过任何字，按正常流程处理
+        const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
+        
+        if (reachedLimit) {
+          setState(prev => ({
+            ...prev,
+            newWords: [],
+            reviewWords: [],
+            currentWord: null,
+            statistics
+          }));
+          Alert.alert(i18n.t("characterLimitReached"), i18n.t("characterLimitDesc"), [{text: i18n.t("settings.getPremium"), onPress: () => navigation.navigate("Settings")}, {text: i18n.t("confirm"), style: "cancel"}]);
+          return;
+        }
+
+        // 设置当前要学习的字
+        const currentWord = newWords[0];
+        
         setState(prev => ({
           ...prev,
-          newWords: [],
-          reviewWords: [],
-          currentWord: null,
+          newWords,
+          reviewWords,
+          currentWord,
+          isReviewMode: false,
           statistics
         }));
-        return;
-      }
 
-      // 设置当前要学习的字
-      const currentWord = newWords[0];
-      
-      setState(prev => ({
-        ...prev,
-        newWords,
-        reviewWords,
-        currentWord,
-        isReviewMode: false,
-        statistics
-      }));
-
-      // 记录为已开始学习
-      if (currentWord) {
-        await handleCharacterLearned(currentWord.character);
+        // 记录为已开始学习
+        if (currentWord) {
+          await handleCharacterLearned(currentWord.character);
+        }
+      } else {
+        // 如果学习过的字超过了10个，显示第10个字
+        const tenthCharacter = learnedCharacters[9]; // 第10个字（索引为9）
+        await loadSingleCharacter(tenthCharacter.character);
+        // 设置统计信息
+        setState(prev => ({
+          ...prev,
+          reviewWords,
+          statistics
+        }));
       }
     } catch (error) {
       console.error('加载今日学习内容失败:', error);
@@ -600,24 +584,29 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     // 如果不是复习模式，检查会员权限
     if (!state.isReviewMode) {
       const subscriptionService = SubscriptionService.getInstance();
-      const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
+      const isPremium = await subscriptionService.canUsePremiumFeature();
       
-      if (reachedLimit) {
-        Alert.alert(
-          i18n.t('characterLimitReached'),
-          i18n.t('characterLimitDesc'),
-          [
-            { text: i18n.t('cancel'), style: 'cancel' },
-            { 
-              text: i18n.t('getPremium'),
-              onPress: () => {
-                navigation.navigate('Settings', { screen: 'premium' });
-                return;
+      // 只有非会员用户才检查字符限制
+      if (!isPremium) {
+        const reachedLimit = await subscriptionService.checkFreeCharacterLimit();
+        
+        if (reachedLimit) {
+          Alert.alert(
+            i18n.t('characterLimitReached'),
+            i18n.t('characterLimitDesc'),
+            [
+              { text: i18n.t('cancel'), style: 'cancel' },
+              { 
+                text: i18n.t('settings.getPremium'),
+                onPress: () => {
+                  navigation.navigate('Settings', { screen: 'premium' });
+                  return;
+                }
               }
-            }
-          ]
-        );
-        return;
+            ]
+          );
+          return;
+        }
       }
     }
 
@@ -1010,7 +999,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
               onPress={() => navigation.navigate('Settings', { screen: 'premium' })}
             >
               <Text style={[screenStyles.buttonText, { color: "white" }]}>
-                {i18n.t('getPremium')}
+                {i18n.t('settings.getPremium')}
               </Text>
             </TouchableOpacity>
           </View>

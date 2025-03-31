@@ -85,7 +85,7 @@ class StatisticsService {
 
   // 更新游戏分数
   async updateGameScore(game: 'wordGame' | 'pronunciationGame', score: number) {
-    const stats = await this.getGameStats();
+    const stats = await this.getGameStatistics();
     const gameStats = stats[game];
 
     gameStats.gamesPlayed += 1;

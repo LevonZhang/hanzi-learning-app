@@ -249,10 +249,12 @@ export const ja = {
     cancelSuccess: '購読のキャンセルが完了しました',
     cancelError: '購読のキャンセルに失敗しました。後でもう一度お試しください',
     
-    restoreSuccess: '購読の復元が完了しました',
-    restoreError: '購読の復元に失敗しました。以前の購読記録を確認してください',
-    noSubscriptionToRestore: '復元可能な購読が見つかりません',
-    restoreFailed: '購読の復元に失敗しました',
+    restoreSuccess: 'サブスクリプションが正常に復元されました',
+    restoreSuccessDesc: 'サブスクリプションが正常に復元され、すべてのプレミアム機能が利用可能になりました。',
+    restoreFailed: 'サブスクリプションの復元に失敗しました',
+    restoreFailedDesc: 'サブスクリプションの復元に失敗しました。以前のサブスクリプション履歴があるか確認してください。',
+    restoreError: 'サブスクリプションの復元に失敗しました。以前のサブスクリプション履歴があるか確認してください。',
+    noPurchasesToRestore: '復元可能な購入記録が見つかりません',
     
     expiringSoon: '購読の期限が近づいています',
     expiringSoonMessage: '購読は{{days}}日後に期限切れとなります。継続して全ての機能を使用するには更新してください。',

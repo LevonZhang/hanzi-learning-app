@@ -29,7 +29,7 @@ interface Props {
 }
 
 export const PremiumSection: React.FC<Props> = ({ navigation }) => {
-  const { theme } = useResponsive();
+  const { theme, isIPad, isDesktop } = useResponsive();
   const [isLoading, setIsLoading] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>({
     isActive: false,
@@ -291,15 +291,9 @@ export const PremiumSection: React.FC<Props> = ({ navigation }) => {
   const handleRestorePurchases = async () => {
     try {
       setIsLoading(true);
+      
       const subscriptionService = SubscriptionService.getInstance();
       
-      console.log('开始恢复购买流程');
-      
-      // 先强制同步StoreKit最新状态
-      await subscriptionService.syncSubscriptionWithStoreKit();
-      console.log('已同步StoreKit状态');
-      
-      // 然后再恢复购买
       const result = await subscriptionService.restorePurchases();
       console.log('恢复购买结果:', result);
       
@@ -319,17 +313,26 @@ export const PremiumSection: React.FC<Props> = ({ navigation }) => {
           console.log('恢复后未找到本地订阅数据');
         }
         
-        Alert.alert(
-          i18n.t('subscription.restoreSuccess'),
-          i18n.t('subscription.restoreSuccessDesc'),
-          [{ text: i18n.t('ok') }]
-        );
+        // 检查是否是因为已经有订阅而不需要恢复
+        if (result.error === i18n.t('subscription.alreadySubscribedDesc')) {
+          Alert.alert(
+            i18n.t('subscription.active'),
+            i18n.t('subscription.alreadySubscribedDesc'),
+            [{ text: i18n.t('ok') }]
+          );
+        } else {
+          Alert.alert(
+            i18n.t('subscription.restoreSuccess'),
+            i18n.t('subscription.restoreSuccessDesc'),
+            [{ text: i18n.t('ok') }]
+          );
+        }
       } else {
         console.log('恢复购买失败:', result.error);
         
         Alert.alert(
           i18n.t('subscription.restoreFailed'),
-          i18n.t('subscription.restoreFailedDesc'),
+          result.error || i18n.t('subscription.restoreFailedDesc'),
           [{ text: i18n.t('ok') }]
         );
       }
@@ -347,7 +350,7 @@ export const PremiumSection: React.FC<Props> = ({ navigation }) => {
         <View style={styles.premiumStatusHeader}>
           <MaterialCommunityIcons 
             name={subscriptionStatus.isLifetime ? "crown" : "star"} 
-            size={24} 
+            size={isIPad || isDesktop ? 28 : 24} 
             color="#FFD700" 
           />
           <Text style={styles.premiumStatusText}>
@@ -405,7 +408,7 @@ export const PremiumSection: React.FC<Props> = ({ navigation }) => {
               <View style={styles.planHeader}>
                 <View style={styles.planIconAndName}>
                   <View style={styles.planIcon}>
-                    <MaterialCommunityIcons name={plan.icon} size={24} color="#007AFF" />
+                    <MaterialCommunityIcons name={plan.icon} size={isIPad || isDesktop ? 28 : 24} color="#007AFF" />
                   </View>
                   <View style={styles.planNameContainer}>
                     <Text style={styles.planName}>{plan.name}</Text>
@@ -435,31 +438,35 @@ const styles = StyleSheet.create({
   premiumStatusContainer: {
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    padding: 16,
+    marginBottom: 20,
     width: '100%',
   },
   premiumStatusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   premiumStatusText: {
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 18 : Platform.OS === 'macos' ? 18 : 16,
     fontWeight: '600',
     color: '#333',
   },
   expirationText: {
-    fontSize: 14,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 16 : Platform.OS === 'macos' ? 16 : 14,
     color: '#666',
+    marginTop: 8,
   },
   subscriptionPlans: {
     width: '100%',
-    gap: 8,
+    gap: 16,
+    flexDirection: (Platform.OS === 'ios' && Platform.isPad) || Platform.OS === 'macos' ? 'row' : 'column',
+    flexWrap: 'wrap',
+    justifyContent: (Platform.OS === 'ios' && Platform.isPad) || Platform.OS === 'macos' ? 'space-between' : 'flex-start',
   },
   subscriptionPlan: {
     backgroundColor: 'white',
-    padding: 12,
+    padding: 16,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: {
@@ -469,13 +476,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 3,
-    width: '100%',
+    width: (Platform.OS === 'ios' && Platform.isPad) || Platform.OS === 'macos' ? '48%' : '100%',
+    marginBottom: 16,
   },
   planHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   planIconAndName: {
     flexDirection: 'row',
@@ -483,24 +491,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   planIcon: {
-    width: 32,
-    height: 32,
+    width: Platform.OS === 'ios' && Platform.isPad ? 40 : Platform.OS === 'macos' ? 40 : 32,
+    height: Platform.OS === 'ios' && Platform.isPad ? 40 : Platform.OS === 'macos' ? 40 : 32,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: Platform.OS === 'ios' && Platform.isPad ? 20 : Platform.OS === 'macos' ? 20 : 16,
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
   },
   planNameContainer: {
-    marginLeft: 8,
+    marginLeft: 12,
     flex: 1,
   },
   planName: {
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 18 : Platform.OS === 'macos' ? 18 : 16,
     fontWeight: '600',
     color: '#333',
   },
   planDuration: {
-    fontSize: 13,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 15 : Platform.OS === 'macos' ? 15 : 13,
     color: '#666',
     marginTop: 2,
   },
@@ -508,20 +516,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   planPriceAmount: {
-    fontSize: 20,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 24 : Platform.OS === 'macos' ? 24 : 20,
     fontWeight: '700',
     color: '#007AFF',
   },
   planPricePeriod: {
-    fontSize: 12,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 14 : Platform.OS === 'macos' ? 14 : 12,
     color: '#666',
     marginTop: 2,
   },
   planDescription: {
-    fontSize: 14,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 16 : Platform.OS === 'macos' ? 16 : 14,
     color: '#666',
-    lineHeight: 18.2,
-    marginTop: 4,
+    lineHeight: Platform.OS === 'ios' && Platform.isPad ? 22 : Platform.OS === 'macos' ? 22 : 18.2,
+    marginTop: 8,
   },
   loadingContainer: {
     position: 'absolute',
@@ -537,20 +545,22 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     color: '#007AFF',
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 18 : Platform.OS === 'macos' ? 18 : 16,
     fontWeight: 'bold',
   },
   restoreButton: {
-    marginTop: 10,
-    padding: 8,
+    marginTop: 12,
+    padding: Platform.OS === 'ios' && Platform.isPad ? 10 : Platform.OS === 'macos' ? 10 : 8,
     borderRadius: 8,
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#ccc',
+    alignSelf: 'flex-start',
   },
   restoreButtonText: {
     color: '#666',
-    fontSize: 14,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 16 : Platform.OS === 'macos' ? 16 : 14,
     textAlign: 'center',
+    paddingHorizontal: 10,
   },
 }); 

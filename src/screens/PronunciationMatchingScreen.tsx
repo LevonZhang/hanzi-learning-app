@@ -1029,7 +1029,7 @@ export const PronunciationMatchingScreen = ({ navigation }: PronunciationMatchin
             <MaterialCommunityIcons
               name="arrow-left"
               size={dynamicStyles.headerBackButton.fontSize}
-              color={theme.colors.textPrimary}
+              color={theme.colors.text}
             />
           </TouchableOpacity>
           

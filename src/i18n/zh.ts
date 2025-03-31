@@ -249,44 +249,22 @@ export const zh = {
     deferred: '订阅请求已提交',
     deferredMessage: '您的订阅请求已提交，正在等待批准（例如家长控制)。批准后，您将自动获得会员资格。',
     
-    // 订阅提示
-    confirmCancel: '确认取消订阅',
-    confirmCancelMessage: '取消订阅后，您仍可以使用当前订阅期的所有功能，直到订阅到期。',
-    cancelSuccess: '订阅已成功取消',
-    cancelError: '取消订阅失败，请稍后重试',
-    
-    restoreSuccess: '订阅已成功恢复',
-    restoreSuccessDesc: '您的订阅已成功恢复，现在可以使用所有会员功能。',
-    restoreFailed: '恢复订阅失败',
-    restoreError: '恢复订阅失败，请确认您之前是否有订阅记录',
-    
-    expiringSoon: '您的订阅即将到期',
-    expiringSoonMessage: '您的订阅将在 {{days}} 天后到期，请及时续订以继续使用所有功能。',
-    
-    expiredStatus: '您的订阅已过期',
-    expiredMessage: '您的订阅已过期，请重新订阅以继续使用所有功能。',
-    
-    // 订阅管理
-    manageSubscription: '管理订阅',
-    manageInstructions: '要管理或取消您的订阅，请前往：\n设置 > Apple ID > 订阅',
-    
-    // 订阅状态变更
-    statusChanged: '订阅状态已更新',
-    willExpireOn: '您的订阅将于 {{date}} 到期',
-    renewedUntil: '您的订阅已续期至 {{date}}',
-    
-    // 功能限制
-    featureRestricted: '功能已受限',
-    subscriptionRequired: '需要订阅才能使用此功能',
-    
-    // 其他提示
-    processingPurchase: '正在处理订阅请求...',
-    verifyingReceipt: '正在验证订阅状态...',
-    contactSupport: '如有问题，请联系客服',
-    
+    // 恢复订阅相关提示
+    buyGivenCount: '购买{{count}}个汉字',
+    subscribeUnlimited: '订阅无限使用',
+    unlockAll: '解锁全部',
+    unlimited: '无限',
+    limitedModeTip: '免费用户每天只能学习{{count}}个汉字。升级到会员模式可无限学习!',
+    validationError: '验证订阅状态时出错，请稍后再试',
+    validationErrorButLocalValid: '验证遇到问题，但您的本地订阅信息仍然有效',
+    noPurchasesToRestore: '未找到可恢复的订阅记录',
+    noValidSubscriptionFound: '未找到有效的订阅记录',
+    alreadySubscribedDesc: '您的设备已经是会员状态，无需恢复',
+    restoreSuccess: '您的订阅已成功恢复，现在可以使用所有高级功能',
+    restoreError: '恢复订阅时出错，请稍后再试',
     // 自动续费条款
-    termsTitle: '订阅条款',
-    autoRenewalTerms: '• 订阅将在每个订阅期结束前自动续订\n• 续订费用将在当前订阅期结束前24小时内从您的iTunes账户中扣除\n• 您可以在iTunes账户设置中管理订阅并关闭自动续订\n• 如果取消订阅，您可以继续使用所有功能直到当前订阅期结束\n• 订阅价格可能会根据您所在地区的税率有所变化\n• 订阅优惠价格仅适用于首次订阅用户'
+    termsTitle: '自动续费条款说明',
+    autoRenewalTerms: '订阅会员将在付款确认后开始计费。订阅会自动续费，除非在当前订阅期结束前至少24小时取消。您可以在AppStore的账户设置中管理订阅和取消自动续费。'
   },
 
   // Legal

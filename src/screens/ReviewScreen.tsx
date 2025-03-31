@@ -75,7 +75,7 @@ export const ReviewScreen = ({ navigation }: ReviewScreenProps) => {
         [
           { text: i18n.t('cancel'), style: 'cancel' },
           { 
-            text: i18n.t('getPremium'),
+            text: i18n.t('settings.getPremium'),
             onPress: () => {
               navigation.navigate('Settings', { screen: 'premium' });
             }

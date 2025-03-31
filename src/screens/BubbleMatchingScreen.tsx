@@ -333,7 +333,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
           [
             { text: i18n.t('cancel'), style: 'cancel' },
             { 
-              text: i18n.t('getPremium'),
+              text: i18n.t('settings.getPremium'),
               onPress: () => {
                 navigation.getParent()?.navigate('Settings', { screen: 'premium' });
               }
@@ -985,7 +985,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
     },
     instructionsContainer: {
       position: 'absolute',
-      bottom: isMacDevice || isIPad ? 120 : (Platform.OS === 'ios' ? 90 : 70),
+      bottom: isMacDevice || isIPad ? 120 : (Platform.OS === 'ios' ? 100 : 80),
       left: 0,
       right: 0,
       alignItems: 'center',
@@ -1013,6 +1013,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
       gap: isMacDevice ? 6 : 8,
       width: '98%',
       maxWidth: isDesktop ? 800 : isIPad ? 650 : 380,
+      minHeight: isIPad || isDesktop ? 50 : 60,
     },
     instructionsText: {
       color: '#333',
@@ -1057,7 +1058,7 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
             <MaterialCommunityIcons
               name="arrow-left"
               size={dynamicStyles.headerBackButton.fontSize}
-              color={theme.colors.textPrimary}
+              color={theme.colors.text}
             />
           </TouchableOpacity>
           
@@ -1187,10 +1188,10 @@ export const BubbleMatchingScreen = ({ navigation, route }: BubbleMatchingScreen
           <View style={styles.instructionsContainer}>
             <View style={styles.instructionsBox}>
               <MaterialCommunityIcons name="information-outline" size={16} color="#4CAF50" />
-              <Text style={[styles.instructionsText, dynamicStyles.instructionsText]} numberOfLines={1}>
+              <Text style={[styles.instructionsText, dynamicStyles.instructionsText]} numberOfLines={2}>
                 {isIPad || isDesktop ? 
                   `${i18n.t('clickMatchingBubble')} | ${i18n.t('correctMatch')}: +10 ${i18n.t('points')} | ${i18n.t('incorrectMatch')}: -5 ${i18n.t('points')} | ${i18n.t('useHint')}: -2 ${i18n.t('points')}` :
-                  `${i18n.t('clickMatchingBubble')} | ✓ +10 | ✗ -5 | 💡 -2`
+                  `${i18n.t('clickMatchingBubble')}\n✓ +10 | ✗ -5 | 💡 -2`
                 }
               </Text>
             </View>

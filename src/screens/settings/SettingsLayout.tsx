@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { useResponsive } from '../../hooks/useResponsive';
 
 interface SettingsLayoutProps {
@@ -7,17 +7,18 @@ interface SettingsLayoutProps {
 }
 
 export const SettingsLayout = ({ children }: SettingsLayoutProps) => {
-  const { isDesktop, isIPad } = useResponsive();
+  const { isDesktop, isIPad, width } = useResponsive();
 
   const styles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: '#fff',
+      width: '100%',
     },
     content: {
       flex: 1,
       padding: isIPad ? 20 : 16,
-      maxWidth: isDesktop ? 800 : '100%',
+      maxWidth: isDesktop ? 1200 : isIPad ? 1000 : '100%',
       width: '100%',
       alignSelf: 'center',
     },

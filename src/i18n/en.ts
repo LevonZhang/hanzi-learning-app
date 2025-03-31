@@ -19,7 +19,8 @@ export const en = {
   reviewCompleted: 'All characters reviewed',
   continueLearning: 'Continue Learning',
   continueNewLearning: 'Learn New Characters',
-  totalLearned: 'Total Learned',
+  learnMore: 'Learn More',
+  totalLearned: 'Learned',
   mastered: 'Mastered',
   needReview: 'Need Review',
   characters: 'Characters',
@@ -55,6 +56,7 @@ export const en = {
   correctMatch: 'Correct Match',
   incorrectMatch: 'Wrong Match',
   useHint: 'Use Hint',
+  points: 'points',
   clickMatchingBubble: 'Click bubbles that form words with the bottom character',
   clickSoundBubble: 'Click the bubble with the matching pronunciation',
 
@@ -85,26 +87,41 @@ export const en = {
   // Settings
   settings: {
     title: 'Settings',
-    basic: 'Basic Settings',
     premium: 'Premium',
+    basic: 'Basic Settings',
     learningStats: 'Learning Stats',
     gameStats: 'Game Stats',
-    privacy: 'Privacy Policy',
-    terms: 'Terms of Use',
-    selectOption: 'Please select an option from the menu',
-    learningSettings: 'Learning Settings',
-    dailyWords: 'Daily Characters',
+    dailyWords: 'Daily Words',
     language: 'Language',
-  },
-
-  // Premium
-  premium: {
-    title: 'Premium',
+    totalGamesPlayed: 'Total Games Played',
+    highestScore: 'Highest Score',
+    averageScore: 'Average Score',
+    totalScore: 'Total Score',
+    mostMistakenChars: 'Most Mistaken Characters',
+    mistakeCount: 'Mistakes: {{count}}',
+    totalLearned: 'Learned',
+    mastered: 'Mastered',
+    needReview: 'Need Review',
+    resetProgress: 'Reset Progress',
+    resetButton: 'Reset Learning Progress',
+    resetProgressTitle: 'Confirm Reset',
+    resetProgressMessage: 'Are you sure you want to reset all learning progress? This action cannot be undone.',
+    resetSuccessTitle: 'Reset Success',
+    resetSuccessMessage: 'Learning progress has been reset',
+    resetFailMessage: 'Reset failed',
     getPremium: 'Get Premium',
     premiumActive: 'Premium Active',
-    alreadyPremium: 'You are already a premium user',
-    premiumFeatures: 'Get premium to unlock more features',
+    privacy: 'Privacy Policy',
+    terms: 'Terms of Use'
   },
+
+  // Premium Features
+  alreadyPremium: 'You are already a premium user',
+  premiumFeatures: 'Get premium to unlock more features',
+  subscribe: 'Subscribe',
+  cancel: 'Cancel',
+  comingSoon: 'Coming Soon',
+  featureInDevelopment: 'This feature is under development',
 
   // Subscription Plans
   monthlyPlan: 'Monthly Plan',
@@ -131,19 +148,24 @@ export const en = {
   quarterlyDuration: 'Quarterly subscription',
   yearlyDuration: 'Annual subscription',
   lifetimeDuration: 'Lifetime access',
-  
+
+  // Game Statistics
+  gameHighScores: 'Game Statistics',
+  highScore: 'High Score',
+  gamesPlayed: 'Games Played',
+
   // Subscription Dialog
   subscriptionConfirm: 'Confirm Subscription',
   subscriptionConfirmDesc: 'Would you like to subscribe to this plan? The cost is {{price}}{{period}}',
   subscribeButton: 'Subscribe',
   cancelButton: 'Cancel',
-  
+
   // Purchase Status
-  purchaseSuccess: 'Subscription Successful',
-  purchaseSuccessDesc: 'Thank you for subscribing! You now have access to all premium features.',
+  purchaseSuccess: 'Purchase Successful',
+  enjoyPremium: 'Thank you for your support! Enjoy all premium features',
   purchaseError: 'Purchase failed, please try again later',
   errorTitle: 'Error',
-  
+
   // Premium Status
   premiumActiveStatus: 'Premium Active',
   getPremiumButton: 'Get Premium',
@@ -155,11 +177,6 @@ export const en = {
   learned: 'Learned',
   hours: 'h',
   minutes: 'm',
-  
-  // Game Statistics
-  gameHighScores: 'Game Statistics',
-  highScore: 'High Score',
-  gamesPlayed: 'Games Played',
 
   // Learned Characters
   learnedCharacters: 'Learned Characters',
@@ -195,8 +212,6 @@ export const en = {
   resetConfirm: 'Confirm Reset',
   resetConfirmMessage: 'Are you sure you want to reset all learning progress? This will clear all learned character records.',
 
-  levelNumber: 'Level {{level}}',
-
   // Game
   exitGame: 'Exit Game',
   exitGameMessage: 'Current Score: {{score}} points\nCurrent Level: {{level}}/{{total}}',
@@ -204,28 +219,28 @@ export const en = {
   resetGame: 'Reset Game',
   resetGameConfirm: 'Reset Game',
   resetGameConfirmMessage: 'Are you sure you want to reset the game progress? This will clear your current score and level progress, and start from level 1.',
-  points: 'points',
+  resetLearning: 'Reset Learning Progress',
+  resetLearningConfirmMessage: 'Are you sure you want to reset all learning progress? This action cannot be undone.',
 
   // Subscription Messages
   subscription: {
-    // Subscription Status
     active: 'Subscription Active',
     expired: 'Subscription Expired',
     canceled: 'Subscription Canceled',
     restored: 'Subscription Restored',
-    alreadySubscribed: 'Already Subscribed',
-    alreadySubscribedDesc: 'You already have an active subscription. To change plans, please wait for your current subscription to expire or cancel it first.',
-    noActiveSubscription: 'No Active Subscription',
-    subscribeNow: 'Would you like to subscribe to access all features?',
-    noSubscriptionFound: 'No Subscription Found',
     
     // Subscription Types
     length: 'Subscription Length',
-    none: 'No Active Subscription',
+    none: 'No Subscription',
     monthly: 'Monthly',
     quarterly: 'Quarterly',
     yearly: 'Yearly',
     lifetime: 'Lifetime',
+    
+    subscribe: 'Subscribe',
+    unsubscribe: 'Unsubscribe',
+    restore: 'Restore Purchases',
+    manage: 'Manage Subscription',
     
     // Purchase Success
     purchaseSuccess: 'Subscription Successful',
@@ -235,12 +250,6 @@ export const en = {
     deferred: 'Subscription Request Submitted',
     deferredMessage: 'Your subscription request has been submitted and is waiting for approval (e.g. parental controls). You will automatically get premium access once approved.',
     
-    // Subscription Actions
-    subscribe: 'Subscribe',
-    unsubscribe: 'Unsubscribe',
-    restore: 'Restore Purchases',
-    manage: 'Manage Subscription',
-    
     // Subscription Prompts
     confirmCancel: 'Confirm Cancellation',
     confirmCancelMessage: 'After canceling, you can still use all features until your current subscription period ends.',
@@ -248,15 +257,17 @@ export const en = {
     cancelError: 'Failed to cancel subscription, please try again later',
     
     restoreSuccess: 'Restore Successful',
-    restoreSuccessDesc: 'Your previous purchases have been restored successfully.',
+    restoreSuccessDesc: 'Your subscription has been successfully restored, now you can use all premium features.',
     restoreFailed: 'Restore Failed',
-    restoreFailedDesc: 'No previous purchases were found or there was an error restoring them.',
-    restoreError: 'An error occurred while restoring purchases.',
+    restoreFailedDesc: 'Failed to restore subscription. Please check if you have any previous subscription records.',
+    restoreError: 'Failed to restore subscription, please verify if you had any previous subscription records',
+    noPurchasesToRestore: 'No purchases found to restore',
     
     expiringSoon: 'Your Subscription is Expiring Soon',
     expiringSoonMessage: 'Your subscription will expire in {{days}} days. Please renew to continue using all features.',
     
-    expiredMessage: 'Please renew your subscription to continue using all features.',
+    expiredStatus: 'Your Subscription has Expired',
+    expiredMessage: 'Your subscription has expired, please resubscribe to continue using all features.',
     
     // Subscription Management
     manageSubscription: 'Manage Subscription',
@@ -283,8 +294,5 @@ export const en = {
 
   // Legal
   privacyPolicy: 'Privacy Policy',
-  termsOfUse: 'Terms of Use',
-
-  resetLearning: 'Reset Learning Progress',
-  resetLearningConfirmMessage: 'Are you sure you want to reset all learning progress? This action cannot be undone.',
+  termsOfUse: 'Terms of Use'
 }; 

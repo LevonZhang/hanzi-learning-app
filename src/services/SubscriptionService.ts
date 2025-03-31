@@ -478,6 +478,33 @@ export class SubscriptionService {
   async restorePurchases(): Promise<{ success: boolean; error?: string }> {
     try {
       logger.subscription('开始恢复购买过程');
+      
+      // 先检查当前设备的会员状态
+      const isCurrentDeviceSubscribed = this.currentSubscriptionData?.isActive || false;
+      const currentExpirationDate = this.currentSubscriptionData?.expirationDate 
+        ? new Date(this.currentSubscriptionData.expirationDate) 
+        : null;
+      
+      logger.subscription('当前设备会员状态:', {
+        isActive: isCurrentDeviceSubscribed,
+        expirationDate: currentExpirationDate?.toISOString() || 'null',
+        productId: this.currentSubscriptionData?.productId || 'null'
+      });
+      
+      // 快速检查 - 如果当前设备已经是会员且有效期足够长，直接返回已订阅信息
+      if (isCurrentDeviceSubscribed && currentExpirationDate) {
+        const now = new Date();
+        // 检查有效期是否至少还有30天
+        if (currentExpirationDate > now && 
+            (currentExpirationDate.getTime() - now.getTime()) > 30 * 24 * 60 * 60 * 1000) {
+          logger.subscription('当前设备已是有效会员且剩余时间足够，无需恢复');
+          return { 
+            success: true, 
+            error: i18n.t('subscription.alreadySubscribedDesc')
+          };
+        }
+      }
+      
       await this.initialize();
       
       // 重新连接以确保获取最新状态
@@ -498,10 +525,25 @@ export class SubscriptionService {
         }))
       });
       
-      // 如果没有找到购买记录，返回失败
+      // 如果没有找到购买记录，也需要与远程同步
+      // 这可能意味着用户已退订或订阅已过期
       if (!availablePurchases || availablePurchases.length === 0) {
+        // 如果当前设备显示为激活状态，但远程没有记录，则需要更新本地状态
+        if (isCurrentDeviceSubscribed) {
+          logger.subscription('无可恢复购买记录，但当前设备显示为会员状态，更新为非会员');
+          await this.updateSubscriptionStatus({
+            isActive: false,
+            productId: this.currentSubscriptionData?.productId || null,
+            expirationDate: new Date().toISOString(), // 设置为当前时间表示已过期
+            lastUpdated: new Date().toISOString(),
+            wasRefunded: false,
+            isCancelled: true
+          });
+          return { success: false, error: i18n.t('subscription.noValidSubscriptionFound') };
+        }
+        // 如果当前设备本来就是非会员状态，则简单返回无记录
         logger.subscription('没有找到可恢复的购买记录');
-        return { success: false, error: '没有找到可恢复的购买记录' };
+        return { success: false, error: i18n.t('subscription.noPurchasesToRestore') };
       }
       
       // 按购买日期排序，获取最新的订阅
@@ -515,8 +557,20 @@ export class SubscriptionService {
       logger.subscription(`找到 ${subscriptionPurchases.length} 个订阅类型的购买记录`);
       
       if (subscriptionPurchases.length === 0) {
+        // 如果没有订阅记录但设备显示为会员，需要同步状态
+        if (isCurrentDeviceSubscribed) {
+          logger.subscription('没有找到订阅类型的购买记录，但当前设备显示为会员状态，更新为非会员');
+          await this.updateSubscriptionStatus({
+            isActive: false,
+            productId: this.currentSubscriptionData?.productId || null,
+            expirationDate: new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            wasRefunded: false,
+            isCancelled: true
+          });
+        }
         logger.subscription('没有找到订阅类型的购买记录');
-        return { success: false, error: '未找到有效的订阅记录' };
+        return { success: false, error: i18n.t('subscription.noValidSubscriptionFound') };
       }
       
       // 处理最新的订阅购买记录
@@ -524,15 +578,34 @@ export class SubscriptionService {
       logger.subscription('处理最新的订阅记录', {
         productId: latestSubscription.productId,
         transactionDate: latestSubscription.transactionDate,
-        originalTransactionId: latestSubscription.originalTransactionIdentifierIOS || '未知'
+        originalTransactionId: latestSubscription.originalTransactionIdentifierIOS || '未知',
+        transactionId: latestSubscription.transactionId || '未知'
       });
       
       try {
-        // 完成交易
-        await finishTransaction({ purchase: latestSubscription, isConsumable: false });
-        
         // 验证订阅是否真的有效
         let isSubscriptionActive = false;
+        let expiryDate: Date | null = null;
+        let isLifetime = latestSubscription.productId.includes('lifetime');
+        
+        // 尝试完成交易，但不因为失败而中断恢复流程
+        try {
+          await finishTransaction({ purchase: latestSubscription, isConsumable: false });
+          
+          // 如果交易ID存在，添加到已处理列表
+          if (latestSubscription.transactionId) {
+            this.processedTransactions.add(latestSubscription.transactionId);
+          }
+        } catch (finishError) {
+          // 记录错误但继续恢复流程
+          // "invalid transaction id" 通常意味着交易已被处理
+          if (String(finishError).indexOf('invalid transaction id') !== -1) {
+            logger.subscription('交易已被处理过，继续恢复流程');
+          } else {
+            logger.error('完成交易失败:', finishError);
+            // 不要因为完成交易失败而中断整个恢复流程
+          }
+        }
         
         // 如果有验证数据，解析并检查
         if (latestSubscription.verificationResultIOS) {
@@ -557,12 +630,23 @@ export class SubscriptionService {
               
               // 检查是否有到期日期并且是否已过期
               if (payload.expiresDate) {
-                const expiryDate = new Date(payload.expiresDate);
+                expiryDate = new Date(payload.expiresDate);
                 const now = new Date();
                 
                 if (expiryDate > now) {
                   isSubscriptionActive = true;
-                  logger.subscription('订阅仍然有效，到期日期:', expiryDate.toISOString());
+                  logger.subscription('远程订阅仍然有效，到期日期:', expiryDate.toISOString());
+                  
+                  // 如果当前设备已经是会员，且到期时间相同或更晚，则无需恢复
+                  if (isCurrentDeviceSubscribed && currentExpirationDate && 
+                      (Math.abs(currentExpirationDate.getTime() - expiryDate.getTime()) < 1000 * 60 * 60 * 24 || // 相差不超过1天
+                       currentExpirationDate > expiryDate)) {
+                    logger.subscription('当前设备已有相同或更长的会员期限，无需恢复');
+                    return { 
+                      success: true, 
+                      error: i18n.t('subscription.alreadySubscribedDesc')
+                    };
+                  }
                   
                   // 更新订阅状态为有效
                   await this.updateSubscriptionStatus({
@@ -577,6 +661,20 @@ export class SubscriptionService {
                   return { success: true };
                 } else {
                   logger.subscription('订阅已过期，过期日期:', expiryDate.toISOString());
+                  
+                  // 如果远程显示已过期，但本地显示有效，需要同步状态
+                  if (isCurrentDeviceSubscribed && (!currentExpirationDate || currentExpirationDate > now)) {
+                    logger.subscription('远程订阅已过期，但本地显示有效，更新为非会员');
+                    await this.updateSubscriptionStatus({
+                      isActive: false,
+                      productId: latestSubscription.productId,
+                      expirationDate: expiryDate.toISOString(),
+                      lastUpdated: new Date().toISOString(),
+                      originalTransactionId: latestSubscription.originalTransactionIdentifierIOS,
+                      restoredFromPurchase: true,
+                      isExpired: true
+                    });
+                  }
                 }
               }
             }
@@ -588,7 +686,16 @@ export class SubscriptionService {
         // 如果无法确认订阅状态，尝试通过其他方式验证
         if (!isSubscriptionActive) {
           // 如果是终身会员产品，则认为是有效的
-          if (latestSubscription.productId.includes('lifetime')) {
+          if (isLifetime) {
+            // 如果当前设备已经是终身会员，则无需恢复
+            if (isCurrentDeviceSubscribed && this.currentSubscriptionData?.productId?.includes('lifetime')) {
+              logger.subscription('当前设备已是终身会员，无需恢复');
+              return { 
+                success: true, 
+                error: i18n.t('subscription.alreadySubscribedDesc')
+              };
+            }
+            
             const expirationDate = new Date();
             expirationDate.setFullYear(expirationDate.getFullYear() + 100);
             
@@ -606,6 +713,42 @@ export class SubscriptionService {
             return { success: true };
           }
           
+          // 对于非终身会员，检查现有本地数据是否比新数据更新
+          if (isCurrentDeviceSubscribed && currentExpirationDate) {
+            const now = new Date();
+            
+            // 如果本地数据显示订阅仍然有效，检查是否需要恢复
+            if (currentExpirationDate > now) {
+              logger.subscription('当前设备已有有效订阅', {
+                expirationDate: currentExpirationDate.toISOString()
+              });
+              
+              // 如果当前设备的订阅是终身会员，则明显优于其他任何订阅
+              if (this.currentSubscriptionData?.productId?.includes('lifetime')) {
+                logger.subscription('当前设备已是终身会员，无需恢复');
+                return { 
+                  success: true, 
+                  error: i18n.t('subscription.alreadySubscribedDesc')
+                };
+              }
+              
+              // 如果没有从远程获取到到期日期，使用当前设备的数据
+              if (!expiryDate) {
+                logger.subscription('未从远程获取到到期日期，使用当前设备数据');
+                return { success: true };
+              }
+              
+              // 如果当前设备的到期时间晚于远程到期时间，则无需恢复
+              if (currentExpirationDate > expiryDate) {
+                logger.subscription('当前设备订阅到期时间晚于远程到期时间，无需恢复');
+                return { 
+                  success: true, 
+                  error: i18n.t('subscription.alreadySubscribedDesc')
+                };
+              }
+            }
+          }
+          
           // 对于非终身会员，还需要进一步验证
           // 使用validator来验证收据
           if (latestSubscription.transactionReceipt) {
@@ -618,12 +761,81 @@ export class SubscriptionService {
               
               if (validationResult.isValid) {
                 logger.subscription('通过验证器确认订阅有效');
+                
+                // 如果验证器确认订阅有效，但未获取到到期日期，则使用默认到期日期
+                if (!expiryDate) {
+                  const defaultExpiryDate = new Date();
+                  defaultExpiryDate.setMonth(defaultExpiryDate.getMonth() + 1); // 默认假设是一个月的订阅
+                  expiryDate = defaultExpiryDate;
+                }
+                
+                // 检查当前设备是否已有更好的订阅状态
+                if (isCurrentDeviceSubscribed && currentExpirationDate && currentExpirationDate > expiryDate) {
+                  logger.subscription('当前设备订阅到期时间晚于远程到期时间，无需恢复');
+                  return { 
+                    success: true, 
+                    error: i18n.t('subscription.alreadySubscribedDesc')
+                  };
+                }
+                
+                // 更新订阅状态
+                await this.updateSubscriptionStatus({
+                  isActive: true,
+                  productId: latestSubscription.productId,
+                  expirationDate: expiryDate.toISOString(),
+                  lastUpdated: new Date().toISOString(),
+                  originalTransactionId: latestSubscription.originalTransactionIdentifierIOS,
+                  restoredFromPurchase: true
+                });
+                
                 return { success: true };
               } else {
                 logger.subscription('验证器确认订阅无效:', validationResult.error);
+                
+                // 如果验证器确认订阅无效，但本地显示有效，需要同步状态
+                if (isCurrentDeviceSubscribed) {
+                  logger.subscription('验证器确认订阅无效，但本地显示有效，更新为非会员');
+                  await this.updateSubscriptionStatus({
+                    isActive: false,
+                    productId: latestSubscription.productId,
+                    expirationDate: expiryDate ? expiryDate.toISOString() : new Date().toISOString(),
+                    lastUpdated: new Date().toISOString(),
+                    restoredFromPurchase: true,
+                    isExpired: true
+                  });
+                }
+                
+                return { success: false, error: i18n.t('subscription.validationError') };
               }
             } catch (validationError) {
               logger.error('验证订阅时出错:', validationError);
+              
+              // 验证出错时，检查是否应该保留本地状态
+              if (isCurrentDeviceSubscribed && currentExpirationDate && currentExpirationDate > new Date()) {
+                logger.subscription('验证出错，但本地订阅仍然有效，保留当前状态');
+                return { 
+                  success: true, 
+                  error: i18n.t('subscription.validationErrorButLocalValid')
+                };
+              }
+              
+              // 如果没有有效的本地状态，或者已过期，则报告错误
+              return { success: false, error: i18n.t('subscription.validationError') };
+            }
+          }
+          
+          // 如果到这里还未确认订阅状态，检查是否有过期日期
+          if (expiryDate) {
+            // 检查过期时间是否在可接受的范围内（例如30天内）
+            const now = new Date();
+            const daysSinceExpiration = Math.floor((now.getTime() - expiryDate.getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (daysSinceExpiration <= 30) {
+              // 已过期但在30天内，提示用户续订
+              return { 
+                success: false, 
+                error: i18n.t('subscription.recentlyExpired', { days: daysSinceExpiration }) 
+              };
             }
           }
           
@@ -634,7 +846,7 @@ export class SubscriptionService {
           await this.updateSubscriptionStatus({
             isActive: false,
             productId: latestSubscription.productId,
-            expirationDate: new Date().toISOString(), // 当前时间，表示已过期
+            expirationDate: expiryDate ? expiryDate.toISOString() : new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
             originalTransactionId: latestSubscription.originalTransactionIdentifierIOS,
             restoredFromPurchase: true,
@@ -643,7 +855,7 @@ export class SubscriptionService {
           
           return { 
             success: false, 
-            error: '订阅已过期或已取消，请重新订阅' 
+            error: i18n.t('subscription.subscriptionExpiredOrCancelled') 
           };
         }
         
@@ -1139,6 +1351,23 @@ export class SubscriptionService {
               } else {
                 try {
                   expirationDate = new Date(payload.expiresDate);
+                  
+                  // 在沙盒环境中，如果是续订的订阅，使用原始订阅的到期时间
+                  if (ENV.IS_SANDBOX && oldStatus?.expirationDate) {
+                    const originalExpirationDate = new Date(oldStatus.expirationDate);
+                    const now = new Date();
+                    
+                    // 如果新的到期时间比原始到期时间晚，说明是续订
+                    if (expirationDate > originalExpirationDate) {
+                      // 使用原始到期时间
+                      expirationDate = originalExpirationDate;
+                      logger.subscription('沙盒环境：使用原始到期时间', {
+                        originalExpirationDate: originalExpirationDate.toISOString(),
+                        newExpirationDate: expirationDate.toISOString()
+                      });
+                    }
+                  }
+                  
                   logger.subscription('从JWT获取到期日期', { 
                     rawExpiresDate: payload.expiresDate,
                     parsedDate: expirationDate.toISOString()
@@ -1152,6 +1381,7 @@ export class SubscriptionService {
                   logger.subscription('使用默认到期日期（当前日期+1年）', { expirationDate: expirationDate.toISOString() });
                 }
               }
+              
               const now = new Date();
               const isActive = now < expirationDate;
               const daysRemaining = Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -1639,4 +1869,5 @@ export class SubscriptionService {
       logger.error('同步StoreKit订阅状态失败:', error);
     }
   }
+}
 }

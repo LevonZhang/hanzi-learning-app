@@ -22,15 +22,15 @@ interface SettingItem {
 }
 
 export const SettingsScreen = ({ navigation, route }: SettingsScreenProps) => {
-  const { theme, isDesktop, isIPad } = useResponsive();
+  const { theme, isDesktop, isIPad, width } = useResponsive();
   const isIPhone = Platform.OS === 'ios' && !isIPad;
-  const [activeRoute, setActiveRoute] = useState('BasicSettings');
+  const [activeRoute, setActiveRoute] = useState('Premium');
   const currentLanguage = i18n.language; // 添加当前语言作为依赖
 
   // 每次语言变化时，强制刷新设置项目
   const settingItems: SettingItem[] = React.useMemo(() => [
-    { route: 'BasicSettings', icon: 'cog', title: i18n.t('settings.basic'), component: BasicSettingsScreen },
     { route: 'Premium', icon: 'crown', title: i18n.t('settings.premium'), component: PremiumScreen },
+    { route: 'BasicSettings', icon: 'cog', title: i18n.t('settings.basic'), component: BasicSettingsScreen },
     { route: 'LearningStats', icon: 'chart-bar', title: i18n.t('settings.learningStats'), component: LearningStatsScreen },
     { route: 'GameStats', icon: 'gamepad-variant', title: i18n.t('settings.gameStats'), component: GameStatsScreen },
   ], [currentLanguage]);
@@ -54,24 +54,31 @@ export const SettingsScreen = ({ navigation, route }: SettingsScreenProps) => {
     container: {
       flex: 1,
       backgroundColor: '#fff',
+      width: '100%',
     },
     content: {
       flex: 1,
       flexDirection: 'row',
+      width: '100%',
     },
     sidebar: {
-      width: isDesktop ? '25%' : isIPad ? '30%' : '22%',
-      maxWidth: isDesktop ? 300 : isIPad ? 250 : 100,
+      width: isDesktop ? '20%' : isIPad ? '25%' : '22%',
+      minWidth: isDesktop ? 200 : isIPad ? 180 : 85,
+      maxWidth: isDesktop ? 300 : isIPad ? 220 : 100,
       borderRightWidth: 1,
       borderRightColor: '#e0e0e0',
       backgroundColor: '#f8f9fa',
+      height: '100%',
     },
     sidebarScroll: {
       padding: isDesktop ? 16 : isIPad ? 12 : 8,
+      paddingRight: isIPad ? 8 : 16,
     },
     mainContent: {
       flex: 1,
       backgroundColor: '#fff',
+      width: isIPad ? '75%' : '78%', // 确保主内容区域在iPad上有足够的宽度
+      overflow: 'hidden', // 防止内容溢出
     },
     menuItem: {
       flexDirection: isIPhone ? 'column' : 'row',
@@ -80,21 +87,21 @@ export const SettingsScreen = ({ navigation, route }: SettingsScreenProps) => {
       padding: isDesktop ? 16 : isIPad ? 12 : 8,
       backgroundColor: '#fff',
       borderRadius: 12,
-      marginBottom: isDesktop ? 12 : 8,
+      marginBottom: isDesktop ? 12 : isIPad ? 10 : 8,
       borderWidth: 1,
       borderColor: '#e0e0e0',
-      minHeight: isIPhone ? 80 : undefined,
+      minHeight: isIPhone ? 80 : isIPad ? 50 : undefined,
     },
     activeMenuItem: {
       backgroundColor: theme.colors.primary + '10',
       borderColor: theme.colors.primary,
     },
     menuIcon: {
-      marginRight: isIPhone ? 0 : isDesktop ? 16 : isIPad ? 12 : 8,
+      marginRight: isIPhone ? 0 : isDesktop ? 16 : isIPad ? 10 : 8,
       marginBottom: isIPhone ? 4 : 0,
-      width: isDesktop ? 40 : isIPad ? 36 : 32,
-      height: isDesktop ? 40 : isIPad ? 36 : 32,
-      borderRadius: isDesktop ? 20 : isIPad ? 18 : 16,
+      width: isDesktop ? 40 : isIPad ? 32 : 28,
+      height: isDesktop ? 40 : isIPad ? 32 : 28,
+      borderRadius: isDesktop ? 20 : isIPad ? 16 : 14,
       backgroundColor: theme.colors.primary + '10',
       justifyContent: 'center',
       alignItems: 'center',
@@ -113,7 +120,7 @@ export const SettingsScreen = ({ navigation, route }: SettingsScreenProps) => {
     },
     chevron: {
       opacity: 0.5,
-      display: isDesktop ? 'flex' : 'none',
+      display: isDesktop || isIPad ? 'flex' : 'none',
     },
     welcomeContainer: {
       flex: 1,
@@ -145,7 +152,7 @@ export const SettingsScreen = ({ navigation, route }: SettingsScreenProps) => {
         <View style={styles.menuIcon}>
           <MaterialCommunityIcons
             name={icon}
-            size={isDesktop ? 24 : isIPad ? 20 : 16}
+            size={isDesktop ? 24 : isIPad ? 18 : 16}
             color={theme.colors.primary}
           />
         </View>
@@ -155,12 +162,14 @@ export const SettingsScreen = ({ navigation, route }: SettingsScreenProps) => {
         >
           {title}
         </Text>
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={24}
-          color={theme.colors.text}
-          style={styles.chevron}
-        />
+        {(isDesktop || isIPad) && (
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={isDesktop ? 24 : isIPad ? 18 : 24}
+            color={theme.colors.text}
+            style={styles.chevron}
+          />
+        )}
       </TouchableOpacity>
     );
   };
@@ -184,11 +193,11 @@ export const SettingsScreen = ({ navigation, route }: SettingsScreenProps) => {
   };
 
   return (
-    <ResponsiveContainer>
+    <ResponsiveContainer useMaxWidth={false} withPadding={false}>
       <View style={styles.container}>
         <View style={styles.content}>
           <View style={styles.sidebar}>
-            <ScrollView style={styles.sidebarScroll}>
+            <ScrollView style={styles.sidebarScroll} showsVerticalScrollIndicator={false}>
               {settingItems.map(renderMenuItem)}
             </ScrollView>
           </View>

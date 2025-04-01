@@ -52,6 +52,10 @@ export const PremiumScreen = () => {
             <TouchableOpacity onPress={openTermsOfUse}>
               <Text style={styles.linkText}>{i18n.t('termsOfUse')}</Text>
             </TouchableOpacity>
+            <Text style={styles.linkSeparator}>|</Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/')}>
+              <Text style={styles.linkText}>Apple EULA</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

@@ -1870,4 +1870,3 @@ export class SubscriptionService {
     }
   }
 }
-}

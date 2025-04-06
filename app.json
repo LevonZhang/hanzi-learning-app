@@ -2,7 +2,7 @@
   "expo": {
     "name": "字学堂 (HanziLearning)",
     "slug": "hanzi-learning-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/AppIcons/Icon-AppStore.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.itlongbow.hanzilearningapp",
-      "buildNumber": "26",
+      "buildNumber": "1",
       "privacyPolicyUrl": "https://hanzilearning.xyz/privacy",
       "eulaUrl": "https://hanzilearning.xyz/terms"
     },

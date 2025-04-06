@@ -1613,9 +1613,6 @@ export class SubscriptionService {
         
         await this.updateSubscriptionStatus(subscriptionData);
       }
-
-      // 记录当前的订阅状态
-      logger.info(`会员状态检查结果: ${isSubscribed}`);
       
       // 如果当前检查到非活跃状态，但我们曾经验证过订阅，再次尝试验证
       if (!isSubscribed && this.currentSubscriptionData?.isActive) {

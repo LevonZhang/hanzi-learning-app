@@ -417,7 +417,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     }
   });
 
-  const [activeTab, setActiveTab] = useTabState('zh'); // 默认显示中文释义
+  const [activeTab, setActiveTab] = useTabState('en'); // 修改默认值为'en'
   const [showFullMeaning, setShowFullMeaning] = useState(false);
 
   useEffect(() => {
@@ -578,7 +578,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     }));
   };
 
-  const handleComplete = async (isCorrect: boolean) => {
+  const handleComplete = async (isCorrect: boolean, skipPractice: boolean = false) => {
     if (!state.currentWord) return;
 
     // 如果不是复习模式，检查会员权限
@@ -613,27 +613,28 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
     // 只有在通过会员检查后才继续
     const learningManager = LearningManager.getInstance();
     
-    // 如果练习正确，记录为已掌握
-    if (isCorrect) {
+    // 只有在练习正确且不是跳过练习的情况下，才标记为已掌握
+    if (isCorrect && !skipPractice) {
       await handleCharacterMastered(state.currentWord.character);
     }
 
-    // 更新当前字列表
-    const currentList = state.isReviewMode ? state.reviewWords : state.newWords;
-    const currentIndex = currentList.findIndex(w => w.character === state.currentWord!.character);
-    const nextIndex = currentIndex + 1;
+    // 记录当前字的进度，如果是跳过练习，则设置为已学习状态
+    await learningManager.recordProgress(state.currentWord.character, !skipPractice && isCorrect);
 
-    // 记录当前字的进度
-    await learningManager.recordProgress(state.currentWord.character, isCorrect);
-
-    if (nextIndex < currentList.length) {
+    // 获取今天的学习列表
+    const { newWords, reviewWords } = await learningManager.getTodayLearningList();
+    
+    // 如果还有新字要学习
+    if (newWords.length > 0) {
       // 记录下一个字为已学习
       if (!state.isReviewMode) {
-        await handleCharacterLearned(currentList[nextIndex].character);
+        await handleCharacterLearned(newWords[0].character);
       }
       setState(prev => ({
         ...prev,
-        currentWord: currentList[nextIndex]
+        newWords,
+        reviewWords,
+        currentWord: newWords[0]
       }));
     } else {
       const statistics = await learningManager.getStatistics();
@@ -803,7 +804,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                     zIndex: 5000,
                     width: '100%',
                     position: 'absolute',
-                    bottom: -200, // 从 -110 调整为 -200，向下移动更多距离
+                    bottom: -200,
                   }}>
                     <TouchableOpacity
                       style={[
@@ -836,7 +837,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                           borderColor: 'rgba(255,255,255,0.5)'
                         }
                       ]}
-                      onPress={() => handleComplete(true)}
+                      onPress={() => handleComplete(true, true)}
                     >
                       <Text style={[screenStyles.buttonText, { color: "white", fontSize: 18, fontWeight: 'bold' }]}>
                         {i18n.t('next')}
@@ -854,22 +855,6 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                   <TouchableOpacity
                     style={[
                       screenStyles.tab,
-                      activeTab === 'zh' && { backgroundColor: theme.colors.primary }
-                    ]}
-                    onPress={() => setActiveTab('zh')}
-                  >
-                    <Text style={[
-                      screenStyles.tabText,
-                      activeTab === 'zh' && { color: "white" },
-                      (isDesktop || isIPad) && screenStyles.wideTabText
-                    ]}>
-                      {i18n.t('Chinese')}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      screenStyles.tab,
                       activeTab === 'en' && { backgroundColor: theme.colors.primary }
                     ]}
                     onPress={() => setActiveTab('en')}
@@ -882,10 +867,34 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                       {i18n.t('English')}
                     </Text>
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      screenStyles.tab,
+                      activeTab === 'zh' && { backgroundColor: theme.colors.primary }
+                    ]}
+                    onPress={() => setActiveTab('zh')}
+                  >
+                    <Text style={[
+                      screenStyles.tabText,
+                      activeTab === 'zh' && { color: "white" },
+                      (isDesktop || isIPad) && screenStyles.wideTabText
+                    ]}>
+                      {i18n.t('Chinese')}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 <ScrollView style={screenStyles.meaningScroll}>
-                  {activeTab === 'zh' ? (
+                  {activeTab === 'en' ? (
+                    <Text style={[
+                      screenStyles.meaningText,
+                      (isDesktop || isIPad) && screenStyles.wideMeaningText,
+                      isMacDevice && { marginTop: -3 }
+                    ]}>
+                      {state.currentWord.meanings.en.join('\n')}
+                    </Text>
+                  ) : (
                     <>
                       <Text style={[
                         screenStyles.pinyinText,
@@ -910,14 +919,6 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                         </Text>
                       )}
                     </>
-                  ) : (
-                    <Text style={[
-                      screenStyles.meaningText,
-                      (isDesktop || isIPad) && screenStyles.wideMeaningText,
-                      isMacDevice && { marginTop: -3 }
-                    ]}>
-                      {state.currentWord.meanings.en.join('\n')}
-                    </Text>
                   )}
                 </ScrollView>
               </View>
@@ -942,7 +943,7 @@ export const LearningScreen = ({ route, navigation }: LearningScreenProps) => {
                 
                 <TouchableOpacity
                   style={[screenStyles.button, { backgroundColor: theme.colors.success }]}
-                  onPress={() => handleComplete(true)}
+                  onPress={() => handleComplete(true, true)}
                 >
                   <Text style={[screenStyles.buttonText, { color: "white" }]}>
                     {i18n.t('next')}

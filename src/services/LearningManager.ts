@@ -101,6 +101,9 @@ export class LearningManager {
   async getTodayLearningList() {
     const date = new Date().toISOString().split('T')[0];
     
+    // 获取今天已学习的字数
+    const todayLearned = await this.getTodayLearnedCount();
+    
     const progress = await this.getAllProgress();
     
     const hanziService = HanziService.getInstance();
@@ -115,8 +118,11 @@ export class LearningManager {
     // 获取已学习的字符集
     const learnedChars = new Set(Object.keys(progress));
     
+    // 计算还需要学习的新字数量
+    const remainingNewWords = Math.max(0, this.settings.dailyNewWords - todayLearned);
+    
     // 使用HSK工具获取下一批要学习的字符（包括非HSK字符）
-    const nextChars = getNextUnlearnedHSKCharacters(learnedChars, this.settings.dailyNewWords, allCharacters);
+    const nextChars = getNextUnlearnedHSKCharacters(learnedChars, remainingNewWords, allCharacters);
     
     // 从所有汉字中找到对应的完整信息
     const newChars = nextChars

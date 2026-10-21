@@ -115,3 +115,5 @@ The MIT license covers the source code. The bundled linguistic data keeps its ow
 ## License
 
 [MIT](LICENSE) © 2025-2026 Levon Zhang
+
+The MIT license covers the source code only. Bundled linguistic data keeps its own terms — see [Third-party data](#third-party-data).

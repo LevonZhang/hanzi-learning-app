@@ -12,7 +12,7 @@ import {
 } from 'react-native-iap';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LearningManager } from './LearningManager';
-import { ENV, CONSTANTS, SUBSCRIPTION_ERRORS } from '../config/env';
+import { ENV, CONSTANTS, SUBSCRIPTION_ERRORS, SUBSCRIPTION_SKU_PREFIX } from '../config/env';
 import { logger } from '../utils/logger';
 import { i18n } from '../i18n/i18n';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -25,12 +25,19 @@ import { SubscriptionStatus } from '../types/subscription';
 // 订阅计划类型
 export type SubscriptionPlanId = string;
 
-// iOS 订阅产品 ID
+// iOS 订阅产品 ID（示例值，发布前替换 src/config/env.ts 中的 APP_BUNDLE_ID）
 export const IOS_SKUS: Record<string, string> = {
-  'monthly': 'com.itlongbow.hanzilearningapp.sub.monthly',
-  'quarterly': 'com.itlongbow.hanzilearningapp.sub.quarterly',
-  'yearly': 'com.itlongbow.hanzilearningapp.sub.yearly',
-  'lifetime': 'com.itlongbow.hanzilearningapp.sub.lifetime',
+  'monthly': `${SUBSCRIPTION_SKU_PREFIX}.monthly`,
+  'quarterly': `${SUBSCRIPTION_SKU_PREFIX}.quarterly`,
+  'yearly': `${SUBSCRIPTION_SKU_PREFIX}.yearly`,
+  'lifetime': `${SUBSCRIPTION_SKU_PREFIX}.lifetime`,
+};
+
+const SKU = {
+  monthly: `${SUBSCRIPTION_SKU_PREFIX}.monthly`,
+  quarterly: `${SUBSCRIPTION_SKU_PREFIX}.quarterly`,
+  yearly: `${SUBSCRIPTION_SKU_PREFIX}.yearly`,
+  lifetime: `${SUBSCRIPTION_SKU_PREFIX}.lifetime`,
 };
 
 // 订阅计划配置
@@ -39,27 +46,27 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, {
   price: number;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
 }> = {
-  'com.itlongbow.hanzilearningapp.sub.monthly': {
-    id: 'com.itlongbow.hanzilearningapp.sub.monthly',
+  [SKU.monthly]: {
+    id: SKU.monthly,
     price: 4.99,
     icon: 'star',
   },
-  'com.itlongbow.hanzilearningapp.sub.quarterly': {
-    id: 'com.itlongbow.hanzilearningapp.sub.quarterly',
+  [SKU.quarterly]: {
+    id: SKU.quarterly,
     price: 12.99,
     icon: 'star-shooting',
   },
-  'com.itlongbow.hanzilearningapp.sub.yearly': {
-    id: 'com.itlongbow.hanzilearningapp.sub.yearly',
+  [SKU.yearly]: {
+    id: SKU.yearly,
     price: 39.99,
     icon: 'star-circle',
   },
-  'com.itlongbow.hanzilearningapp.sub.lifetime': {
-    id: 'com.itlongbow.hanzilearningapp.sub.lifetime',
+  [SKU.lifetime]: {
+    id: SKU.lifetime,
     price: 99.99,
     icon: 'crown',
   },
-} as const;
+};
 
 export const subscriptionSkus = IOS_SKUS;
 export const SUBSCRIPTION_KEY = 'subscriptionData'; // 添加订阅数据存储键

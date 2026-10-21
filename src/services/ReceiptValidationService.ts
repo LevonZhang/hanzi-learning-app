@@ -23,6 +23,13 @@ export class ReceiptValidationService {
   }
 
   private async sendVerificationRequest(url: string, receipt: string): Promise<any> {
+    if (!ENV.APP_SHARED_SECRET) {
+      throw new Error(
+        'APP_SHARED_SECRET is not configured. Set EXPO_PUBLIC_APP_SHARED_SECRET in .env, ' +
+        'or move receipt validation to a server (recommended, see README).'
+      );
+    }
+
     let retryCount = 0;
     
     while (retryCount < this.MAX_RETRIES) {

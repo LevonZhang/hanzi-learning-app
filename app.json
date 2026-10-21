@@ -17,7 +17,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.itlongbow.hanzilearningapp",
+      "bundleIdentifier": "com.example.hanzilearning",
       "buildNumber": "1",
       "privacyPolicyUrl": "https://hanzilearning.xyz/privacy",
       "eulaUrl": "https://hanzilearning.xyz/terms"
@@ -32,10 +32,10 @@
       "newArchEnabled": true
     },
     "android": {
-      "package": "com.itlongbow.hanzilearningapp"
+      "package": "com.example.hanzilearning"
     },
     "mac": {
-      "bundleIdentifier": "com.itlongbow.hanzilearningapp",
+      "bundleIdentifier": "com.example.hanzilearning",
       "backgroundColor": "#ffffff",
       "minWidth": 800,
       "minHeight": 600,

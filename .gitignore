@@ -4,7 +4,7 @@ node_modules/
 dist/
 ios/
 android/
-scripts/
+/scripts/
 screenshots/original/
 screenshots/processed/
 screenshots/README.md
@@ -67,5 +67,10 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
+
+# Local environment variables
+.env
+.env.local
+.env.*.local
 
 crash

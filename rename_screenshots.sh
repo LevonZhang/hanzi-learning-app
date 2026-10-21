@@ -1,2 +1,0 @@
-#!/bin/bash
-for dir in screenshots/*/original/; do [ -d "$dir" ] && i=1 && for f in "$dir"*.{png,jpg,jpeg}; do [ -f "$f" ] && ext="${f##*.}" && mv "$f" "${dir}${i}.${ext}" && echo "Renamed: $f -> ${i}.${ext}" && ((i++)); done; done

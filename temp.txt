@@ -1,6 +1,0 @@
-if (!character || character.trim() === "") {
-  console.error("Empty character provided");
-  Alert.alert(i18n.t("error"), i18n.t("loadCharacterError"));
-  navigation.goBack();
-  return;
-}

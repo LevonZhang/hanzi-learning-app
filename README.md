@@ -1,100 +1,117 @@
-# React Native IAP 集成说明
+# HanziLearning (字学堂)
 
-本项目使用 React Native IAP 库实现 iOS 应用内购买功能。以下是实现的主要组件和使用说明。
+A cross-platform Chinese-character learning app built with **Expo + React Native**, and — more usefully for other developers — a **runnable reference implementation of StoreKit 2 auto-renewable subscriptions in React Native**, including purchase, receipt validation, restore, and subscription-state synchronisation.
 
-## 安装依赖
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Expo SDK](https://img.shields.io/badge/Expo%20SDK-52-000?logo=expo)
+![Platforms](https://img.shields.io/badge/platforms-iOS%20%C2%B7%20Android%20%C2%B7%20macOS-blue)
+
+**English** · [简体中文](README.zh-CN.md)
+
+---
+
+## Status
+
+`v1.0.1` was completed and built for iOS, Android and macOS. The app is **no longer distributed through the App Store**; this repository is published as a reference for the learning features and, above all, for the subscription implementation.
+
+To be explicit about the numbers: **this project has not been released as a package, has no npm distribution, and therefore has no download metrics.** The value offered here is the code, not adoption statistics.
+
+## Features
+
+| Feature | Detail |
+|---|---|
+| Character learning | Stroke-order animation, handwriting practice, pinyin, meanings in 中文 / English / 日本語 |
+| Spaced repetition | Review intervals of 1 / 3 / 7 / 14 / 30 days, mastery level 0–5, mistake tracking |
+| Graded progression | HSK-ordered character sequence, with word-frequency-driven ordering for common characters |
+| Search | Look up any character directly, with stroke data fetched on demand |
+| Two mini-games | Bubble matching (word building) and pronunciation matching |
+| Stroke-order cards | Render a character to an image, then save to the photo library or share it |
+| Trilingual UI | Full i18n for Chinese, English and Japanese, including dictionary meanings |
+| Responsive layout | Phone, tablet and macOS window layouts from a single codebase |
+| Subscriptions | Four tiers (monthly / quarterly / yearly / lifetime) via StoreKit 2 |
+
+## The subscription layer
+
+This is the part most worth reading. StoreKit 2 auto-renewable subscriptions in a bare React Native / Expo project are thinly documented, and most sample code stops at "the purchase succeeded". This project splits the flow into six single-responsibility services:
+
+| File | Responsibility |
+|---|---|
+| `src/services/SubscriptionService.ts` | Public API and orchestration: product loading, purchase, restore, entitlement checks |
+| `src/services/TransactionProcessor.ts` | Handles purchase-updated events and calls `finishTransaction` correctly |
+| `src/services/ReceiptValidationService.ts` | Sends the receipt to `verifyReceipt` with retry and maps the response |
+| `src/services/SubscriptionValidationService.ts` | Validates a transaction / JWS payload against the sandbox or production endpoint |
+| `src/services/SubscriptionValidator.ts` | Expiry and entitlement rules, independent of the transport layer |
+| `src/services/SubscriptionStateManager.ts` | Persists and exposes subscription state |
+
+Two behaviours that are easy to get wrong, and are handled here:
+
+- **State reconciliation.** On launch, and again whenever the app returns to the foreground, `syncSubscriptionWithStoreKit()` re-reads the current entitlement from StoreKit rather than trusting cached state. This is what keeps a user who cancelled, refunded, or renewed outside the app from being shown the wrong screen.
+- **Error containment.** Purchase errors are intercepted and routed through a scoped logger instead of surfacing as raw `console.error` noise, which matters because StoreKit emits benign errors during normal flows.
+
+Entry point is `App.tsx`: `setup({ storekitMode: 'STOREKIT2_MODE' })` → `initConnection()` → `SubscriptionService.initialize()`.
+
+Detailed integration notes (Chinese): [`docs/iap-integration.md`](docs/iap-integration.md).
+
+## Tech stack
+
+Expo SDK 52 · React Native 0.76.7 · TypeScript · React Navigation 6 · `react-native-iap` 12 (StoreKit 2) · `hanzi-writer` · `cnchar` (+ order / draw / poly / words / voice) · `pinyin-pro` · `i18next` / `react-i18next` · `AsyncStorage` · `expo-speech` / `expo-av` · `react-native-view-shot` / `expo-media-library` / `expo-sharing` · New Architecture enabled
+
+## Project structure
+
+```
+App.tsx                  App entry: i18n + IAP init, subscription sync on foreground
+src/
+  components/            HanziWriter, StrokeOrderCard, games, responsive container
+  screens/               Learning, Review, Search, Games, Settings
+  navigation/            Bottom tabs + game / settings stacks
+  services/              Learning, dictionary, storage, stats and the subscription layer
+  data/                  Dictionary, HSK ordering, word-frequency dataset
+  i18n/                  zh / en / ja locale files
+  hooks/ theme/ types/ utils/
+```
+
+`ios/` and `android/` are intentionally not committed — they are generated by `expo prebuild`.
+
+## Getting started
 
 ```bash
-yarn add react-native-iap
-cd ios && pod install
+npm install
+npx expo start          # then press i / a, or scan the QR code
 ```
 
-## 核心组件
+For a native build, generate the native projects first:
 
-### 1. App.tsx
-
-应用根组件，使用 `withIAPContext` 包装器初始化 IAP 服务：
-
-```typescript
-import { withIAPContext, setup, initConnection, endConnection } from 'react-native-iap';
-
-// 在根组件useEffect中初始化
-useEffect(() => {
-  // 设置StoreKit2模式
-  setup({ storekitMode: 'STOREKIT2_MODE' });
-  
-  // 初始化连接
-  initConnection();
-  
-  return () => {
-    // 清理连接
-    endConnection();
-  };
-}, []);
-
-// 导出带IAP上下文的应用
-export default withIAPContext(App);
+```bash
+npx expo prebuild
+npx expo run:ios        # or: npx expo run:android
 ```
 
-### 2. SubscriptionService.ts
+## Configuration
 
-处理订阅购买、验证和状态管理的服务类：
+Before running the subscription flow against your own App Store Connect app:
 
-- 初始化 IAP 连接
-- 处理购买更新事件
-- 处理购买错误事件
-- 验证购买交易
-- 管理订阅状态
+1. Set your bundle identifier in **two** places — `app.json` (`ios.bundleIdentifier`, `android.package`) and `APP_BUNDLE_ID` in `src/config/env.ts`. Subscription SKUs are derived from `APP_BUNDLE_ID` (`.sub.monthly`, `.sub.quarterly`, `.sub.yearly`, `.sub.lifetime`), so create matching products in App Store Connect.
+2. Copy `.env.example` to `.env` and set `EXPO_PUBLIC_APP_SHARED_SECRET` for local receipt validation.
+3. The free tier limits live in `src/config/env.ts` (`FREE_CHAR_LIMIT`, `FREE_GAME_LEVEL_LIMIT`).
 
-### 3. SubscriptionValidationService.ts
+All identifiers in this repository are placeholders (`com.example.*`). No real team identifier, App Store ID, or credential is committed.
 
-处理订阅验证的服务类：
+## Known limitations
 
-- 验证iOS交易收据
-- 解析交易信息
+- **Receipt validation runs on the client.** `EXPO_PUBLIC_*` values are inlined into the bundle, so a shared secret shipped this way is not a secret. This was acceptable for a prototype; production use must validate receipts (or, preferably, verify StoreKit 2 JWS transactions) on a server. The client-side path is kept only so the flow remains readable end to end.
+- **Subscriptions are iOS-only.** Google Play Billing is not wired up; the Android build runs without a paywall.
+- **No automated tests.** Verification was manual, on device.
+- **Large data files.** `src/data/wordFrequencyData.json` is ~27 MB, which makes a fresh clone slow. Extracting it to Git LFS or downloading it at first run would be the fix.
+- **Not distributed.** The app is not currently on the App Store, and the original product domain is no longer active.
 
-## 使用方法
+## Third-party data
 
-### 1. 获取可用订阅产品
+The MIT license covers the source code. The bundled linguistic data keeps its own terms — check them before redistributing:
 
-```typescript
-import { getSubscriptions } from 'react-native-iap';
+- **CC-CEDICT** — dictionary source (`scripts/cedict_ts.u8`), licensed CC BY-SA. Derived dictionary data may inherit share-alike obligations.
+- **SUBTLEX-CH** — Chinese word-frequency corpus (`scripts/SUBTLEX-CH-WF.xlsx`). Academic use requires citation; confirm the terms before commercial use.
+- **cnchar**, **hanzi-writer**, **pinyin-pro** — MIT, consumed as npm dependencies.
 
-const subscriptions = await getSubscriptions({
-  skus: ['com.yourapp.monthly', 'com.yourapp.yearly']
-});
-```
+## License
 
-### 2. 购买订阅
-
-```typescript
-import SubscriptionService from './services/SubscriptionService';
-
-const subscriptionService = SubscriptionService.getInstance();
-await subscriptionService.purchaseSubscription('monthly');
-```
-
-### 3. 恢复订阅
-
-```typescript
-import SubscriptionService from './services/SubscriptionService';
-
-const subscriptionService = SubscriptionService.getInstance();
-await subscriptionService.restoreSubscriptions();
-```
-
-### 4. 检查订阅状态
-
-```typescript
-import SubscriptionService from './services/SubscriptionService';
-
-const subscriptionService = SubscriptionService.getInstance();
-await subscriptionService.checkSubscriptionStatus();
-```
-
-## 注意事项
-
-1. 需要在App Store Connect设置好应用内购买项目
-2. 订阅验证应当在服务器端完成，以确保安全性
-3. StoreKit2 模式需要 iOS 15+ 支持
-4. 处理交易时必须确保调用 `finishTransaction` 以完成交易 
+[MIT](LICENSE) © 2025-2026 Levon Zhang

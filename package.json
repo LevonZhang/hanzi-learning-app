@@ -1,6 +1,28 @@
 {
   "name": "hanzilearningapp",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "description": "Cross-platform Chinese-character learning app built with Expo + React Native, including a runnable StoreKit 2 subscription implementation.",
+  "keywords": [
+    "react-native",
+    "expo",
+    "storekit2",
+    "in-app-purchase",
+    "subscriptions",
+    "hanzi",
+    "chinese",
+    "language-learning",
+    "education"
+  ],
+  "license": "MIT",
+  "author": "Levon Zhang",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LevonZhang/hanzi-learning-app.git"
+  },
+  "homepage": "https://github.com/LevonZhang/hanzi-learning-app#readme",
+  "bugs": {
+    "url": "https://github.com/LevonZhang/hanzi-learning-app/issues"
+  },
   "scripts": {
     "start": "expo start --dev-client",
     "android": "expo run:android",
